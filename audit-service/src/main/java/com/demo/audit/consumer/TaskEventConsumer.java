@@ -1,0 +1,84 @@
+package com.demo.audit.consumer;
+
+import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.CommentAuditRecord;
+import com.demo.audit.model.PhaseAuditRecord;
+import com.demo.audit.repository.AuditRepository;
+import com.demo.audit.repository.CommentAuditRepository;
+import com.demo.audit.repository.PhaseAuditRepository;
+import com.demo.common.event.TaskChangedEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+
+/**
+ * Single consumer for all task change events.
+ * Routes each event to the appropriate audit store based on {@link TaskChangedEvent#getChangeType()}.
+ */
+@Component
+public class TaskEventConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(TaskEventConsumer.class);
+
+    private final AuditRepository auditRepository;
+    private final CommentAuditRepository commentAuditRepository;
+    private final PhaseAuditRepository phaseAuditRepository;
+
+    public TaskEventConsumer(AuditRepository auditRepository,
+                             CommentAuditRepository commentAuditRepository,
+                             PhaseAuditRepository phaseAuditRepository) {
+        this.auditRepository = auditRepository;
+        this.commentAuditRepository = commentAuditRepository;
+        this.phaseAuditRepository = phaseAuditRepository;
+    }
+
+    /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
+    @KafkaListener(topics = "task-changed", groupId = "audit-group")
+    public void consume(TaskChangedEvent event) {
+        log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
+
+        switch (event.getChangeType()) {
+            case STATUS_CHANGED -> persistStatusChange(event);
+            case COMMENT_ADDED  -> persistCommentChange(event);
+            case PHASE_CHANGED  -> persistPhaseChange(event);
+        }
+    }
+
+    private void persistStatusChange(TaskChangedEvent event) {
+        auditRepository.save(AuditRecord.builder()
+                .taskId(event.getTaskId())
+                .assignedUserId(event.getAssignedUserId())
+                .fromStatus(event.getFromStatus())
+                .toStatus(event.getToStatus())
+                .changedAt(event.getChangedAt())
+                .recordedAt(Instant.now())
+                .build());
+    }
+
+    private void persistCommentChange(TaskChangedEvent event) {
+        commentAuditRepository.save(CommentAuditRecord.builder()
+                .taskId(event.getTaskId())
+                .assignedUserId(event.getAssignedUserId())
+                .commentId(event.getCommentId())
+                .content(event.getCommentContent())
+                .addedAt(event.getChangedAt())
+                .recordedAt(Instant.now())
+                .build());
+    }
+
+    private void persistPhaseChange(TaskChangedEvent event) {
+        phaseAuditRepository.save(PhaseAuditRecord.builder()
+                .taskId(event.getTaskId())
+                .assignedUserId(event.getAssignedUserId())
+                .fromPhaseId(event.getFromPhaseId())
+                .fromPhaseName(event.getFromPhaseName())
+                .toPhaseId(event.getToPhaseId())
+                .toPhaseName(event.getToPhaseName())
+                .changedAt(event.getChangedAt())
+                .recordedAt(Instant.now())
+                .build());
+    }
+}

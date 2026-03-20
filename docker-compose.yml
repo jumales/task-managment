@@ -1,0 +1,89 @@
+services:
+
+  postgres:
+    build:
+      context: ./docker-images/postgres
+      dockerfile: Dockerfile
+    container_name: ms-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo123
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ms-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: ms-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - ms-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: ms-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"   # accessible from host (local dev)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # PLAINTEXT_HOST = reachable from host machine (localhost:9092)
+      # PLAINTEXT      = reachable inside Docker network (kafka:29092)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - ms-network
+
+  web-client:
+    build:
+      context: ./web-client
+      dockerfile: Dockerfile
+    container_name: ms-web-client
+    ports:
+      - "3000:80"
+    networks:
+      - ms-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: ms-keycloak
+    # start-dev + --import-realm imports any JSON found in /opt/keycloak/data/import/
+    # on first boot; skipped on subsequent starts if the realm already exists.
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./docker-images/keycloak/demo-realm.json:/opt/keycloak/data/import/demo-realm.json:ro
+    networks:
+      - ms-network
+
+volumes:
+  postgres-data:
+
+networks:
+  ms-network:
+    driver: bridge

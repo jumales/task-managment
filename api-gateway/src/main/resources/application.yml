@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+cors:
+  allowed-origins:
+    - "http://localhost:3000"
+    - "http://localhost:3001"
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: user-service-users
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+
+        - id: user-service-roles
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/roles/**
+
+        - id: user-service-rights
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/rights/**
+
+        - id: task-service-tasks
+          uri: lb://task-service
+          predicates:
+            - Path=/api/v1/tasks/**
+
+        - id: task-service-projects
+          uri: lb://task-service
+          predicates:
+            - Path=/api/v1/projects/**
+
+        - id: task-service-phases
+          uri: lb://task-service
+          predicates:
+            - Path=/api/v1/phases/**
+
+        - id: audit-service-audit
+          uri: lb://audit-service
+          predicates:
+            - Path=/api/v1/audit/**
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak issues tokens for the 'demo' realm; Spring fetches JWKS on startup
+          # and validates signatures locally — no round-trip to Keycloak per request.
+          issuer-uri: http://localhost:8180/realms/demo
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
