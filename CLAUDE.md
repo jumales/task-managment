@@ -1,3 +1,10 @@
+# Versioning Rules
+
+- **Never push directly to `main` or `master`** — direct pushes to protected branches are not allowed
+- **Every task gets its own branch** — before starting work, create a new branch from `main` (unless already on a feature branch that hasn't been merged/deleted)
+- **Branch naming** — use a short descriptive name in snake_case, e.g. `add_user_endpoint`, `fix_feign_auth`
+- **Open a PR when the task is done** — do not merge directly; create a pull request and wait for review
+
 # Adding new method
 - comment
 - write integration tests
