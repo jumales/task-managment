@@ -12,7 +12,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false  # SQL logging is available at DEBUG via logging.level.org.hibernate.SQL
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -40,3 +40,13 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0  # 100% sampling in dev; reduce in prod (e.g. 0.1)
+
+logging:
+  level:
+    com.demo.common.web: DEBUG        # controller param tracing + MDC filter
+    org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)

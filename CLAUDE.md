@@ -14,6 +14,17 @@
 - **Backward-compatible changes preferred** — add columns as nullable; never drop or rename a column in one step; use a multi-step deprecation (add → migrate data → drop in a later version)
 - **Partial unique indexes for soft-delete tables** — use `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` instead of `UNIQUE` constraints so soft-deleted rows do not block re-insertion
 
+# Creating a new service
+- **Enable controller logging** — add the following to the service's `application.yml` so all controller input parameters are traced via `ControllerLoggingAspect`:
+  ```yaml
+  logging:
+    level:
+      com.demo.common.web: DEBUG
+  ```
+- **Never use `show-sql: true`** — it always logs at INFO and produces unstructured output; use `logging.level.org.hibernate.SQL: DEBUG` instead so SQL is opt-in and JSON-structured
+- **Set tracing sampling** — add `management.tracing.sampling.probability: 1.0` for dev; reduce to `0.05`–`0.1` in prod
+- **Activate `logstash` profile in Docker** — add `spring.profiles.active=logstash` when running inside Docker so logs are shipped to Logstash via TCP in addition to stdout
+
 # Adding new method
 - comment
 - write integration tests
