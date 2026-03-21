@@ -9,7 +9,4 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     /** Returns true if a non-deleted user with the given username already exists. */
     boolean existsByUsername(String username);
-
-    /** Returns true if a non-deleted user other than {@code id} already holds the given username. */
-    boolean existsByUsernameAndIdNot(String username, UUID id);
 }

@@ -162,27 +162,15 @@ class UserControllerIT {
     }
 
     @Test
-    void updateUser_toTakenUsername_returns409() {
-        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
-        UserDto bob = restTemplate.postForEntity(
-                "/api/v1/users", request("Bob", "bob@demo.com", "bob"), UserDto.class).getBody();
-
-        UserRequest updateReq = request("Bob", "bob@demo.com", "alice");
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/users/" + bob.getId(), HttpMethod.PUT, new HttpEntity<>(updateReq), String.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-    }
-
-    @Test
-    void updateUser_keepingSameUsername_succeeds() {
+    void updateUser_usernameIsIgnored_remainsUnchanged() {
         UserDto alice = restTemplate.postForEntity(
                 "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
+        // Attempt to change username via update — must be silently ignored
         ResponseEntity<UserDto> response = restTemplate.exchange(
                 "/api/v1/users/" + alice.getId(),
                 HttpMethod.PUT,
-                new HttpEntity<>(request("Alice Updated", "alice@demo.com", "alice")),
+                new HttpEntity<>(request("Alice Updated", "alice@demo.com", "new_username")),
                 UserDto.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

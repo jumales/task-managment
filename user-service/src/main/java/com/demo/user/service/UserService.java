@@ -54,15 +54,11 @@ public class UserService {
         return toDto(userRepository.save(user));
     }
 
-    /** Updates name, email, username and active flag; throws {@link DuplicateResourceException} if username is taken by another user. */
+    /** Updates name, email and active flag. Username is immutable after creation and is ignored here. */
     public UserDto update(UUID id, UserRequest request) {
         User user = getOrThrow(id);
-        if (request.getUsername() != null && userRepository.existsByUsernameAndIdNot(request.getUsername(), id)) {
-            throw new DuplicateResourceException("Username already taken: " + request.getUsername());
-        }
         user.setName(request.getName());
         user.setEmail(request.getEmail());
-        user.setUsername(request.getUsername());
         user.setActive(request.isActive());
         return toDto(userRepository.save(user));
     }
