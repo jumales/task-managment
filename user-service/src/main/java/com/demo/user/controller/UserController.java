@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,7 +50,7 @@ public class UserController {
     @ApiResponse(responseCode = ResponseCode.CREATED, description = "User created")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserDto create(@RequestBody UserRequest request) {
+    public UserDto create(@RequestBody @Valid UserRequest request) {
         return service.create(request);
     }
 
@@ -61,7 +62,7 @@ public class UserController {
     })
     @PutMapping("/{id}")
     public UserDto update(@Parameter(description = "User UUID") @PathVariable UUID id,
-                          @RequestBody UserRequest request) {
+                          @RequestBody @Valid UserRequest request) {
         return service.update(id, request);
     }
 

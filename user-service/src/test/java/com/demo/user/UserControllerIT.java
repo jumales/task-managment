@@ -140,6 +140,32 @@ class UserControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    // ── email validation ─────────────────────────────────────────
+
+    @Test
+    void createUser_withInvalidEmail_returns400() {
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "not-an-email"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("email");
+    }
+
+    @Test
+    void updateUser_withInvalidEmail_returns400() {
+        UserDto alice = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(request("Alice", "not-an-email")),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("email");
+    }
+
     // ── username ─────────────────────────────────────────────────
 
     @Test

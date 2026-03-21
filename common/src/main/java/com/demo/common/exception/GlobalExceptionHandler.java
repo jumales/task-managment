@@ -3,6 +3,7 @@ package com.demo.common.exception;
 import com.demo.common.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +32,17 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleRelatedEntityActive(RelatedEntityActiveException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    /** Handles Bean Validation failures (e.g., invalid email format) and returns a 400 error response with all field errors. */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getField() + " " + e.getDefaultMessage())
+                .sorted()
+                .collect(java.util.stream.Collectors.joining(", "));
+        return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
     /** Handles {@link IllegalArgumentException} (e.g., invalid enum value) and returns a 400 error response. */
