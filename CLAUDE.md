@@ -25,6 +25,9 @@
 - **Set tracing sampling** — add `management.tracing.sampling.probability: 1.0` for dev; reduce to `0.05`–`0.1` in prod
 - **Activate `logstash` profile in Docker** — add `spring.profiles.active=logstash` when running inside Docker so logs are shipped to Logstash via TCP in addition to stdout
 
+# Cross-cutting components in `common`
+- **Write integration tests for every new class in `common`** — classes like `MdcFilter` and `ControllerLoggingAspect` are shared by all services; test them in `task-service` using the standard `@SpringBootTest` + Testcontainers setup
+
 # Adding new method
 - comment
 - write integration tests
