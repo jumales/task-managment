@@ -10,9 +10,7 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      # Testcontainers manages its own containers, but Docker must be available on the runner.
-      # ubuntu-latest already has Docker — no extra service needed here.
+    # Testcontainers manages its own containers; ubuntu-latest already has Docker.
 
     steps:
       - name: Checkout
