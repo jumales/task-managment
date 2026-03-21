@@ -4,7 +4,8 @@
 - **Every task gets its own branch** — before starting work, create a new branch from `main` (unless already on a feature branch that hasn't been merged/deleted)
 - **Branch naming** — use a short descriptive name in snake_case, e.g. `add_user_endpoint`, `fix_feign_auth`
 - **Open a PR when the task is done** — do not merge directly; create a pull request and wait for review
-- **Clean build before every push** — run `mvn clean install -DskipTests=false` from the project root and confirm it passes before every `git push`; a failing build must be fixed first before pushing
+- **Clean build before every push** — run `mvn clean install -DskipTests=true` from the project root and confirm it passes before every `git push`; tests run automatically via GitHub Actions on every push
+- **Check CI after pushing** — run `gh run watch` to follow the GitHub Actions run, or `gh run list` to see recent results; a failing CI run must be fixed before opening or merging a PR
 
 # Database Schema Changes
 
