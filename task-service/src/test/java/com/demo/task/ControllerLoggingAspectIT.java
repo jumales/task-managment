@@ -25,12 +25,14 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.context.annotation.Import;
 
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+@Import(TestSecurityConfig.class)
 @Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -65,7 +67,7 @@ class ControllerLoggingAspectIT {
         repository.deleteAll();
         projectRepository.deleteAll();
 
-        when(userClient.getUserById(USER_ID)).thenReturn(new UserDto(USER_ID, "Alice", "alice@demo.com", null));
+        when(userClient.getUserById(USER_ID)).thenReturn(new UserDto(USER_ID, "Alice", "alice@demo.com", null, true, null));
 
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");

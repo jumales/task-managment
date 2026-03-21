@@ -40,20 +40,26 @@ public class UserService {
         return toDto(getOrThrow(id));
     }
 
-    /** Creates and persists a new user from the given request. */
+    /** Creates and persists a new user; throws {@link DuplicateResourceException} if the username is already taken. */
     public UserDto create(UserRequest request) {
+        if (request.getUsername() != null && userRepository.existsByUsername(request.getUsername())) {
+            throw new DuplicateResourceException("Username already taken: " + request.getUsername());
+        }
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
+                .username(request.getUsername())
+                .active(true) // new users are always active
                 .build();
         return toDto(userRepository.save(user));
     }
 
-    /** Updates the name and email of the user identified by {@code id}. */
+    /** Updates name, email and active flag. Username is immutable after creation and is ignored here. */
     public UserDto update(UUID id, UserRequest request) {
         User user = getOrThrow(id);
         user.setName(request.getName());
         user.setEmail(request.getEmail());
+        user.setActive(request.isActive());
         return toDto(userRepository.save(user));
     }
 
@@ -106,6 +112,6 @@ public class UserService {
         var roles = userRoleRepository.findByUser(user).stream()
                 .map(ur -> roleService.toDto(ur.getRole()))
                 .toList();
-        return new UserDto(user.getId(), user.getName(), user.getEmail(), roles);
+        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getUsername(), user.isActive(), roles);
     }
 }

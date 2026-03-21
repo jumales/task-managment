@@ -25,5 +25,11 @@ public class User {
     private String name;
     private String email;
 
+    /** Unique login handle; nullable for accounts created before this field was introduced. */
+    private String username;
+
+    /** Whether the account is active. Defaults to true on creation. */
+    private boolean active;
+
     private Instant deletedAt;
 }

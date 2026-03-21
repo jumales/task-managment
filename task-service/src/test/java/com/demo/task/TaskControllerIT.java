@@ -20,6 +20,7 @@ import org.springframework.http.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.context.annotation.Import;
 
 import java.util.UUID;
 
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+@Import(TestSecurityConfig.class)
 @Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -62,8 +64,8 @@ class TaskControllerIT {
         repository.deleteAll();
         projectRepository.deleteAll();
 
-        alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null);
-        bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null);
+        alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null);
+        bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null);
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
         when(userClient.getUserById(BOB_ID)).thenReturn(bob);

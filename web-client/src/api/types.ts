@@ -5,6 +5,8 @@ export interface UserDto {
   id: string;
   name: string;
   email: string;
+  username: string | null;
+  active: boolean;
 }
 
 export interface TaskProjectResponse {
@@ -60,6 +62,8 @@ export interface UserResponse {
   id: string;
   name: string;
   email: string;
+  username: string | null;
+  active: boolean;
   roles: RoleDto[];
 }
 

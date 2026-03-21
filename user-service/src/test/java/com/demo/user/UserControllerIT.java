@@ -7,9 +7,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -24,6 +29,20 @@ import static org.assertj.core.api.Assertions.assertThat;
         properties = "eureka.client.enabled=false"
 )
 class UserControllerIT {
+
+    /** Overrides production security — permits all requests so tests don't need JWT tokens. */
+    @TestConfiguration
+    static class TestSecurityConfig {
+        @Bean
+        @Order(1)
+        public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
+            return http
+                    .securityMatcher("/**")
+                    .csrf(csrf -> csrf.disable())
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .build();
+        }
+    }
 
     @Container
     @ServiceConnection
@@ -140,12 +159,105 @@ class UserControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    // ── email validation ─────────────────────────────────────────
+
+    @Test
+    void createUser_withInvalidEmail_returns400() {
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "not-an-email"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("email");
+    }
+
+    @Test
+    void updateUser_withInvalidEmail_returns400() {
+        UserDto alice = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(request("Alice", "not-an-email")),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("email");
+    }
+
+    // ── username ─────────────────────────────────────────────────
+
+    @Test
+    void createUser_withUsername_persistsUsername() {
+        ResponseEntity<UserDto> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getUsername()).isEqualTo("alice");
+    }
+
+    @Test
+    void createUser_duplicateUsername_returns409() {
+        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice2", "alice2@demo.com", "alice"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void updateUser_usernameIsIgnored_remainsUnchanged() {
+        UserDto alice = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
+
+        // Attempt to change username via update — must be silently ignored
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(request("Alice Updated", "alice@demo.com", "new_username")),
+                UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getUsername()).isEqualTo("alice");
+    }
+
+    // ── active ───────────────────────────────────────────────────
+
+    @Test
+    void createUser_isActiveByDefault() {
+        ResponseEntity<UserDto> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class);
+
+        assertThat(response.getBody().isActive()).isTrue();
+    }
+
+    @Test
+    void updateUser_canDeactivateUser() {
+        UserDto alice = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+
+        UserRequest deactivate = request("Alice", "alice@demo.com");
+        deactivate.setActive(false);
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId(), HttpMethod.PUT, new HttpEntity<>(deactivate), UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isActive()).isFalse();
+    }
+
     // ── Helper ────────────────────────────────────────────────────
 
     private UserRequest request(String name, String email) {
         UserRequest req = new UserRequest();
         req.setName(name);
         req.setEmail(email);
+        return req;
+    }
+
+    private UserRequest request(String name, String email, String username) {
+        UserRequest req = request(name, email);
+        req.setUsername(username);
         return req;
     }
 }

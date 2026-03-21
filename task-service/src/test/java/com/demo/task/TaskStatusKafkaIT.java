@@ -24,6 +24,7 @@ import org.springframework.http.HttpMethod;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.when;
 
+@Import(TestSecurityConfig.class)
 @Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -73,7 +75,7 @@ class TaskStatusKafkaIT {
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
-                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null));
+                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null));
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
