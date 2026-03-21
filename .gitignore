@@ -4,4 +4,8 @@
 /common/target/
 /eureka-server/target/
 /task-service/target/
-/user-service/target/.claude/settings.local.json
+/user-service/target/
+.claude/settings.local.json
+
+# Web client
+web-client/node_modules/

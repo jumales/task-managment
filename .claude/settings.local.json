@@ -9,7 +9,15 @@
       "Bash(docker compose:*)",
       "Bash(npm install:*)",
       "Bash(npx vitest:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Skill(update-config)",
+      "Bash(bash -c 'git checkout main && git pull origin main')",
+      "Bash(echo \"exit: $?\")",
+      "Bash(jq:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(mvn clean:*)"
     ]
   }
 }
