@@ -5,9 +5,17 @@ import { getUsers } from '../api/userApi';
 import type { UserResponse, RoleDto } from '../api/types';
 
 const COLUMNS: ColumnsType<UserResponse> = [
-  { title: 'Name',  dataIndex: 'name',  key: 'name' },
-  { title: 'Email', dataIndex: 'email', key: 'email' },
-  { title: 'Roles', dataIndex: 'roles', key: 'roles',
+  { title: 'Name',     dataIndex: 'name',     key: 'name' },
+  { title: 'Username', dataIndex: 'username', key: 'username',
+    render: (v: string | null) => v ?? '—',
+  },
+  { title: 'Email',    dataIndex: 'email',    key: 'email' },
+  { title: 'Active',   dataIndex: 'active',   key: 'active',
+    render: (v: boolean) => (
+      <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Tag>
+    ),
+  },
+  { title: 'Roles',    dataIndex: 'roles',    key: 'roles',
     render: (roles: RoleDto[]) =>
       roles.map((r) => <Tag key={r.id}>{r.name}</Tag>),
   },

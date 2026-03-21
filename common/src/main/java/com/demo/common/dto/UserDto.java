@@ -12,5 +12,7 @@ public class UserDto {
     private UUID id;
     private String name;
     private String email;
+    private String username;
+    private boolean active;
     private List<RoleDto> roles;
 }

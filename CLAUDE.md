@@ -29,6 +29,14 @@
 # Cross-cutting components in `common`
 - **Write integration tests for every new class in `common`** — classes like `MdcFilter` and `ControllerLoggingAspect` are shared by all services; test them in `task-service` using the standard `@SpringBootTest` + Testcontainers setup
 
+# Extending existing entity
+- **Flyway migration** — add new columns as nullable or with a DEFAULT for backward compatibility; never edit existing migrations
+- **Update entity, DTOs, and service** — entity fields, request/response DTOs in `common`, and all service create/update methods
+- **Validate uniqueness at service boundary** — use `existsByField` and `existsByFieldAndIdNot` repository methods for unique fields; throw `DuplicateResourceException`
+- **Update all constructor call sites** — DTOs using `@AllArgsConstructor` change their constructor signature; search for `new DtoName(` across the whole codebase and update every occurrence
+- **Update web client** — add new fields to TypeScript interfaces (`types.ts`) and update relevant UI components
+- **Write integration tests** — cover new field persistence, uniqueness constraint enforcement, and update behavior
+
 # Adding new method
 - comment
 - write integration tests

@@ -65,7 +65,7 @@ class ControllerLoggingAspectIT {
         repository.deleteAll();
         projectRepository.deleteAll();
 
-        when(userClient.getUserById(USER_ID)).thenReturn(new UserDto(USER_ID, "Alice", "alice@demo.com", null));
+        when(userClient.getUserById(USER_ID)).thenReturn(new UserDto(USER_ID, "Alice", "alice@demo.com", null, true, null));
 
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");

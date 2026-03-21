@@ -140,12 +140,91 @@ class UserControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    // ── username ─────────────────────────────────────────────────
+
+    @Test
+    void createUser_withUsername_persistsUsername() {
+        ResponseEntity<UserDto> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getUsername()).isEqualTo("alice");
+    }
+
+    @Test
+    void createUser_duplicateUsername_returns409() {
+        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice2", "alice2@demo.com", "alice"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void updateUser_toTakenUsername_returns409() {
+        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+        UserDto bob = restTemplate.postForEntity(
+                "/api/v1/users", request("Bob", "bob@demo.com", "bob"), UserDto.class).getBody();
+
+        UserRequest updateReq = request("Bob", "bob@demo.com", "alice");
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + bob.getId(), HttpMethod.PUT, new HttpEntity<>(updateReq), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void updateUser_keepingSameUsername_succeeds() {
+        UserDto alice = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
+
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(request("Alice Updated", "alice@demo.com", "alice")),
+                UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getUsername()).isEqualTo("alice");
+    }
+
+    // ── active ───────────────────────────────────────────────────
+
+    @Test
+    void createUser_isActiveByDefault() {
+        ResponseEntity<UserDto> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class);
+
+        assertThat(response.getBody().isActive()).isTrue();
+    }
+
+    @Test
+    void updateUser_canDeactivateUser() {
+        UserDto alice = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+
+        UserRequest deactivate = request("Alice", "alice@demo.com");
+        deactivate.setActive(false);
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId(), HttpMethod.PUT, new HttpEntity<>(deactivate), UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isActive()).isFalse();
+    }
+
     // ── Helper ────────────────────────────────────────────────────
 
     private UserRequest request(String name, String email) {
         UserRequest req = new UserRequest();
         req.setName(name);
         req.setEmail(email);
+        return req;
+    }
+
+    private UserRequest request(String name, String email, String username) {
+        UserRequest req = request(name, email);
+        req.setUsername(username);
         return req;
     }
 }
