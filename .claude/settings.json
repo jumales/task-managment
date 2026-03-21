@@ -9,6 +9,16 @@
             "statusMessage": "Pulling latest from main..."
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "prompt=$(jq -r '.prompt'); if echo \"$prompt\" | grep -qi 'job done'; then git push && gh run watch $(gh run list --limit 1 --json databaseId -q '.[0].databaseId') 2>/dev/null || true; fi",
+            "statusMessage": "Pushing and watching CI...",
+            "timeout": 600
+          }
+        ]
       }
     ],
     "SessionStart": [
