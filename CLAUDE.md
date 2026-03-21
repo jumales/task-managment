@@ -5,6 +5,15 @@
 - **Branch naming** — use a short descriptive name in snake_case, e.g. `add_user_endpoint`, `fix_feign_auth`
 - **Open a PR when the task is done** — do not merge directly; create a pull request and wait for review
 
+# Database Schema Changes
+
+- **Use Flyway for all schema changes** — never modify the database manually or rely on `spring.jpa.hibernate.ddl-auto: update`; production services use `validate`
+- **Migration files are immutable** — once a migration is merged to `main`, never edit it; create a new versioned file instead
+- **Naming convention** — `V{n}__{short_description}.sql`, e.g. `V2__add_due_date_to_tasks.sql`
+- **Each service owns its schema** — no migration file may create or alter tables that belong to another service
+- **Backward-compatible changes preferred** — add columns as nullable; never drop or rename a column in one step; use a multi-step deprecation (add → migrate data → drop in a later version)
+- **Partial unique indexes for soft-delete tables** — use `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` instead of `UNIQUE` constraints so soft-deleted rows do not block re-insertion
+
 # Adding new method
 - comment
 - write integration tests
