@@ -114,7 +114,7 @@ cat <<'BANNER'
   │  Eureka    http://localhost:8761         │
   │  Gateway   http://localhost:8080         │
   │  Keycloak  http://localhost:8180         │
-  │  Web app   http://localhost:5173         │
+  │  Web app   http://localhost:3000         │
   │  Kibana    http://localhost:5601         │
   └─────────────────────────────────────────┘
 
