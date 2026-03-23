@@ -139,6 +139,19 @@ export const handlers = [
     return HttpResponse.json({ ...mockUser, id: params.id as string });
   }),
 
+  http.post('*/api/v1/users', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      { ...mockUser, id: 'user-new', name: body.name as string, email: body.email as string, username: body.username ?? null },
+      { status: 201 },
+    );
+  }),
+
+  http.put('*/api/v1/users/:id', async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({ ...mockUser, id: params.id as string, name: body.name as string, email: body.email as string, active: body.active as boolean });
+  }),
+
   // Audit
   http.get('*/api/v1/audit/tasks/:taskId/statuses', () => {
     return HttpResponse.json([mockAuditRecord]);

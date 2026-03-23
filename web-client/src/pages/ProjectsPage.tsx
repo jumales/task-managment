@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Table, Typography, Alert, Spin, Button, Modal, Form, Input, Popconfirm } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { getProjects, createProject, deleteProject } from '../api/taskApi';
+import { useAuth } from '../auth/AuthProvider';
 import type { TaskProjectResponse } from '../api/types';
 
-/** Displays all projects and allows creating and deleting them. */
+/** Displays all projects. Admins can create and delete projects. */
 export function ProjectsPage() {
+  const { isAdmin } = useAuth();
   const [projects,   setProjects]   = useState<TaskProjectResponse[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
@@ -63,9 +65,9 @@ export function ProjectsPage() {
     { title: 'Name',        dataIndex: 'name',        key: 'name' },
     { title: 'Description', dataIndex: 'description', key: 'description',
       render: (v: string) => v || '—' },
-    {
+    ...(isAdmin ? [{
       title: 'Actions', key: 'actions',
-      render: (_, record) => (
+      render: (_: unknown, record: TaskProjectResponse) => (
         <Popconfirm
           title="Delete project?"
           description="This action cannot be undone."
@@ -76,7 +78,7 @@ export function ProjectsPage() {
           <Button danger size="small" loading={deletingId === record.id}>Delete</Button>
         </Popconfirm>
       ),
-    },
+    }] : []),
   ];
 
   if (loading) return <Spin />;
@@ -86,7 +88,7 @@ export function ProjectsPage() {
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Projects</Typography.Title>
-        <Button type="primary" onClick={openModal}>New Project</Button>
+        {isAdmin && <Button type="primary" onClick={openModal}>New Project</Button>}
       </div>
 
       <Table rowKey="id" dataSource={projects} columns={columns} pagination={{ pageSize: 20 }} />

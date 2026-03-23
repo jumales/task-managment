@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { server } from '../test/mocks/server';
 import { mockProject } from '../test/mocks/handlers';
 import { ProjectsPage } from './ProjectsPage';
+import { AuthProvider } from '../auth/AuthProvider';
 
 // ---------------------------------------------------------------------------
 // MSW lifecycle
@@ -16,12 +17,14 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 // ---------------------------------------------------------------------------
-// Helper: render ProjectsPage inside a router
+// Helper: render ProjectsPage with auth context and router
 // ---------------------------------------------------------------------------
 function renderProjectsPage() {
   return render(
     <MemoryRouter>
-      <ProjectsPage />
+      <AuthProvider>
+        <ProjectsPage />
+      </AuthProvider>
     </MemoryRouter>,
   );
 }

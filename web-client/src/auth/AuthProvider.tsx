@@ -4,6 +4,8 @@ import keycloak from './keycloak';
 interface AuthContextValue {
   /** Display name from the Keycloak token. */
   username: string;
+  /** True when the current user has the ADMIN realm role in Keycloak. */
+  isAdmin: boolean;
   /** Logs out and redirects to the Keycloak logout page. */
   logout: () => void;
 }
@@ -26,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         username: keycloak.tokenParsed?.preferred_username ?? '',
+        isAdmin: (keycloak.tokenParsed?.realm_access?.roles ?? []).includes('ADMIN'),
         logout: () => keycloak.logout(),
       }}
     >

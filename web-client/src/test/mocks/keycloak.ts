@@ -6,7 +6,7 @@
  */
 export default class KeycloakMock {
   token = 'mock-token';
-  tokenParsed = { preferred_username: 'test-user' };
+  tokenParsed = { preferred_username: 'test-user', realm_access: { roles: ['ADMIN'] } };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(_config?: unknown) {}
