@@ -9,6 +9,9 @@ spring:
     username: user_svc
     password: user_svc_pass
     driver-class-name: org.postgresql.Driver
+  flyway:
+    baseline-on-migrate: true  # handle pre-existing schema with no flyway_schema_history table
+
   jpa:
     hibernate:
       ddl-auto: validate

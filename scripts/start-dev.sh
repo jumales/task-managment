@@ -5,6 +5,8 @@
 # Usage:
 #   ./scripts/start-dev.sh                      # start everything
 #   ./scripts/start-dev.sh --no-elk             # skip Elasticsearch / Logstash / Kibana (saves ~1 GB RAM)
+#   ./scripts/start-dev.sh --docker-only        # start Docker infrastructure only (no service terminals)
+#   ./scripts/start-dev.sh --docker-only --no-elk  # Docker only, skip ELK
 #   ./scripts/start-dev.sh --restart <service>  # kill & reopen one service terminal
 #
 # Valid service names for --restart:
@@ -15,10 +17,12 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKIP_ELK=false
 RESTART_SERVICE=""
+DOCKER_ONLY=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-elk)        SKIP_ELK=true ;;
+    --docker-only)   DOCKER_ONLY=true ;;
     --restart)       RESTART_SERVICE="${2:-}"; shift ;;
     *) ;;
   esac
@@ -145,6 +149,26 @@ until docker inspect --format='{{.State.Health.Status}}' ms-kafka 2>/dev/null | 
   sleep 3
 done
 log "Kafka is healthy."
+
+# ── Docker-only mode: exit after infrastructure is healthy ────────────────────
+
+if [[ "$DOCKER_ONLY" == true ]]; then
+  log "Docker-only mode — infrastructure is up. Skipping service terminals."
+  cat <<'BANNER'
+
+  ┌─────────────────────────────────────────┐
+  │  Docker infrastructure is running       │
+  │                                         │
+  │  Keycloak  http://localhost:8180         │
+  │  Kibana    http://localhost:5601         │
+  └─────────────────────────────────────────┘
+
+  Start services:  ./scripts/start-dev.sh
+  Stop infra:      ./scripts/stop-dev.sh
+
+BANNER
+  exit 0
+fi
 
 # ── Step 3: Eureka Server (service registry — must start first) ───────────────
 
