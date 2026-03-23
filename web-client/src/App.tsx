@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
+import { DashboardPage } from './pages/DashboardPage';
 import { TasksPage } from './pages/TasksPage';
 import { UsersPage } from './pages/UsersPage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -10,10 +11,11 @@ export default function App() {
     <BrowserRouter>
       <AppLayout>
         <Routes>
-          <Route path="/tasks"    element={<TasksPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/users"    element={<UsersPage />} />
-          <Route path="*"         element={<Navigate to="/tasks" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/tasks"     element={<TasksPage />} />
+          <Route path="/projects"  element={<ProjectsPage />} />
+          <Route path="/users"     element={<UsersPage />} />
+          <Route path="*"          element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AppLayout>
     </BrowserRouter>
