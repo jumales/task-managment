@@ -108,6 +108,14 @@ describe('TasksPage', () => {
 
   it('shows validation errors when the form is submitted empty', async () => {
     const user = userEvent.setup();
+
+    // Override to return multiple projects so neither is auto-selected
+    server.use(
+      http.get('*/api/v1/projects', () =>
+        HttpResponse.json([mockProject, { id: 'proj-2', name: 'Beta Project', description: '' }]),
+      ),
+    );
+
     renderTasksPage();
 
     await waitFor(() => screen.getByText(mockTask.title));
@@ -201,6 +209,27 @@ describe('TasksPage', () => {
     await waitFor(() => screen.getByText(mockTask.title));
 
     expect(screen.getByRole('heading', { name: /^tasks$/i })).toBeInTheDocument();
+  });
+
+  it('auto-selects project and user when only one option exists', async () => {
+    const user = userEvent.setup();
+    renderTasksPage();
+
+    await waitFor(() => screen.getByText(mockTask.title));
+
+    // Default handlers return exactly one project and one user
+    await user.click(screen.getByRole('button', { name: /new task/i }));
+    await waitFor(() => screen.getByText('Create Task'));
+
+    // Both selects should be pre-filled
+    await waitFor(() => {
+      const projectSelect = screen.getByLabelText('Project').closest('.ant-select');
+      expect(projectSelect?.querySelector('.ant-select-selection-item')?.textContent?.trim()).toBe(mockProject.name);
+    });
+
+    const userSelect = screen.getByLabelText('Assign to').closest('.ant-select');
+    // Two users in default handlers — should NOT be auto-selected
+    expect(userSelect?.querySelector('.ant-select-selection-item')).toBeNull();
   });
 
   it('opens the Edit Task modal pre-filled when "Edit" is clicked', async () => {

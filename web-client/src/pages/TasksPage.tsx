@@ -57,11 +57,18 @@ export function TasksPage() {
     refreshDropdowns();
   }, []);
 
-  /** Opens the modal in create mode. */
+  /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
   const openCreateModal = () => {
     setEditingTask(null);
     form.resetFields();
-    refreshDropdowns();
+    Promise.all([getProjects(), getUsers()])
+      .then(([fetchedProjects, fetchedUsers]) => {
+        setProjects(fetchedProjects);
+        setUsers(fetchedUsers);
+        if (fetchedProjects.length === 1) form.setFieldValue('projectId',      fetchedProjects[0].id);
+        if (fetchedUsers.length    === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
+      })
+      .catch(() => setError('Failed to load options.'));
     setModalOpen(true);
   };
 
