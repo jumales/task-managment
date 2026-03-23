@@ -20,6 +20,8 @@ export const mockUser: UserResponse = {
   id: 'user-1',
   name: 'Alice Smith',
   email: 'alice@example.com',
+  username: 'alice',
+  active: true,
   roles: [
     { id: 'role-1', name: 'ADMIN', description: 'Administrator' },
   ],
@@ -29,6 +31,8 @@ export const mockUser2: UserResponse = {
   id: 'user-2',
   name: 'Bob Jones',
   email: 'bob@example.com',
+  username: 'bob',
+  active: true,
   roles: [
     { id: 'role-2', name: 'DEVELOPER', description: 'Developer' },
   ],
@@ -111,6 +115,19 @@ export const handlers = [
       { id: 'proj-new', name: body.name as string, description: (body.description as string) ?? '' },
       { status: 201 },
     );
+  }),
+
+  http.put('*/api/v1/projects/:id', async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: params.id as string,
+      name: body.name as string,
+      description: (body.description as string) ?? '',
+    });
+  }),
+
+  http.delete('*/api/v1/projects/:id', () => {
+    return new HttpResponse(null, { status: 204 });
   }),
 
   // Users

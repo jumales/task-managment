@@ -6,7 +6,8 @@ const { Header, Content } = Layout;
 
 const NAV_ITEMS = [
   { key: '/tasks',    label: 'Tasks' },
-  { key: '/users',   label: 'Users' },
+  { key: '/projects', label: 'Projects' },
+  { key: '/users',    label: 'Users' },
 ];
 
 /** Main application shell with top navigation and user logout. */
