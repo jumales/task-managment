@@ -52,6 +52,13 @@ export interface TaskProjectRequest {
   description: string;
 }
 
+export interface UserRequest {
+  name: string;
+  email: string;
+  username?: string | null;
+  active: boolean;
+}
+
 export interface RoleDto {
   id: string;
   name: string;

@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.1.0",
     "antd": "^5.17.0",
     "axios": "^1.7.2",
     "keycloak-js": "^24.0.4",

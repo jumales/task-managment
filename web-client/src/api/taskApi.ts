@@ -43,3 +43,13 @@ export function getProjects() {
 export function createProject(request: TaskProjectRequest) {
   return apiClient.post<TaskProjectResponse>(PROJECTS_URL, request).then((r) => r.data);
 }
+
+/** Updates an existing project. */
+export function updateProject(id: string, request: TaskProjectRequest) {
+  return apiClient.put<TaskProjectResponse>(`${PROJECTS_URL}/${id}`, request).then((r) => r.data);
+}
+
+/** Soft-deletes a project. */
+export function deleteProject(id: string) {
+  return apiClient.delete(`${PROJECTS_URL}/${id}`);
+}
