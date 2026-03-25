@@ -41,6 +41,7 @@
 
 # Creating a new service
 - **Write integration tests** — every new service must have a `*IT.java` test class covering all controller endpoints; follow the pattern in `user-service/src/test` (Testcontainers Postgres + `@TestConfiguration` security bypass that permits all requests)
+- **Fix Testcontainers Docker API version** — create `src/test/resources/docker-java.properties` in the new service with `api.version=1.47`; without it Testcontainers falls back to API 1.32 which Docker Desktop 29+ rejects with HTTP 400 (full details in `learning/testcontainers-issue.md`)
 - **External dependencies in tests** — if the service depends on an external system (e.g. MinIO, Redis), spin it up with a `GenericContainer` in the IT class, use `@DynamicPropertySource` to inject the URL, and do any required initialization (e.g. bucket creation) in `@BeforeAll`
 - **Enable controller logging** — add the following to the service's `application.yml` so all controller input parameters are traced via `ControllerLoggingAspect`:
   ```yaml
