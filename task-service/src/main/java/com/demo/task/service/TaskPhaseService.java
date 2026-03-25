@@ -72,6 +72,11 @@ public class TaskPhaseService {
         phaseRepository.deleteById(id);
     }
 
+    /** Returns raw entities for all given IDs; missing IDs are silently skipped. Package-private for batch loading in TaskService list responses. */
+    List<TaskPhase> findAllByIds(Iterable<UUID> ids) {
+        return phaseRepository.findAllById(ids);
+    }
+
     /** Returns the default phase for the given project, if one exists. */
     Optional<TaskPhase> findDefaultForProject(UUID projectId) {
         return phaseRepository.findByProjectIdAndIsDefaultTrue(projectId);

@@ -59,6 +59,11 @@ public class TaskProjectService {
         repository.deleteById(id);
     }
 
+    /** Returns raw entities for all given IDs; missing IDs are silently skipped. Package-private for batch loading in TaskService list responses. */
+    List<TaskProject> findAllByIds(Iterable<UUID> ids) {
+        return repository.findAllById(ids);
+    }
+
     /** Returns the raw {@link com.demo.task.model.TaskProject} entity, or throws {@link com.demo.common.exception.ResourceNotFoundException}. Package-private for use by {@link com.demo.task.service.TaskService}. */
     TaskProject getOrThrow(UUID id) {
         return repository.findById(id)

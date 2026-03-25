@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface TaskCommentRepository extends JpaRepository<TaskComment, UUID> {
     /** Returns all non-deleted comments for a task ordered by creation time ascending. */
     List<TaskComment> findByTaskIdOrderByCreatedAtAsc(UUID taskId);
+    /** Returns all non-deleted comments for a set of tasks — used for batch loading in list responses. */
+    List<TaskComment> findByTaskIdIn(Iterable<UUID> taskIds);
     /** Returns {@code true} if the task has at least one non-deleted comment. */
     boolean existsByTaskId(UUID taskId);
 

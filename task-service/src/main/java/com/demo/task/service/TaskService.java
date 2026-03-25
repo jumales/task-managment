@@ -17,6 +17,7 @@ import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.Task;
 import com.demo.task.model.TaskComment;
 import com.demo.task.model.TaskPhase;
+import com.demo.task.model.TaskProject;
 import com.demo.task.outbox.OutboxPublisher;
 import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCommentRepository;
@@ -28,12 +29,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class TaskService {
+
+    private static final String AGGREGATE_TYPE = "Task";
 
     private final TaskRepository repository;
     private final TaskCommentRepository commentRepository;
@@ -61,7 +68,7 @@ public class TaskService {
 
     /** Returns all tasks. */
     public List<TaskResponse> findAll() {
-        return repository.findAll().stream().map(this::toResponse).toList();
+        return toResponseList(repository.findAll());
     }
 
     /** Returns the task with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
@@ -71,7 +78,7 @@ public class TaskService {
 
     /** Returns all tasks assigned to the specified user. */
     public List<TaskResponse> findByUser(UUID userId) {
-        return repository.findByAssignedUserId(userId).stream().map(this::toResponse).toList();
+        return toResponseList(repository.findByAssignedUserId(userId));
     }
 
     /**
@@ -80,13 +87,13 @@ public class TaskService {
      * @param status string representation of {@link TaskStatus}
      */
     public List<TaskResponse> findByStatus(String status) {
-        return repository.findByStatus(TaskStatus.valueOf(status.toUpperCase())).stream().map(this::toResponse).toList();
+        return toResponseList(repository.findByStatus(TaskStatus.valueOf(status.toUpperCase())));
     }
 
     /** Returns all tasks belonging to the specified project. */
     public List<TaskResponse> findByProject(UUID projectId) {
         projectService.getOrThrow(projectId);
-        return repository.findByProjectId(projectId).stream().map(this::toResponse).toList();
+        return toResponseList(repository.findByProjectId(projectId));
     }
 
     /** Creates a new task, resolving the phase and validating the assigned user and project. */
@@ -114,25 +121,31 @@ public class TaskService {
         Task task = getOrThrow(id);
 
         TaskStatus oldStatus = task.getStatus();
-        TaskStatus newStatus = request.getStatus();
         UUID oldPhaseId = task.getPhaseId();
-        UUID newPhaseId = request.getPhaseId();
 
         if (!task.getProjectId().equals(request.getProjectId())) {
             projectService.getOrThrow(request.getProjectId());
         }
-        if (newPhaseId != null && !newPhaseId.equals(oldPhaseId)) {
-            phaseService.getOrThrow(newPhaseId);
+        if (request.getPhaseId() != null && !request.getPhaseId().equals(oldPhaseId)) {
+            phaseService.getOrThrow(request.getPhaseId());
         }
 
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
-        task.setStatus(newStatus);
+        task.setStatus(request.getStatus());
         task.setAssignedUserId(request.getAssignedUserId());
         task.setProjectId(request.getProjectId());
-        task.setPhaseId(newPhaseId);
+        task.setPhaseId(request.getPhaseId());
         Task saved = repository.save(task);
 
+        publishOutboxEvents(saved, oldStatus, request.getStatus(), oldPhaseId, request.getPhaseId());
+
+        return toResponse(saved);
+    }
+
+    /** Publishes status-changed and phase-changed outbox events when the respective values differ. */
+    private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus newStatus,
+                                     UUID oldPhaseId, UUID newPhaseId) {
         if (newStatus != null && !newStatus.equals(oldStatus)) {
             writeToOutbox(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(), oldStatus, newStatus));
         }
@@ -142,8 +155,6 @@ public class TaskService {
             writeToOutbox(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
                     oldPhaseId, oldName, newPhaseId, newName));
         }
-
-        return toResponse(saved);
     }
 
     /** Adds a comment to the task and publishes a {@code COMMENT_ADDED} outbox event. */
@@ -175,7 +186,7 @@ public class TaskService {
     private void writeToOutbox(TaskChangedEvent event) {
         try {
             outboxRepository.save(OutboxEvent.builder()
-                    .aggregateType("Task")
+                    .aggregateType(AGGREGATE_TYPE)
                     .aggregateId(event.getTaskId())
                     .eventType(OutboxEventType.TASK_CHANGED)
                     .topic(OutboxPublisher.TOPIC)
@@ -202,6 +213,10 @@ public class TaskService {
         return phaseService.findDefaultForProject(projectId).map(TaskPhase::getId).orElse(null);
     }
 
+    /**
+     * Converts a single task to its response DTO, fetching related data individually.
+     * Use for single-task endpoints (findById, create, update) to keep the code simple.
+     */
     private TaskResponse toResponse(Task task) {
         UserDto user = null;
         try {
@@ -210,15 +225,57 @@ public class TaskService {
             // user-service unavailable — return task without user details
         }
         TaskProjectResponse project = projectService.toResponse(projectService.getOrThrow(task.getProjectId()));
-        TaskPhaseResponse phase = null;
-        if (task.getPhaseId() != null) {
-            phase = phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()));
-        }
+        TaskPhaseResponse phase = task.getPhaseId() != null
+                ? phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()))
+                : null;
         List<TaskCommentResponse> comments = commentRepository.findByTaskIdOrderByCreatedAtAsc(task.getId())
                 .stream()
                 .map(c -> new TaskCommentResponse(c.getId(), c.getContent(), c.getCreatedAt()))
                 .toList();
         return new TaskResponse(task.getId(), task.getTitle(), task.getDescription(),
                 task.getStatus(), user, project, phase, comments);
+    }
+
+    /**
+     * Converts a list of tasks to response DTOs using a single batch query per related entity,
+     * avoiding N+1 database round-trips for comments, projects, and phases.
+     */
+    private List<TaskResponse> toResponseList(List<Task> tasks) {
+        if (tasks.isEmpty()) return List.of();
+
+        Set<UUID> taskIds    = tasks.stream().map(Task::getId).collect(Collectors.toSet());
+        Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
+        Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<UUID, List<TaskCommentResponse>> commentsByTask = commentRepository.findByTaskIdIn(taskIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        TaskComment::getTaskId,
+                        Collectors.mapping(c -> new TaskCommentResponse(c.getId(), c.getContent(), c.getCreatedAt()),
+                                Collectors.toList())));
+
+        Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
+                .stream()
+                .collect(Collectors.toMap(TaskProject::getId, projectService::toResponse));
+
+        Map<UUID, TaskPhaseResponse> phasesById = phaseIds.isEmpty() ? Map.of() :
+                phaseService.findAllByIds(phaseIds)
+                        .stream()
+                        .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
+
+        return tasks.stream().map(task -> {
+            UserDto user = null;
+            try {
+                user = userClient.getUserById(task.getAssignedUserId());
+            } catch (Exception e) {
+                // user-service unavailable — return task without user details
+            }
+            return new TaskResponse(
+                    task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
+                    user,
+                    projectsById.get(task.getProjectId()),
+                    task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null,
+                    commentsByTask.getOrDefault(task.getId(), List.of()));
+        }).toList();
     }
 }

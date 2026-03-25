@@ -26,8 +26,7 @@ public class FeignAuthInterceptor implements RequestInterceptor {
         if (attributes == null) return;
 
         String authHeader = attributes.getRequest().getHeader(AUTHORIZATION_HEADER);
-        if (authHeader != null) {
-            template.header(AUTHORIZATION_HEADER, authHeader);
-        }
+        if (authHeader == null) return;
+        template.header(AUTHORIZATION_HEADER, authHeader);
     }
 }
