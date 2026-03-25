@@ -364,3 +364,74 @@ public TaskResponse create(TaskRequest request) {
     return toResponse(repository.save(task));
 }
 ```
+
+## N+1 queries — batch-load in list methods
+
+Never call a repository or service per item inside a stream. In list-returning methods, batch-load all related data first, build a `Map<UUID, T>`, then map over the results.
+
+Pattern: keep a single-item `toResponse(T)` for `findById`/`create`/`update`; add a `toResponseList(List<T>)` overload for all list methods that batch-loads related entities.
+
+Required support:
+- Add `findByXIn(Iterable<UUID> ids)` to repositories used in list enrichment
+- Add package-private `findAllByIds(Iterable<UUID> ids)` to services whose entities are loaded per-item
+
+```java
+// bad — N+1: one comment query per task
+public List<TaskResponse> findAll() {
+    return repository.findAll().stream().map(this::toResponse).toList();
+}
+private TaskResponse toResponse(Task task) {
+    var comments = commentRepository.findByTaskId(task.getId()); // called N times
+    ...
+}
+
+// good — 1 query for all comments regardless of list size
+public List<TaskResponse> findAll() {
+    return toResponseList(repository.findAll());
+}
+private List<TaskResponse> toResponseList(List<Task> tasks) {
+    if (tasks.isEmpty()) return List.of();
+    Set<UUID> taskIds = tasks.stream().map(Task::getId).collect(Collectors.toSet());
+    Map<UUID, List<CommentResponse>> commentsByTask = commentRepository.findByTaskIdIn(taskIds)
+            .stream()
+            .collect(Collectors.groupingBy(TaskComment::getTaskId,
+                    Collectors.mapping(c -> new CommentResponse(c.getId(), c.getContent()), Collectors.toList())));
+    return tasks.stream()
+            .map(t -> new TaskResponse(..., commentsByTask.getOrDefault(t.getId(), List.of())))
+            .toList();
+}
+```
+
+## Extract event publishing from update()
+
+When `update()` both persists and publishes events, extract publishing into a private `publishOutboxEvents(...)` method. This keeps `update()` focused on persistence and keeps cyclomatic complexity below 10.
+
+```java
+// bad — update() does persistence + status detection + phase detection + 2 outbox writes
+public TaskResponse update(UUID id, TaskRequest request) {
+    ...
+    if (!newStatus.equals(oldStatus)) { writeToOutbox(...); }
+    if (!Objects.equals(oldPhaseId, newPhaseId)) { writeToOutbox(...); }
+    return toResponse(saved);
+}
+
+// good — persistence and publishing are separate concerns
+public TaskResponse update(UUID id, TaskRequest request) {
+    ...
+    Task saved = repository.save(task);
+    publishOutboxEvents(saved, oldStatus, request.getStatus(), oldPhaseId, request.getPhaseId());
+    return toResponse(saved);
+}
+
+private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus newStatus,
+                                  UUID oldPhaseId, UUID newPhaseId) {
+    if (newStatus != null && !newStatus.equals(oldStatus)) { writeToOutbox(...); }
+    if (!Objects.equals(oldPhaseId, newPhaseId)) { writeToOutbox(...); }
+}
+```
+
+## Cache eviction scope
+
+`@CacheEvict(allEntries = true)` is the correct choice when a cache holds both a list entry (`findAll`) and individual entries (`findById`). Evicting by key alone leaves the list cache stale. Use key-based eviction only for large caches where preserving unrelated entries matters.
+
+Do not mix `key = "#id"` and `allEntries = true` in the same `@Caching` — it is redundant.
