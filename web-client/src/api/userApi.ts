@@ -1,7 +1,8 @@
 import apiClient from './client';
-import type { UserResponse, UserRequest } from './types';
+import type { FileUploadResponse, PresignedUrlResponse, UserResponse, UserRequest } from './types';
 
 const USERS_URL = '/api/v1/users';
+const FILES_URL = '/api/v1/files';
 
 /** Fetches all users. */
 export function getUsers() {
@@ -21,4 +22,41 @@ export function createUser(request: UserRequest) {
 /** Updates name, email, and active flag of the given user. */
 export function updateUser(id: string, request: UserRequest) {
   return apiClient.put<UserResponse>(`${USERS_URL}/${id}`, request).then((r) => r.data);
+}
+
+/**
+ * Uploads an avatar image to file-service and returns the file metadata.
+ * Use the returned fileId with updateUserAvatar().
+ */
+export function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return apiClient
+    .post<FileUploadResponse>(`${FILES_URL}/avatars`, form)
+    .then((r) => r.data);
+}
+
+/** Sets or clears the user's profile picture. Pass null to remove the avatar. */
+export function updateUserAvatar(userId: string, fileId: string | null) {
+  return apiClient
+    .patch<UserResponse>(`${USERS_URL}/${userId}/avatar`, { fileId })
+    .then((r) => r.data);
+}
+
+/** Returns a short-lived presigned URL for the given fileId. */
+export function getAvatarUrl(fileId: string) {
+  return apiClient
+    .get<PresignedUrlResponse>(`${FILES_URL}/${fileId}/url`)
+    .then((r) => r.data.url);
+}
+
+/**
+ * Downloads the raw file bytes through the API gateway (authenticated).
+ * Returns a local blob URL suitable for use as an <img> src.
+ * The caller is responsible for calling URL.revokeObjectURL() on cleanup.
+ */
+export function downloadFile(fileId: string): Promise<string> {
+  return apiClient
+    .get(`${FILES_URL}/${fileId}/download`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data));
 }

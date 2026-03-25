@@ -22,6 +22,7 @@ export const mockUser: UserResponse = {
   email: 'alice@example.com',
   username: 'alice',
   active: true,
+  avatarFileId: null,
   roles: [
     { id: 'role-1', name: 'ADMIN', description: 'Administrator' },
   ],
@@ -33,6 +34,7 @@ export const mockUser2: UserResponse = {
   email: 'bob@example.com',
   username: 'bob',
   active: true,
+  avatarFileId: null,
   roles: [
     { id: 'role-2', name: 'DEVELOPER', description: 'Developer' },
   ],
@@ -43,7 +45,7 @@ export const mockTask: TaskResponse = {
   title: 'Fix login bug',
   description: 'Users cannot log in',
   status: 'TODO',
-  assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com' },
+  assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', username: 'alice', active: true },
   project: mockProject,
   phase: null,
   comments: [],
@@ -78,7 +80,7 @@ export const handlers = [
       title: body.title as string,
       description: (body.description as string) ?? '',
       status: (body.status as TaskResponse['status']) ?? 'TODO',
-      assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com' },
+      assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', username: 'alice', active: true },
       project: mockProject,
       phase: null,
       comments: [],
@@ -150,6 +152,20 @@ export const handlers = [
   http.put('*/api/v1/users/:id', async ({ params, request }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({ ...mockUser, id: params.id as string, name: body.name as string, email: body.email as string, active: body.active as boolean });
+  }),
+
+  http.patch('*/api/v1/users/:id/avatar', async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({ ...mockUser, id: params.id as string, avatarFileId: body.fileId as string | null });
+  }),
+
+  // Files
+  http.post('*/api/v1/files/avatars', () => {
+    return HttpResponse.json({ fileId: 'file-1', bucket: 'avatars', objectKey: 'file-1.jpg', contentType: 'image/jpeg' }, { status: 201 });
+  }),
+
+  http.get('*/api/v1/files/:fileId/url', () => {
+    return HttpResponse.json({ url: 'http://localhost:9000/avatars/file-1.jpg' });
   }),
 
   // Audit

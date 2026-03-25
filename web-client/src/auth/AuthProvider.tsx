@@ -2,7 +2,9 @@ import { createContext, useContext, useEffect } from 'react';
 import keycloak from './keycloak';
 
 interface AuthContextValue {
-  /** Display name from the Keycloak token. */
+  /** Full display name from the Keycloak token (e.g. "Alice Smith"). */
+  name: string;
+  /** Login username from the Keycloak token — used for matching the user record. */
   username: string;
   /** True when the current user has the ADMIN realm role in Keycloak. */
   isAdmin: boolean;
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
+        name: keycloak.tokenParsed?.name ?? keycloak.tokenParsed?.preferred_username ?? '',
         username: keycloak.tokenParsed?.preferred_username ?? '',
         isAdmin: (keycloak.tokenParsed?.realm_access?.roles ?? []).includes('ADMIN'),
         logout: () => keycloak.logout(),

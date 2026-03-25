@@ -17,3 +17,8 @@ GRANT ALL PRIVILEGES ON DATABASE task_db TO task_svc;
 CREATE USER audit_svc WITH PASSWORD 'audit_svc_pass';
 CREATE DATABASE audit_db OWNER audit_svc;
 GRANT ALL PRIVILEGES ON DATABASE audit_db TO audit_svc;
+
+-- ── File Service ──────────────────────────────────────────────
+CREATE USER file_svc WITH PASSWORD 'file_svc_pass';
+CREATE DATABASE file_db OWNER file_svc;
+GRANT ALL PRIVILEGES ON DATABASE file_db TO file_svc;

@@ -72,6 +72,18 @@ export interface UserResponse {
   username: string | null;
   active: boolean;
   roles: RoleDto[];
+  avatarFileId: string | null;
+}
+
+export interface FileUploadResponse {
+  fileId: string;
+  bucket: string;
+  objectKey: string;
+  contentType: string;
+}
+
+export interface PresignedUrlResponse {
+  url: string;
 }
 
 export interface AuditRecord {

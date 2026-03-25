@@ -63,6 +63,16 @@ public class UserService {
         return toDto(userRepository.save(user));
     }
 
+    /**
+     * Sets the user's avatar to the file identified by {@code fileId}.
+     * Pass {@code null} to remove the avatar (revert to default placeholder).
+     */
+    public UserDto updateAvatar(UUID userId, UUID fileId) {
+        User user = getOrThrow(userId);
+        user.setAvatarFileId(fileId);
+        return toDto(userRepository.save(user));
+    }
+
     /** Soft-deletes the user; throws if the user still has active role assignments. */
     public void delete(UUID id) {
         User user = getOrThrow(id);
@@ -112,6 +122,6 @@ public class UserService {
         var roles = userRoleRepository.findByUser(user).stream()
                 .map(ur -> roleService.toDto(ur.getRole()))
                 .toList();
-        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getUsername(), user.isActive(), roles);
+        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getUsername(), user.isActive(), roles, user.getAvatarFileId());
     }
 }

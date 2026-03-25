@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAvatarBlobUrl } from '../hooks/useAvatarBlobUrl';
 import { Layout, Menu, Button, Typography, Avatar, Space } from 'antd';
 import {
   DashboardOutlined,
@@ -12,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { getUsers } from '../api/userApi';
 
 const { Sider, Header, Content } = Layout;
 
@@ -26,9 +28,21 @@ const NAV_ITEMS = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { username, logout } = useAuth();
+  const { name, username, logout } = useAuth();
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed,      setCollapsed]      = useState(false);
+  const [avatarFileId,   setAvatarFileId]   = useState<string | null>(null);
+  const avatarUrl = useAvatarBlobUrl(avatarFileId);
+
+  // Look up the current user's avatarFileId from the user-service
+  useEffect(() => {
+    getUsers()
+      .then((users) => {
+        const me = users.find((u) => u.username === username);
+        setAvatarFileId(me?.avatarFileId ?? null);
+      })
+      .catch(() => {});
+  }, [username]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -80,8 +94,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           />
 
           <Space>
-            <Avatar icon={<UserOutlined />} size="small" />
-            <Typography.Text>{username}</Typography.Text>
+            {avatarUrl
+              ? <Avatar src={avatarUrl} size="small" />
+              : <Avatar icon={<UserOutlined />} size="small" />}
+            <Typography.Text>{name}</Typography.Text>
             <Button icon={<LogoutOutlined />} onClick={logout} size="small">Logout</Button>
           </Space>
         </Header>

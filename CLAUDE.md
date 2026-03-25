@@ -16,7 +16,33 @@
 - **Backward-compatible changes preferred** — add columns as nullable; never drop or rename a column in one step; use a multi-step deprecation (add → migrate data → drop in a later version)
 - **Partial unique indexes for soft-delete tables** — use `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` instead of `UNIQUE` constraints so soft-deleted rows do not block re-insertion
 
+# File Upload Validation
+
+- **All upload rules live in `application.yml`** under `minio.buckets.<bucket-name>` — never hardcode allowed types or size limits in Java
+- **Adding a new bucket** requires only a new YAML entry with `allowed-types` and `max-size-bytes`; no Java changes needed
+- **`allowed-types`** is a list of MIME type strings (e.g. `image/jpeg`); an empty list means all types are accepted
+- **`max-size-bytes`** is the per-bucket limit; set `spring.servlet.multipart.max-file-size` generously (e.g. `50MB`) so Spring doesn't reject before our validation runs
+- **Write two validation IT classes** when testing a new bucket type: one for content-type rejection and one for size rejection; use `@SpringBootTest(properties = "minio.buckets.<bucket>.max-size-bytes=10")` in the size test to avoid allocating large arrays
+
+# Postman Collections
+
+- **Always update Postman when adding or changing endpoints** — collections live in `postman/`; one file per service (e.g. `user-service.postman_collection.json`)
+- **New service** — create `postman/<service-name>.postman_collection.json` following the existing structure: collection-level Bearer auth via `{{bearerToken}}`, collection variables for IDs auto-saved from create responses, and a test script on every request that asserts the expected status code
+- **New endpoint on an existing service** — add the request to the correct folder inside the existing collection; auto-save any returned IDs into collection variables so dependent requests work without manual copy-paste
+- **Modified response shape** — update or add test assertions to match the new fields
+- **Environment file** (`postman/local.postman_environment.json`) — only needs changes if a new environment variable is introduced (e.g. a new base URL for a separate host)
+
+# Startup / Stop Scripts
+
+- **Always update `scripts/start-dev.sh` and `scripts/stop-dev.sh`** when adding a new Docker image or a new microservice
+- **New Docker infrastructure** (e.g. a new container in `docker-compose.yml`) — add the service name to `INFRA_SERVICES` in `start-dev.sh`, add a healthcheck wait block if the service exposes one, and add it to the banner
+- **New microservice** — add it to the `for service in ...` loop in `start-dev.sh`, add it to the valid names list in the `--restart` comment and the `case` block, and add it to the banner
+- **`stop-dev.sh`** uses `docker compose down` which stops everything automatically — no changes needed unless the script is extended
+
 # Creating a new service
+- **Write integration tests** — every new service must have a `*IT.java` test class covering all controller endpoints; follow the pattern in `user-service/src/test` (Testcontainers Postgres + `@TestConfiguration` security bypass that permits all requests)
+- **Fix Testcontainers Docker API version** — create `src/test/resources/docker-java.properties` in the new service with `api.version=1.47`; without it Testcontainers falls back to API 1.32 which Docker Desktop 29+ rejects with HTTP 400 (full details in `learning/testcontainers-issue.md`)
+- **External dependencies in tests** — if the service depends on an external system (e.g. MinIO, Redis), spin it up with a `GenericContainer` in the IT class, use `@DynamicPropertySource` to inject the URL, and do any required initialization (e.g. bucket creation) in `@BeforeAll`
 - **Enable controller logging** — add the following to the service's `application.yml` so all controller input parameters are traced via `ControllerLoggingAspect`:
   ```yaml
   logging:

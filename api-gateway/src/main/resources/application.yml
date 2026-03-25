@@ -50,6 +50,11 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        - id: file-service-files
+          uri: lb://file-service
+          predicates:
+            - Path=/api/v1/files/**
+
   security:
     oauth2:
       resourceserver:

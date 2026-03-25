@@ -3,9 +3,13 @@
 /audit-service/target/
 /common/target/
 /eureka-server/target/
+/file-service/target/
 /task-service/target/
 /user-service/target/
 .claude/settings.local.json
+
+# IDE
+.idea/
 
 # Web client
 web-client/node_modules/

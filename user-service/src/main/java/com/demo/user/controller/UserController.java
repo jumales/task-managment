@@ -13,6 +13,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -76,6 +78,22 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@Parameter(description = "User UUID") @PathVariable UUID id) {
         service.delete(id);
+    }
+
+    /**
+     * Sets or removes the user's profile picture.
+     * The request body must contain {@code "fileId"} (UUID from file-service) or {@code null} to clear.
+     */
+    @Operation(summary = "Set or clear a user's profile picture")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Avatar updated"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
+    })
+    @PatchMapping("/{id}/avatar")
+    public UserDto updateAvatar(
+            @Parameter(description = "User UUID") @PathVariable UUID id,
+            @RequestBody Map<String, UUID> body) {
+        return service.updateAvatar(id, body.get("fileId"));
     }
 
     /** Assigns the specified role to the user and returns the updated user. */

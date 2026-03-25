@@ -3,6 +3,8 @@ package com.demo.user;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.UserRequest;
 import com.demo.user.repository.UserRepository;
+
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -244,6 +246,64 @@ class UserControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().isActive()).isFalse();
+    }
+
+    // ── PATCH /api/v1/users/{id}/avatar ──────────────────────────
+
+    @Test
+    void updateAvatar_setsAvatarFileId() {
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UUID fileId = UUID.randomUUID();
+
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId() + "/avatar",
+                HttpMethod.PATCH,
+                new HttpEntity<>(Map.of("fileId", fileId)),
+                UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getAvatarFileId()).isEqualTo(fileId);
+    }
+
+    @Test
+    void updateAvatar_clearAvatar_setsAvatarFileIdToNull() {
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UUID fileId = UUID.randomUUID();
+        restTemplate.exchange("/api/v1/users/" + alice.getId() + "/avatar",
+                HttpMethod.PATCH, new HttpEntity<>(Map.of("fileId", fileId)), UserDto.class);
+
+        // Clear by passing null
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + alice.getId() + "/avatar",
+                HttpMethod.PATCH,
+                new HttpEntity<>(new java.util.HashMap<>(Map.of())),
+                UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getAvatarFileId()).isNull();
+    }
+
+    @Test
+    void updateAvatar_whenUserNotFound_returns404() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + UUID.randomUUID() + "/avatar",
+                HttpMethod.PATCH,
+                new HttpEntity<>(Map.of("fileId", UUID.randomUUID())),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void updateAvatar_persistedOnSubsequentGet() {
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UUID fileId = UUID.randomUUID();
+        restTemplate.exchange("/api/v1/users/" + alice.getId() + "/avatar",
+                HttpMethod.PATCH, new HttpEntity<>(Map.of("fileId", fileId)), UserDto.class);
+
+        ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/" + alice.getId(), UserDto.class);
+
+        assertThat(response.getBody().getAvatarFileId()).isEqualTo(fileId);
     }
 
     // ── Helper ────────────────────────────────────────────────────
