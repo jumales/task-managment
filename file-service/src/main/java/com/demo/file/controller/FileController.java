@@ -48,7 +48,7 @@ public class FileController {
             @Parameter(description = "Image file (JPEG, PNG, GIF, WebP)")
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt) {
-        return fileService.upload(file, BUCKET_AVATARS, jwt.getSubject());
+        return fileService.upload(file, BUCKET_AVATARS, jwt != null ? jwt.getSubject() : null);
     }
 
     /**
@@ -62,7 +62,7 @@ public class FileController {
             @Parameter(description = "Attachment file")
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt) {
-        return fileService.upload(file, BUCKET_ATTACHMENTS, jwt.getSubject());
+        return fileService.upload(file, BUCKET_ATTACHMENTS, jwt != null ? jwt.getSubject() : null);
     }
 
     /**
