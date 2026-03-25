@@ -15,4 +15,6 @@ public class UserDto {
     private String username;
     private boolean active;
     private List<RoleDto> roles;
+    /** UUID of the file-service record for the user's profile picture; null if not set. */
+    private UUID avatarFileId;
 }

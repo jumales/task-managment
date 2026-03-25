@@ -1,0 +1,199 @@
+{
+  "info": {
+    "_postman_id": "f1e2d3c4-b5a6-7890-fedc-ba9876543210",
+    "name": "File Service",
+    "description": "Upload files (avatars, attachments) and resolve presigned download URLs.\n\nUpload requests save the returned fileId into the collection variable so subsequent requests can reference it without manual copy-paste.\n\nNote: file upload requests use form-data — select a file in the 'file' field before sending.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{bearerToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "fileId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Avatars",
+      "item": [
+        {
+          "name": "Upload avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select an image file (JPEG, PNG, GIF, WebP)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/avatars",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "avatars"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('fileId', json.fileId);",
+                  "pm.test('fileId saved', () => pm.expect(json.fileId).to.be.a('string'));",
+                  "pm.test('Bucket is avatars', () => pm.expect(json.bucket).to.eql('avatars'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get presigned URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/{{fileId}}/url",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "{{fileId}}", "url"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('URL is present', () => pm.expect(pm.response.json().url).to.be.a('string').and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete file",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/{{fileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "{{fileId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Attachments",
+      "item": [
+        {
+          "name": "Upload attachment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select any file to attach"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "attachments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('fileId', json.fileId);",
+                  "pm.test('fileId saved', () => pm.expect(json.fileId).to.be.a('string'));",
+                  "pm.test('Bucket is attachments', () => pm.expect(json.bucket).to.eql('attachments'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get presigned URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/{{fileId}}/url",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "{{fileId}}", "url"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('URL is present', () => pm.expect(pm.response.json().url).to.be.a('string').and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete file",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/{{fileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "{{fileId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

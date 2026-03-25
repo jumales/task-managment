@@ -1,11 +1,58 @@
-import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getUsers, createUser, updateUser } from '../api/userApi';
+import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, downloadFile } from '../api/userApi';
 import { useAuth } from '../auth/AuthProvider';
 import type { UserResponse, RoleDto } from '../api/types';
 
-/** Displays all users. Admins can create and edit users. */
+/** Upload button that triggers a hidden file input. */
+function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (updated: UserResponse) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoading(true);
+    try {
+      const { fileId } = await uploadAvatar(file);
+      const updated = await updateUserAvatar(user.id, fileId);
+      onDone(updated);
+      message.success('Avatar updated');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: unknown } })?.response?.status;
+      const data   = (err as { response?: { data?: unknown } })?.response?.data;
+      message.error(`Upload failed (${status ?? 'network'}): ${JSON.stringify(data) ?? ''}`);
+      console.error('Avatar upload error:', err);
+    } finally {
+      setLoading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+      <Button
+        size="small"
+        icon={<UploadOutlined />}
+        loading={loading}
+        onClick={() => inputRef.current?.click()}
+      >
+        Upload
+      </Button>
+    </>
+  );
+}
+
+/** Displays all users with name, role and status. Admins can create, edit, and upload avatars. */
 export function UsersPage() {
   const { isAdmin } = useAuth();
 
@@ -57,12 +104,16 @@ export function UsersPage() {
         })
         .catch((err) => {
           const action  = editingUser ? 'update' : 'create';
-          const message = err?.response?.data?.message ?? err?.message ?? `Failed to ${action} user.`;
-          setError(`Failed to ${action} user: ${message}`);
+          const msg = err?.response?.data?.message ?? err?.message ?? `Failed to ${action} user.`;
+          setError(`Failed to ${action} user: ${msg}`);
         })
         .finally(() => setSubmitting(false));
     });
   };
+
+  function handleAvatarUpdated(updated: UserResponse) {
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+  }
 
   const columns: ColumnsType<UserResponse> = [
     { title: 'Name',     dataIndex: 'name',     key: 'name' },
@@ -73,6 +124,11 @@ export function UsersPage() {
       render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Tag> },
     { title: 'Roles',    dataIndex: 'roles',    key: 'roles',
       render: (roles: RoleDto[]) => roles.map((r) => <Tag key={r.id}>{r.name}</Tag>) },
+    {
+      title: 'Upload Avatar',
+      key: 'upload',
+      render: (_, user) => <AvatarUploadButton user={user} onDone={handleAvatarUpdated} />,
+    },
     ...(isAdmin ? [{
       title: 'Actions', key: 'actions',
       render: (_: unknown, record: UserResponse) => (

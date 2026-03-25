@@ -14,7 +14,8 @@
   "variable": [
     { "key": "userId",  "value": "" },
     { "key": "roleId",  "value": "" },
-    { "key": "rightId", "value": "" }
+    { "key": "rightId", "value": "" },
+    { "key": "fileId",  "value": "" }
   ],
   "item": [
     {
@@ -170,6 +171,64 @@
               "script": {
                 "exec": [
                   "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update avatar",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileId\": \"{{fileId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "{{userId}}", "avatar"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('avatarFileId set', () => pm.expect(pm.response.json().avatarFileId).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear avatar",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "{{userId}}", "avatar"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('avatarFileId is null', () => pm.expect(pm.response.json().avatarFileId).to.be.null);"
                 ],
                 "type": "text/javascript"
               }

@@ -1,0 +1,190 @@
+package com.demo.file.service;
+
+import com.demo.common.dto.FileUploadResponse;
+import com.demo.common.exception.ResourceNotFoundException;
+import com.demo.file.config.MinioProperties;
+import com.demo.file.config.MinioProperties.BucketProperties;
+import com.demo.file.model.FileMetadata;
+import com.demo.file.repository.FileMetadataRepository;
+import io.minio.*;
+import io.minio.http.Method;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Handles file upload, URL resolution, and soft-deletion backed by MinIO object storage.
+ * File metadata is persisted to PostgreSQL so files can be looked up by a stable UUID
+ * regardless of the underlying object key or bucket.
+ *
+ * <p>Each bucket has configurable allowed MIME types and a maximum file size defined in
+ * {@link MinioProperties}. Adding a new bucket type requires only a YAML entry — no code change.
+ */
+@Service
+public class FileService {
+
+    private static final int PRESIGNED_URL_EXPIRY_HOURS = 1;
+
+    private final MinioClient minioClient;
+    private final FileMetadataRepository repository;
+    private final MinioProperties properties;
+
+    public FileService(MinioClient minioClient,
+                       FileMetadataRepository repository,
+                       MinioProperties properties) {
+        this.minioClient = minioClient;
+        this.repository = repository;
+        this.properties = properties;
+    }
+
+    /**
+     * Validates and uploads a file to the given bucket, persists metadata, and returns the file record.
+     *
+     * @param file     the multipart file from the HTTP request
+     * @param bucket   target MinIO bucket name — must match a key in {@code minio.buckets}
+     * @param uploader JWT subject of the caller
+     * @throws IllegalArgumentException if the content type or file size violates the bucket's rules
+     */
+    public FileUploadResponse upload(MultipartFile file, String bucket, String uploader) {
+        BucketProperties bucketConfig = resolveBucketConfig(bucket);
+        validateFile(file, bucketConfig);
+
+        UUID fileId = UUID.randomUUID();
+        String objectKey = fileId + "_" + file.getOriginalFilename();
+        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+
+        putObject(file, bucket, objectKey, contentType);
+
+        FileMetadata metadata = FileMetadata.builder()
+                .id(fileId)
+                .bucket(bucket)
+                .objectKey(objectKey)
+                .contentType(contentType)
+                .originalFilename(file.getOriginalFilename())
+                .uploadedBy(uploader)
+                .uploadedAt(Instant.now())
+                .build();
+
+        repository.save(metadata);
+        return new FileUploadResponse(fileId, bucket, objectKey, contentType);
+    }
+
+    /**
+     * Returns a time-limited presigned GET URL for the file identified by {@code fileId}.
+     * The URL expires after {@value PRESIGNED_URL_EXPIRY_HOURS} hour(s).
+     *
+     * @throws ResourceNotFoundException if no active file record exists for the given ID
+     */
+    public String getPresignedUrl(UUID fileId) {
+        FileMetadata metadata = repository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File", fileId));
+        return generatePresignedUrl(metadata.getBucket(), metadata.getObjectKey());
+    }
+
+    /**
+     * Streams the raw file bytes from MinIO for the given file ID.
+     * Returns both the {@link Resource} and the original content type so the
+     * controller can set the correct {@code Content-Type} response header.
+     *
+     * @throws ResourceNotFoundException if no active file record exists for the given ID
+     */
+    public DownloadResult download(UUID fileId) {
+        FileMetadata metadata = repository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File", fileId));
+        try {
+            InputStream stream = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(metadata.getBucket())
+                            .object(metadata.getObjectKey())
+                            .build());
+            return new DownloadResult(new InputStreamResource(stream), metadata.getContentType());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to download file from MinIO: " + e.getMessage(), e);
+        }
+    }
+
+    /** Carries the file bytes and content type from a MinIO download. */
+    public record DownloadResult(Resource resource, String contentType) {}
+
+    /**
+     * Soft-deletes the file record; the object in MinIO is not removed.
+     *
+     * @throws ResourceNotFoundException if no active file record exists for the given ID
+     */
+    public void delete(UUID fileId) {
+        FileMetadata metadata = repository.findById(fileId)
+                .orElseThrow(() -> new ResourceNotFoundException("File", fileId));
+        repository.deleteById(metadata.getId());
+    }
+
+    /**
+     * Looks up per-bucket rules from configuration.
+     *
+     * @throws IllegalArgumentException if the bucket name is not registered in {@code minio.buckets}
+     */
+    private BucketProperties resolveBucketConfig(String bucket) {
+        BucketProperties config = properties.getBuckets().get(bucket);
+        if (config == null) {
+            throw new IllegalArgumentException("Unknown bucket: " + bucket);
+        }
+        return config;
+    }
+
+    /**
+     * Validates file size and content type against the bucket's rules.
+     *
+     * @throws IllegalArgumentException if either check fails
+     */
+    private void validateFile(MultipartFile file, BucketProperties config) {
+        if (file.getSize() > config.getMaxSizeBytes()) {
+            throw new IllegalArgumentException(String.format(
+                    "File size %d bytes exceeds the maximum allowed %d bytes for this bucket",
+                    file.getSize(), config.getMaxSizeBytes()));
+        }
+
+        List<String> allowedTypes = config.getAllowedTypes();
+        if (!allowedTypes.isEmpty()) {
+            String contentType = file.getContentType();
+            if (contentType == null || !allowedTypes.contains(contentType)) {
+                throw new IllegalArgumentException(String.format(
+                        "Content type '%s' is not allowed. Accepted types: %s",
+                        contentType, allowedTypes));
+            }
+        }
+    }
+
+    /** Streams the file bytes to MinIO. */
+    private void putObject(MultipartFile file, String bucket, String objectKey, String contentType) {
+        try {
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .stream(file.getInputStream(), file.getSize(), -1)
+                    .contentType(contentType)
+                    .build());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to upload file to MinIO: " + e.getMessage(), e);
+        }
+    }
+
+    /** Generates a presigned GET URL valid for {@value PRESIGNED_URL_EXPIRY_HOURS} hour(s). */
+    private String generatePresignedUrl(String bucket, String objectKey) {
+        try {
+            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                    .method(Method.GET)
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .expiry(PRESIGNED_URL_EXPIRY_HOURS, TimeUnit.HOURS)
+                    .build());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate presigned URL: " + e.getMessage(), e);
+        }
+    }
+}

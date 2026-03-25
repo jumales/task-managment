@@ -31,5 +31,8 @@ public class User {
     /** Whether the account is active. Defaults to true on creation. */
     private boolean active;
 
+    /** UUID of the file-service record for the user's profile picture; null if not set. */
+    private UUID avatarFileId;
+
     private Instant deletedAt;
 }
