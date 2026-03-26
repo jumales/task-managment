@@ -1,6 +1,7 @@
 package com.demo.task;
 
 import com.demo.common.dto.TaskCommentRequest;
+import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -94,11 +95,10 @@ class TaskCommentKafkaIT {
     void addComment_persistsCommentAndCreatesOutboxEvent() {
         TaskResponse task = createTask();
 
-        TaskResponse response = addComment(task.getId(), "First comment");
+        TaskCommentResponse comment = addComment(task.getId(), "First comment");
 
-        assertThat(response.getComments()).hasSize(1);
-        assertThat(response.getComments().get(0).getContent()).isEqualTo("First comment");
-        assertThat(response.getComments().get(0).getId()).isNotNull();
+        assertThat(comment.getContent()).isEqualTo("First comment");
+        assertThat(comment.getId()).isNotNull();
 
         var events = outboxRepository.findAll();
         assertThat(events).hasSize(1);
@@ -113,10 +113,11 @@ class TaskCommentKafkaIT {
 
         addComment(task.getId(), "First comment");
         addComment(task.getId(), "Second comment");
-        TaskResponse response = addComment(task.getId(), "Third comment");
+        addComment(task.getId(), "Third comment");
 
-        assertThat(response.getComments()).hasSize(3);
-        assertThat(response.getComments()).extracting("content")
+        TaskCommentResponse[] comments = getComments(task.getId());
+        assertThat(comments).hasSize(3);
+        assertThat(comments).extracting("content")
                 .containsExactly("First comment", "Second comment", "Third comment");
         assertThat(outboxRepository.findAll()).hasSize(3);
     }
@@ -171,11 +172,17 @@ class TaskCommentKafkaIT {
         return restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class).getBody();
     }
 
-    private TaskResponse addComment(UUID taskId, String content) {
+    private TaskCommentResponse addComment(UUID taskId, String content) {
         return restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/comments",
                 commentRequest(content),
-                TaskResponse.class).getBody();
+                TaskCommentResponse.class).getBody();
+    }
+
+    private TaskCommentResponse[] getComments(UUID taskId) {
+        return restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/comments",
+                TaskCommentResponse[].class).getBody();
     }
 
     private TaskCommentRequest commentRequest(String content) {

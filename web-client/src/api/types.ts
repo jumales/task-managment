@@ -35,7 +35,6 @@ export interface TaskResponse {
   assignedUser: UserDto | null;
   project: TaskProjectResponse;
   phase: TaskPhaseResponse | null;
-  comments: TaskCommentResponse[];
 }
 
 export interface TaskRequest {
