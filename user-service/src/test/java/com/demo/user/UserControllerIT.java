@@ -4,6 +4,7 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.dto.UserRequest;
 import com.demo.user.repository.UserRepository;
 
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,8 +16,13 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -32,7 +38,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 )
 class UserControllerIT {
 
-    /** Overrides production security — permits all requests so tests don't need JWT tokens. */
+    /**
+     * Overrides production security — permits all requests and injects an ADMIN authentication
+     * into the security context so that @PreAuthorize("hasRole('ADMIN')") checks pass.
+     */
     @TestConfiguration
     static class TestSecurityConfig {
         @Bean
@@ -42,6 +51,19 @@ class UserControllerIT {
                     .securityMatcher("/**")
                     .csrf(csrf -> csrf.disable())
                     .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .addFilterBefore(new OncePerRequestFilter() {
+                        @Override
+                        protected void doFilterInternal(jakarta.servlet.http.HttpServletRequest request,
+                                                        jakarta.servlet.http.HttpServletResponse response,
+                                                        jakarta.servlet.FilterChain chain)
+                                throws java.io.IOException, jakarta.servlet.ServletException {
+                            SecurityContextHolder.getContext().setAuthentication(
+                                    new UsernamePasswordAuthenticationToken("test-admin", null,
+                                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                            );
+                            chain.doFilter(request, response);
+                        }
+                    }, UsernamePasswordAuthenticationFilter.class)
                     .build();
         }
     }

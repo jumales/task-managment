@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -67,6 +68,7 @@ public class TaskController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
     public TaskResponse create(@RequestBody TaskRequest request) {
         return service.create(request);
     }
@@ -78,6 +80,7 @@ public class TaskController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task not found")
     })
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public TaskResponse update(@Parameter(description = "Task UUID") @PathVariable UUID id,
                                @RequestBody TaskRequest request) {
         return service.update(id, request);
@@ -102,6 +105,7 @@ public class TaskController {
     })
     @PostMapping("/{id}/comments")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
     public TaskCommentResponse addComment(@Parameter(description = "Task UUID") @PathVariable UUID id,
                                           @RequestBody TaskCommentRequest request) {
         return service.addComment(id, request);
@@ -115,6 +119,7 @@ public class TaskController {
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("isAuthenticated()")
     public void delete(@Parameter(description = "Task UUID") @PathVariable UUID id) {
         service.delete(id);
     }

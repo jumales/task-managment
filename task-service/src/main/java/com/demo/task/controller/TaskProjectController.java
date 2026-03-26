@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,6 +50,7 @@ public class TaskProjectController {
     @ApiResponse(responseCode = ResponseCode.CREATED, description = "Project created")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public TaskProjectResponse create(@RequestBody TaskProjectRequest request) {
         return service.create(request);
     }
@@ -60,6 +62,7 @@ public class TaskProjectController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Project not found")
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public TaskProjectResponse update(@Parameter(description = "Project UUID") @PathVariable UUID id,
                                       @RequestBody TaskProjectRequest request) {
         return service.update(id, request);
@@ -73,6 +76,7 @@ public class TaskProjectController {
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@Parameter(description = "Project UUID") @PathVariable UUID id) {
         service.delete(id);
     }

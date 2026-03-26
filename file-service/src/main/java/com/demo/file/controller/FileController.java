@@ -11,7 +11,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -100,17 +103,43 @@ public class FileController {
     }
 
     /**
-     * Soft-deletes the file record (object in MinIO is not removed).
+     * Deletes the file record and removes the object from MinIO.
+     * Only the original uploader or an ADMIN may delete a file.
      */
     @Operation(summary = "Delete a file")
     @ApiResponses({
             @ApiResponse(responseCode = ResponseCode.NO_CONTENT, description = "File deleted"),
-            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "File not found")
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "File not found"),
+            @ApiResponse(responseCode = "403", description = "Caller is not the uploader and not an admin")
     })
     @DeleteMapping("/{fileId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@Parameter(description = "File UUID") @PathVariable UUID fileId) {
-        fileService.delete(fileId);
+    @PreAuthorize("isAuthenticated()")
+    public void delete(@Parameter(description = "File UUID") @PathVariable UUID fileId,
+                       @AuthenticationPrincipal Jwt jwt) {
+        String callerSubject = jwt != null ? jwt.getSubject() : null;
+        boolean isAdmin = isAdmin(jwt);
+        fileService.delete(fileId, callerSubject, isAdmin);
+    }
+
+    /**
+     * Returns true if the caller is an ADMIN — checks Spring Security authorities first
+     * (covers both JWT-issued and test-injected authentication), then falls back to
+     * the {@code realm_access.roles} JWT claim for Keycloak-issued tokens.
+     */
+    @SuppressWarnings("unchecked")
+    private boolean isAdmin(Jwt jwt) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return true;
+        }
+        if (jwt == null) return false;
+        var realmAccess = jwt.getClaim("realm_access");
+        if (!(realmAccess instanceof java.util.Map<?, ?> map)) return false;
+        var roles = map.get("roles");
+        if (!(roles instanceof java.util.List<?> list)) return false;
+        return list.contains("ADMIN");
     }
 
     /** Simple wrapper so the URL response is a JSON object, not a bare string. */

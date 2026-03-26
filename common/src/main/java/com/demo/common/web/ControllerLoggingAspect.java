@@ -25,9 +25,12 @@ public class ControllerLoggingAspect {
 
     private static final String MASKED = "***";
 
-    /** Parameter name substrings that indicate sensitive data and must never be logged. */
+    /**
+     * Parameter name substrings that indicate sensitive data and must never be logged.
+     * "pass" catches passphrase, passcode, currentPassword, etc.
+     */
     private static final Set<String> SENSITIVE_PARAMS = Set.of(
-            "password", "token", "secret", "authorization", "credential"
+            "password", "token", "secret", "authorization", "credential", "pass"
     );
 
     /**

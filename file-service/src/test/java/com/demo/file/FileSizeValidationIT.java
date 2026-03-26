@@ -16,8 +16,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.util.LinkedMultiValueMap;
@@ -57,6 +62,19 @@ class FileSizeValidationIT {
                     .securityMatcher("/**")
                     .csrf(csrf -> csrf.disable())
                     .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .addFilterBefore(new OncePerRequestFilter() {
+                        @Override
+                        protected void doFilterInternal(jakarta.servlet.http.HttpServletRequest request,
+                                                        jakarta.servlet.http.HttpServletResponse response,
+                                                        jakarta.servlet.FilterChain chain)
+                                throws java.io.IOException, jakarta.servlet.ServletException {
+                            SecurityContextHolder.getContext().setAuthentication(
+                                    new UsernamePasswordAuthenticationToken("test-admin", null,
+                                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                            );
+                            chain.doFilter(request, response);
+                        }
+                    }, UsernamePasswordAuthenticationFilter.class)
                     .build();
         }
     }

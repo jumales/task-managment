@@ -8,6 +8,9 @@ import com.demo.file.model.FileMetadata;
 import com.demo.file.repository.FileMetadataRepository;
 import io.minio.*;
 import io.minio.http.Method;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class FileService {
 
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
     private static final int PRESIGNED_URL_EXPIRY_HOURS = 1;
 
     private final MinioClient minioClient;
@@ -114,14 +118,39 @@ public class FileService {
     public record DownloadResult(Resource resource, String contentType) {}
 
     /**
-     * Soft-deletes the file record; the object in MinIO is not removed.
+     * Deletes the file record and removes the object from MinIO.
+     * Only the original uploader or an admin caller may delete a file.
      *
+     * @param fileId        ID of the file to delete
+     * @param callerSubject JWT subject of the requesting user
+     * @param isAdmin       true if the caller has the ADMIN role
      * @throws ResourceNotFoundException if no active file record exists for the given ID
+     * @throws AccessDeniedException     if the caller is not the uploader and not an admin
      */
-    public void delete(UUID fileId) {
+    public void delete(UUID fileId, String callerSubject, boolean isAdmin) {
         FileMetadata metadata = repository.findById(fileId)
                 .orElseThrow(() -> new ResourceNotFoundException("File", fileId));
+        if (!isAdmin && !metadata.getUploadedBy().equals(callerSubject)) {
+            throw new AccessDeniedException("You are not allowed to delete this file");
+        }
         repository.deleteById(metadata.getId());
+        removeObjectFromMinio(metadata.getBucket(), metadata.getObjectKey());
+    }
+
+    /**
+     * Removes the physical object from MinIO.
+     * Logs a warning if removal fails — the DB record is already deleted at this point
+     * so the logical deletion succeeded regardless.
+     */
+    private void removeObjectFromMinio(String bucket, String objectKey) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to remove object from MinIO after DB delete: bucket={} key={}", bucket, objectKey, e);
+        }
     }
 
     /**

@@ -8,12 +8,20 @@ cors:
 spring:
   application:
     name: api-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
   cloud:
     gateway:
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
+      # Deny requests with no resolved rate-limit key (should not happen since all routes require auth)
+      filter:
+        request-rate-limiter:
+          deny-empty-key: false
       routes:
         - id: user-service-users
           uri: lb://user-service
@@ -29,6 +37,22 @@ spring:
           uri: lb://user-service
           predicates:
             - Path=/api/v1/rights/**
+
+        # Rate-limited: POST /api/v1/tasks/{id}/comments — 30 req/min per user
+        # Must be declared before the catch-all task route (more specific path wins)
+        - id: task-service-comments
+          uri: lb://task-service
+          predicates:
+            - Path=/api/v1/tasks/*/comments
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                # Redis token bucket: ~30 req/min = replenishRate 1/2s, burst 5
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 2
+                key-resolver: "#{@principalKeyResolver}"
 
         - id: task-service-tasks
           uri: lb://task-service
@@ -50,6 +74,34 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        # Rate-limited: POST /api/v1/files/* (avatar/attachment upload) — 10 req/min per user
+        - id: file-service-upload-avatars
+          uri: lb://file-service
+          predicates:
+            - Path=/api/v1/files/avatars
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                # Redis token bucket: ~10 req/min = replenishRate 1/6s, burst 2
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 2
+                redis-rate-limiter.requestedTokens: 6
+                key-resolver: "#{@principalKeyResolver}"
+
+        - id: file-service-upload-attachments
+          uri: lb://file-service
+          predicates:
+            - Path=/api/v1/files/attachments
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 2
+                redis-rate-limiter.requestedTokens: 6
+                key-resolver: "#{@principalKeyResolver}"
+
         - id: file-service-files
           uri: lb://file-service
           predicates:
@@ -67,3 +119,12 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

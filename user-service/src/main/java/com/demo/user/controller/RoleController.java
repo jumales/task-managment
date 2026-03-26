@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -49,6 +50,7 @@ public class RoleController {
     @ApiResponse(responseCode = ResponseCode.CREATED, description = "Role created")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public RoleDto create(@RequestBody RoleRequest request) {
         return service.create(request);
     }
@@ -61,6 +63,7 @@ public class RoleController {
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@Parameter(description = "Role UUID") @PathVariable UUID id) {
         service.delete(id);
     }
@@ -73,6 +76,7 @@ public class RoleController {
             @ApiResponse(responseCode = ResponseCode.CONFLICT, description = "Role already has this right")
     })
     @PostMapping("/{roleId}/rights/{rightId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public RoleDto grantRight(@Parameter(description = "Role UUID") @PathVariable UUID roleId,
                               @Parameter(description = "Right UUID") @PathVariable UUID rightId,
                               @Parameter(description = "Who is granting the right") @RequestParam(defaultValue = "system") String grantedBy) {
@@ -87,6 +91,7 @@ public class RoleController {
     })
     @DeleteMapping("/{roleId}/rights/{rightId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void revokeRight(@Parameter(description = "Role UUID") @PathVariable UUID roleId,
                             @Parameter(description = "Right UUID") @PathVariable UUID rightId) {
         service.revokeRight(roleId, rightId);
