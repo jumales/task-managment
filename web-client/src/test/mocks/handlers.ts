@@ -48,7 +48,6 @@ export const mockTask: TaskResponse = {
   assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', username: 'alice', active: true },
   project: mockProject,
   phase: null,
-  comments: [],
 };
 
 export const mockAuditRecord: AuditRecord = {
@@ -83,7 +82,6 @@ export const handlers = [
       assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', username: 'alice', active: true },
       project: mockProject,
       phase: null,
-      comments: [],
     };
     return HttpResponse.json(created, { status: 201 });
   }),
@@ -97,13 +95,16 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
-  http.post('*/api/v1/tasks/:taskId/comments', async ({ params, request }) => {
+  http.get('*/api/v1/tasks/:taskId/comments', () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.post('*/api/v1/tasks/:taskId/comments', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>;
-    return HttpResponse.json({
-      ...mockTask,
-      id: params.taskId as string,
-      comments: [{ id: 'comment-1', content: body.content as string, createdAt: '2026-03-20T10:00:00Z' }],
-    });
+    return HttpResponse.json(
+      { id: 'comment-1', content: body.content as string, createdAt: '2026-03-20T10:00:00Z' },
+      { status: 201 },
+    );
   }),
 
   // Projects

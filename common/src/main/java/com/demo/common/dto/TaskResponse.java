@@ -3,7 +3,6 @@ package com.demo.common.dto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -16,5 +15,4 @@ public class TaskResponse {
     private UserDto assignedUser;
     private TaskProjectResponse project;
     private TaskPhaseResponse phase;
-    private List<TaskCommentResponse> comments;
 }

@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { TaskResponse, TaskRequest, TaskProjectResponse, TaskProjectRequest } from './types';
+import type { TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
@@ -29,9 +29,14 @@ export function deleteTask(id: string) {
   return apiClient.delete(`${TASKS_URL}/${id}`);
 }
 
-/** Adds a comment to a task. */
+/** Fetches all comments for a task, ordered by creation time. */
+export function getTaskComments(taskId: string) {
+  return apiClient.get<TaskCommentResponse[]>(`${TASKS_URL}/${taskId}/comments`).then((r) => r.data);
+}
+
+/** Adds a comment to a task and returns the created comment. */
 export function addComment(taskId: string, content: string) {
-  return apiClient.post<TaskResponse>(`${TASKS_URL}/${taskId}/comments`, { content }).then((r) => r.data);
+  return apiClient.post<TaskCommentResponse>(`${TASKS_URL}/${taskId}/comments`, { content }).then((r) => r.data);
 }
 
 /** Fetches all projects. */

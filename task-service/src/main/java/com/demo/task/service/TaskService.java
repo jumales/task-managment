@@ -31,10 +31,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -157,9 +155,18 @@ public class TaskService {
         }
     }
 
-    /** Adds a comment to the task and publishes a {@code COMMENT_ADDED} outbox event. */
+    /** Returns all comments for the given task, ordered by creation time ascending. */
+    public List<TaskCommentResponse> getComments(UUID taskId) {
+        getOrThrow(taskId);
+        return commentRepository.findByTaskIdOrderByCreatedAtAsc(taskId)
+                .stream()
+                .map(c -> new TaskCommentResponse(c.getId(), c.getContent(), c.getCreatedAt()))
+                .toList();
+    }
+
+    /** Adds a comment to the task, publishes a {@code COMMENT_ADDED} outbox event, and returns the created comment. */
     @Transactional
-    public TaskResponse addComment(UUID taskId, TaskCommentRequest request) {
+    public TaskCommentResponse addComment(UUID taskId, TaskCommentRequest request) {
         Task task = getOrThrow(taskId);
         TaskComment saved = commentRepository.save(TaskComment.builder()
                 .taskId(taskId)
@@ -169,7 +176,7 @@ public class TaskService {
 
         writeToOutbox(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(), saved.getId(), saved.getContent()));
 
-        return toResponse(task);
+        return new TaskCommentResponse(saved.getId(), saved.getContent(), saved.getCreatedAt());
     }
 
     /** Soft-deletes the task; throws if the task has any associated comments. */
@@ -228,31 +235,19 @@ public class TaskService {
         TaskPhaseResponse phase = task.getPhaseId() != null
                 ? phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()))
                 : null;
-        List<TaskCommentResponse> comments = commentRepository.findByTaskIdOrderByCreatedAtAsc(task.getId())
-                .stream()
-                .map(c -> new TaskCommentResponse(c.getId(), c.getContent(), c.getCreatedAt()))
-                .toList();
         return new TaskResponse(task.getId(), task.getTitle(), task.getDescription(),
-                task.getStatus(), user, project, phase, comments);
+                task.getStatus(), user, project, phase);
     }
 
     /**
      * Converts a list of tasks to response DTOs using a single batch query per related entity,
-     * avoiding N+1 database round-trips for comments, projects, and phases.
+     * avoiding N+1 database round-trips for projects and phases.
      */
     private List<TaskResponse> toResponseList(List<Task> tasks) {
         if (tasks.isEmpty()) return List.of();
 
-        Set<UUID> taskIds    = tasks.stream().map(Task::getId).collect(Collectors.toSet());
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
-
-        Map<UUID, List<TaskCommentResponse>> commentsByTask = commentRepository.findByTaskIdIn(taskIds)
-                .stream()
-                .collect(Collectors.groupingBy(
-                        TaskComment::getTaskId,
-                        Collectors.mapping(c -> new TaskCommentResponse(c.getId(), c.getContent(), c.getCreatedAt()),
-                                Collectors.toList())));
 
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
@@ -274,8 +269,7 @@ public class TaskService {
                     task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
                     user,
                     projectsById.get(task.getProjectId()),
-                    task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null,
-                    commentsByTask.getOrDefault(task.getId(), List.of()));
+                    task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null);
         }).toList();
     }
 }
