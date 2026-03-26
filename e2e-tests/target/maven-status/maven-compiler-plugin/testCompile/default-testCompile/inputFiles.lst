@@ -1,0 +1,5 @@
+/Users/admin/projects/cc/task-managment/e2e-tests/src/test/java/com/demo/e2e/BaseE2ETest.java
+/Users/admin/projects/cc/task-managment/e2e-tests/src/test/java/com/demo/e2e/TaskCommentAuditFlowIT.java
+/Users/admin/projects/cc/task-managment/e2e-tests/src/test/java/com/demo/e2e/TaskPhaseAuditFlowIT.java
+/Users/admin/projects/cc/task-managment/e2e-tests/src/test/java/com/demo/e2e/TaskStatusAuditFlowIT.java
+/Users/admin/projects/cc/task-managment/e2e-tests/src/test/java/com/demo/e2e/config/E2ESecurityConfig.java

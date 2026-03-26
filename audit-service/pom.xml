@@ -95,6 +95,11 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Repackaged fat JAR gets the -exec classifier so the thin JAR
+                         remains the primary Maven artifact and can be imported by e2e-tests. -->
+                    <classifier>exec</classifier>
+                </configuration>
             </plugin>
         </plugins>
     </build>
