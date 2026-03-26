@@ -12,7 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -120,9 +122,19 @@ public class FileController {
         fileService.delete(fileId, callerSubject, isAdmin);
     }
 
-    /** Returns true if the JWT carries the ADMIN realm role. */
+    /**
+     * Returns true if the caller is an ADMIN — checks Spring Security authorities first
+     * (covers both JWT-issued and test-injected authentication), then falls back to
+     * the {@code realm_access.roles} JWT claim for Keycloak-issued tokens.
+     */
     @SuppressWarnings("unchecked")
     private boolean isAdmin(Jwt jwt) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return true;
+        }
+        if (jwt == null) return false;
         var realmAccess = jwt.getClaim("realm_access");
         if (!(realmAccess instanceof java.util.Map<?, ?> map)) return false;
         var roles = map.get("roles");
