@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # start-dev.sh — starts the full dev stack on macOS
-# Opens each microservice in its own Terminal window and starts infrastructure via Docker Compose.
+# Opens each microservice in its own Terminal tab and starts infrastructure via Docker Compose.
 #
 # Usage:
 #   ./scripts/start-dev.sh                      # start everything
 #   ./scripts/start-dev.sh --no-elk             # skip Elasticsearch / Logstash / Kibana (saves ~1 GB RAM)
 #   ./scripts/start-dev.sh --docker-only        # start Docker infrastructure only (no service terminals)
 #   ./scripts/start-dev.sh --docker-only --no-elk  # Docker only, skip ELK
-#   ./scripts/start-dev.sh --restart <service>  # kill & reopen one service terminal
+#   ./scripts/start-dev.sh --restart <service>  # kill & reopen one service tab
 #
 # Valid service names for --restart:
 #   eureka-server | api-gateway | user-service | task-service | audit-service | file-service | web-client
@@ -34,32 +34,36 @@ done
 log()  { echo "[start-dev] $*"; }
 warn() { echo "[start-dev] WARNING: $*" >&2; }
 
-# Open a new Terminal.app window and run <command> inside it.
-open_terminal_window() {
+# Open a new Terminal.app tab and run <command> inside it.
+open_terminal_tab() {
   local title="$1"
   local command="$2"
   osascript <<EOF
 tell application "Terminal"
-  do script "printf '\\\\033]0;${title}\\\\007'; ${command}"
   activate
+  if (count of windows) = 0 then
+    do script "printf '\\\\033]0;${title}\\\\007'; ${command}"
+  else
+    tell application "System Events" to keystroke "t" using {command down}
+    do script "printf '\\\\033]0;${title}\\\\007'; ${command}" in front window
+  end if
 end tell
 EOF
 }
 
-# Kill any Terminal window whose title matches <title>, then open a fresh one.
-restart_terminal_window() {
+# Close any Terminal tab whose title matches <title>, then open a fresh one.
+restart_terminal_tab() {
   local title="$1"
   local command="$2"
 
-  # Close existing window for this service (matched by tab title)
+  # Close existing tab for this service (matched by tab title)
   osascript <<EOF 2>/dev/null || true
 tell application "Terminal"
   set windowList to every window
   repeat with w in windowList
     repeat with t in every tab of w
       if name of t contains "${title}" then
-        do script "kill %1" in t
-        close (every window whose name contains "${title}")
+        close t
         exit repeat
       end if
     end repeat
@@ -68,7 +72,7 @@ end tell
 EOF
 
   sleep 1
-  open_terminal_window "$title" "$command"
+  open_terminal_tab "$title" "$command"
 }
 
 # Poll <url> until it returns HTTP 200 (or until <timeout_s> seconds pass).
@@ -89,16 +93,16 @@ wait_for_http() {
   log "$name is ready."
 }
 
-# Start a single named service in a new (or restarted) Terminal window.
+# Start a single named service in a new Terminal tab.
 start_service() {
   local name="$1"
   case "$name" in
     eureka-server|api-gateway|user-service|task-service|audit-service|file-service)
-      open_terminal_window "$name" \
+      open_terminal_tab "$name" \
         "cd '$PROJECT_ROOT' && mvn spring-boot:run -pl $name; exec \$SHELL"
       ;;
     web-client)
-      open_terminal_window "web-client" \
+      open_terminal_tab "web-client" \
         "cd '$PROJECT_ROOT/web-client' && npm run dev; exec \$SHELL"
       ;;
     *)
@@ -113,7 +117,7 @@ start_service() {
 
 if [[ -n "$RESTART_SERVICE" ]]; then
   log "Restarting $RESTART_SERVICE ..."
-  restart_terminal_window "$RESTART_SERVICE" ""   # close old window
+  restart_terminal_tab "$RESTART_SERVICE" ""   # close old tab
   start_service "$RESTART_SERVICE"
   log "$RESTART_SERVICE restarted."
   exit 0
@@ -212,7 +216,7 @@ cat <<'BANNER'
   │  MinIO     http://localhost:9001         │
   └─────────────────────────────────────────┘
 
-  Each service has its own Terminal window.
+  Each service has its own Terminal tab.
   Restart one service:  ./scripts/start-dev.sh --restart <name>
   Stop infrastructure:  ./scripts/stop-dev.sh
 
