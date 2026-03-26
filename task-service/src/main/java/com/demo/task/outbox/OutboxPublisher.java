@@ -1,5 +1,6 @@
 package com.demo.task.outbox;
 
+import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.repository.OutboxRepository;
@@ -19,7 +20,7 @@ public class OutboxPublisher {
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
 
     /** Single Kafka topic for all task change events. */
-    public static final String TOPIC = "task-changed";
+    public static final String TOPIC = KafkaTopics.TASK_CHANGED;
 
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<String, TaskChangedEvent> kafkaTemplate;

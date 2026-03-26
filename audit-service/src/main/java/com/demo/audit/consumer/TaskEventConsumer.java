@@ -6,6 +6,7 @@ import com.demo.audit.model.PhaseAuditRecord;
 import com.demo.audit.repository.AuditRepository;
 import com.demo.audit.repository.CommentAuditRepository;
 import com.demo.audit.repository.PhaseAuditRepository;
+import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +37,7 @@ public class TaskEventConsumer {
     }
 
     /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
-    @KafkaListener(topics = "task-changed", groupId = "audit-group")
+    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "audit-group")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
 

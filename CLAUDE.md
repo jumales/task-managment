@@ -56,6 +56,8 @@
 
 # Cross-cutting components in `common`
 - **Write integration tests for every new class in `common`** — classes like `MdcFilter` and `ControllerLoggingAspect` are shared by all services; test them in `task-service` using the standard `@SpringBootTest` + Testcontainers setup
+- **Security is already configured in `common`** — `SecurityConfig` and `JwtAuthConverter` live in `com.demo.common.config`; do NOT create per-service copies. All services scan `com.demo.*` so these beans are auto-discovered
+- **Kafka topic names belong in `KafkaTopics`** — add any new Kafka topic as a constant in `com.demo.common.config.KafkaTopics`; never use a string literal for a topic name in a producer or `@KafkaListener`
 
 # Extending existing entity
 - **Flyway migration** — add new columns as nullable or with a DEFAULT for backward compatibility; never edit existing migrations
