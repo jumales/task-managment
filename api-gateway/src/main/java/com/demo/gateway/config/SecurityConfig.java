@@ -26,9 +26,12 @@ import java.util.List;
 public class SecurityConfig {
 
     private final CorsProperties corsProperties;
+    private final LoggingAuthenticationEntryPoint loggingEntryPoint;
 
-    public SecurityConfig(CorsProperties corsProperties) {
+    public SecurityConfig(CorsProperties corsProperties,
+                          LoggingAuthenticationEntryPoint loggingEntryPoint) {
         this.corsProperties = corsProperties;
+        this.loggingEntryPoint = loggingEntryPoint;
     }
 
     /**
@@ -50,6 +53,7 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> {})
+                        .authenticationEntryPoint(loggingEntryPoint)
                 )
                 .build();
     }
@@ -60,7 +64,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(corsProperties.getAllowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

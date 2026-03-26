@@ -122,6 +122,19 @@ services:
     networks:
       - ms-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: ms-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ms-network
+
   minio:
     image: minio/minio:RELEASE.2024-01-18T22-51-28Z
     container_name: ms-minio

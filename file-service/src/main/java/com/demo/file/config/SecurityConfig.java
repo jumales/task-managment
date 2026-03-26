@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import com.demo.common.web.LoggingAuthenticationEntryPoint;
 
 /**
  * Configures file-service as a stateless OAuth2 resource server.
@@ -18,9 +19,12 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final JwtAuthConverter jwtAuthConverter;
+    private final LoggingAuthenticationEntryPoint loggingEntryPoint;
 
-    public SecurityConfig(JwtAuthConverter jwtAuthConverter) {
+    public SecurityConfig(JwtAuthConverter jwtAuthConverter,
+                          LoggingAuthenticationEntryPoint loggingEntryPoint) {
         this.jwtAuthConverter = jwtAuthConverter;
+        this.loggingEntryPoint = loggingEntryPoint;
     }
 
     /** Configures stateless JWT validation; all endpoints require authentication. */
@@ -36,6 +40,7 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
                 )
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(loggingEntryPoint))
                 .build();
     }
 }

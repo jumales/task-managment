@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -52,6 +53,7 @@ public class UserController {
     @ApiResponse(responseCode = ResponseCode.CREATED, description = "User created")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDto create(@RequestBody @Valid UserRequest request) {
         return service.create(request);
     }
@@ -63,6 +65,7 @@ public class UserController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
     })
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDto update(@Parameter(description = "User UUID") @PathVariable UUID id,
                           @RequestBody @Valid UserRequest request) {
         return service.update(id, request);
@@ -76,6 +79,7 @@ public class UserController {
     })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@Parameter(description = "User UUID") @PathVariable UUID id) {
         service.delete(id);
     }
@@ -90,6 +94,7 @@ public class UserController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
     })
     @PatchMapping("/{id}/avatar")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDto updateAvatar(
             @Parameter(description = "User UUID") @PathVariable UUID id,
             @RequestBody Map<String, UUID> body) {
@@ -104,6 +109,7 @@ public class UserController {
             @ApiResponse(responseCode = ResponseCode.CONFLICT, description = "User already has this role")
     })
     @PostMapping("/{userId}/roles/{roleId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDto assignRole(@Parameter(description = "User UUID") @PathVariable UUID userId,
                               @Parameter(description = "Role UUID") @PathVariable UUID roleId,
                               @Parameter(description = "Who is assigning the role") @RequestParam(defaultValue = "system") String assignedBy) {
@@ -118,6 +124,7 @@ public class UserController {
     })
     @DeleteMapping("/{userId}/roles/{roleId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void revokeRole(@Parameter(description = "User UUID") @PathVariable UUID userId,
                            @Parameter(description = "Role UUID") @PathVariable UUID roleId) {
         service.revokeRole(userId, roleId);

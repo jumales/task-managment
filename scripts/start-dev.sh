@@ -121,7 +121,7 @@ fi
 
 # ── Step 1: Docker infrastructure ────────────────────────────────────────────
 
-INFRA_SERVICES="postgres zookeeper kafka keycloak minio minio-init"
+INFRA_SERVICES="postgres zookeeper kafka keycloak minio minio-init redis"
 if [[ "$SKIP_ELK" == false ]]; then
   INFRA_SERVICES="$INFRA_SERVICES elasticsearch logstash kibana"
   log "Starting Docker infrastructure (including ELK) ..."
@@ -157,6 +157,13 @@ until docker inspect --format='{{.State.Health.Status}}' ms-minio 2>/dev/null | 
 done
 log "MinIO is healthy."
 
+# Redis — required by api-gateway rate limiter
+log "Waiting for Redis ..."
+until docker inspect --format='{{.State.Health.Status}}' ms-redis 2>/dev/null | grep -q "healthy"; do
+  sleep 3
+done
+log "Redis is healthy."
+
 # ── Docker-only mode: exit after infrastructure is healthy ────────────────────
 
 if [[ "$DOCKER_ONLY" == true ]]; then
@@ -169,6 +176,7 @@ if [[ "$DOCKER_ONLY" == true ]]; then
   │  Keycloak  http://localhost:8180         │
   │  Kibana    http://localhost:5601         │
   │  MinIO     http://localhost:9001         │
+  │  Redis     localhost:6379               │
   └─────────────────────────────────────────┘
 
   Start services:  ./scripts/start-dev.sh
@@ -210,6 +218,7 @@ cat <<'BANNER'
   │  Web app   http://localhost:3000         │
   │  Kibana    http://localhost:5601         │
   │  MinIO     http://localhost:9001         │
+  │  Redis     localhost:6379               │
   └─────────────────────────────────────────┘
 
   Each service has its own Terminal window.

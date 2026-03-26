@@ -44,5 +44,11 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-core</artifactId>
         </dependency>
+        <!-- Spring Security web — needed by LoggingAuthenticationEntryPoint.
+             Not the starter, so no auto-configuration is triggered. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+        </dependency>
     </dependencies>
 </project>
