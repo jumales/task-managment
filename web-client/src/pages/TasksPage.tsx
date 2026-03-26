@@ -4,9 +4,9 @@ import {
   Drawer, Space, List, Popconfirm,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { getTasks, createTask, updateTask, deleteTask, addComment, getProjects } from '../api/taskApi';
+import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
-import type { TaskResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskResponse, TaskCommentResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -31,9 +31,11 @@ export function TasksPage() {
   const [editingTask,   setEditingTask]   = useState<TaskResponse | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
-  const [detailTask,    setDetailTask]    = useState<TaskResponse | null>(null);
-  const [comment,       setComment]       = useState('');
-  const [addingComment, setAddingComment] = useState(false);
+  const [detailTask,       setDetailTask]       = useState<TaskResponse | null>(null);
+  const [comments,         setComments]         = useState<TaskCommentResponse[]>([]);
+  const [commentsLoading,  setCommentsLoading]  = useState(false);
+  const [comment,          setComment]          = useState('');
+  const [addingComment,    setAddingComment]    = useState(false);
 
   const [form] = Form.useForm();
 
@@ -110,6 +112,17 @@ export function TasksPage() {
     });
   };
 
+  /** Opens the detail drawer and asynchronously loads the task's comments. */
+  const openDetailDrawer = (task: TaskResponse) => {
+    setDetailTask(task);
+    setComments([]);
+    setCommentsLoading(true);
+    getTaskComments(task.id)
+      .then(setComments)
+      .catch(() => setError('Failed to load comments.'))
+      .finally(() => setCommentsLoading(false));
+  };
+
   /** Soft-deletes a task after confirmation. */
   const handleDelete = (id: string) => {
     setDeletingId(id);
@@ -122,15 +135,14 @@ export function TasksPage() {
       .finally(() => setDeletingId(null));
   };
 
-  /** Posts a new comment to the task and updates local state with the response. */
+  /** Posts a new comment and appends it to the local comments list. */
   const handleAddComment = (task: TaskResponse) => {
     if (!comment.trim()) return;
     setAddingComment(true);
     addComment(task.id, comment.trim())
-      .then((updated) => {
-        setDetailTask(updated);
+      .then((created) => {
+        setComments((prev) => [...prev, created]);
         setComment('');
-        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       })
       .catch((err) => {
         const message = err?.response?.data?.message ?? err?.message ?? 'Failed to add comment.';
@@ -150,7 +162,7 @@ export function TasksPage() {
       title: 'Actions', key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => setDetailTask(record)}>View</Button>
+          <Button size="small" onClick={() => openDetailDrawer(record)}>View</Button>
           <Button size="small" onClick={() => openEditModal(record)}>Edit</Button>
           <Popconfirm
             title="Delete task?"
@@ -216,7 +228,7 @@ export function TasksPage() {
       <Drawer
         title={detailTask?.title}
         open={detailTask !== null}
-        onClose={() => { setDetailTask(null); setComment(''); }}
+        onClose={() => { setDetailTask(null); setComments([]); setComment(''); }}
         width={480}
       >
         {detailTask && (
@@ -231,11 +243,13 @@ export function TasksPage() {
 
             <Typography.Title level={5} style={{ marginTop: 16, marginBottom: 0 }}>Comments</Typography.Title>
 
-            {detailTask.comments.length === 0 ? (
+            {commentsLoading ? (
+              <Spin size="small" />
+            ) : comments.length === 0 ? (
               <Typography.Text type="secondary">No comments yet.</Typography.Text>
             ) : (
               <List
-                dataSource={detailTask.comments}
+                dataSource={comments}
                 renderItem={(c) => (
                   <List.Item key={c.id}>
                     <List.Item.Meta

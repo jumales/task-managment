@@ -1,5 +1,6 @@
 package com.demo.task;
 
+import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -232,6 +233,46 @@ class TaskControllerIT {
         assertThat(repository.count()).isEqualTo(1);
     }
 
+    // ── GET /api/v1/tasks/{id}/comments ─────────────────────────────
+
+    @Test
+    void getComments_whenNoComments_returnsEmptyList() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", request("Task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        ResponseEntity<TaskCommentResponse[]> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + created.getId() + "/comments", TaskCommentResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEmpty();
+    }
+
+    @Test
+    void addComment_returnsCreatedComment() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", request("Task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        ResponseEntity<TaskCommentResponse> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + created.getId() + "/comments",
+                comment("Great progress!"),
+                TaskCommentResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getContent()).isEqualTo("Great progress!");
+        assertThat(response.getBody().getId()).isNotNull();
+    }
+
+    @Test
+    void addComment_thenGetComments_returnsComment() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", request("Task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+        restTemplate.postForEntity("/api/v1/tasks/" + created.getId() + "/comments",
+                comment("First comment"), TaskCommentResponse.class);
+
+        ResponseEntity<TaskCommentResponse[]> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + created.getId() + "/comments", TaskCommentResponse[].class);
+
+        assertThat(response.getBody()).hasSize(1);
+        assertThat(response.getBody()[0].getContent()).isEqualTo("First comment");
+    }
+
     // ── Resilience ────────────────────────────────────────────────
 
     @Test
@@ -255,6 +296,12 @@ class TaskControllerIT {
         req.setStatus(status);
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
+        return req;
+    }
+
+    private com.demo.common.dto.TaskCommentRequest comment(String content) {
+        com.demo.common.dto.TaskCommentRequest req = new com.demo.common.dto.TaskCommentRequest();
+        req.setContent(content);
         return req;
     }
 }

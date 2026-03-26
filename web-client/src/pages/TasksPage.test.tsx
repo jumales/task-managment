@@ -331,13 +331,12 @@ describe('TasksPage', () => {
 
     let commentBody: Record<string, unknown> | null = null;
     server.use(
-      http.post('*/api/v1/tasks/:taskId/comments', async ({ params, request }) => {
+      http.post('*/api/v1/tasks/:taskId/comments', async ({ request }) => {
         commentBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({
-          ...mockTask,
-          id: params.taskId as string,
-          comments: [{ id: 'c-1', content: commentBody.content as string, createdAt: '2026-03-23T10:00:00Z' }],
-        });
+        return HttpResponse.json(
+          { id: 'c-1', content: commentBody.content as string, createdAt: '2026-03-23T10:00:00Z' },
+          { status: 201 },
+        );
       }),
     );
 

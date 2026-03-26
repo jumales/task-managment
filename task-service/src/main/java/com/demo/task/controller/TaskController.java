@@ -1,6 +1,7 @@
 package com.demo.task.controller;
 
 import com.demo.common.dto.TaskCommentRequest;
+import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.task.service.TaskService;
@@ -82,7 +83,18 @@ public class TaskController {
         return service.update(id, request);
     }
 
-    /** Appends a comment to the task and returns the updated task representation. */
+    /** Returns all comments for the task, ordered by creation time ascending. */
+    @Operation(summary = "Get comments for a task")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Comments returned"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task not found")
+    })
+    @GetMapping("/{id}/comments")
+    public List<TaskCommentResponse> getComments(@Parameter(description = "Task UUID") @PathVariable UUID id) {
+        return service.getComments(id);
+    }
+
+    /** Appends a comment to the task and returns the created comment. */
     @Operation(summary = "Add a comment to a task")
     @ApiResponses({
             @ApiResponse(responseCode = ResponseCode.CREATED, description = "Comment added"),
@@ -90,8 +102,8 @@ public class TaskController {
     })
     @PostMapping("/{id}/comments")
     @ResponseStatus(HttpStatus.CREATED)
-    public TaskResponse addComment(@Parameter(description = "Task UUID") @PathVariable UUID id,
-                                   @RequestBody TaskCommentRequest request) {
+    public TaskCommentResponse addComment(@Parameter(description = "Task UUID") @PathVariable UUID id,
+                                          @RequestBody TaskCommentRequest request) {
         return service.addComment(id, request);
     }
 
