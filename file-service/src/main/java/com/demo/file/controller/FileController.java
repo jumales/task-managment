@@ -118,7 +118,7 @@ public class FileController {
     public void delete(@Parameter(description = "File UUID") @PathVariable UUID fileId,
                        @AuthenticationPrincipal Jwt jwt) {
         String callerSubject = jwt != null ? jwt.getSubject() : null;
-        boolean isAdmin = jwt != null && isAdmin(jwt);
+        boolean isAdmin = isAdmin(jwt);
         fileService.delete(fileId, callerSubject, isAdmin);
     }
 
