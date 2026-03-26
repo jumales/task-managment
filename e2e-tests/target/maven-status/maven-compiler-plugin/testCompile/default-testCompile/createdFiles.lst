@@ -1,9 +1,0 @@
-com/demo/e2e/TaskStatusAuditFlowIT.class
-com/demo/e2e/BaseE2ETest.class
-com/demo/e2e/TaskCommentAuditFlowIT$1.class
-com/demo/e2e/TaskCommentAuditFlowIT.class
-com/demo/e2e/config/E2ESecurityConfig.class
-com/demo/e2e/TaskStatusAuditFlowIT$1.class
-com/demo/e2e/TaskPhaseAuditFlowIT.class
-com/demo/e2e/config/E2ESecurityConfig$AdminAuthFilter.class
-com/demo/e2e/TaskPhaseAuditFlowIT$1.class
