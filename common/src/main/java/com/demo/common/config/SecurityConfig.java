@@ -1,5 +1,6 @@
-package com.demo.audit.config;
+package com.demo.common.config;
 
+import com.demo.common.web.LoggingAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -7,20 +8,20 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import com.demo.common.web.LoggingAuthenticationEntryPoint;
 
 /**
- * Servlet security configuration for audit-service.
+ * Shared stateless JWT security configuration for all servlet-based microservices.
  *
- * <p>Configures the service as a stateless OAuth2 resource server that validates
+ * <p>Configures each service as a stateless OAuth2 resource server that validates
  * JWTs independently of the gateway (defense in depth). Roles and rights extracted
- * by {@link JwtAuthConverter} are available for {@code @PreAuthorize} expressions.
- *
- * <p>Example usage:
+ * by {@link JwtAuthConverter} are available for {@code @PreAuthorize} expressions:
  * <pre>
  *   {@code @PreAuthorize("hasRole('ADMIN')")}
- *   {@code @PreAuthorize("hasAuthority('AUDIT_READ')")}
+ *   {@code @PreAuthorize("hasAuthority('USER_READ')")}
  * </pre>
+ *
+ * <p>Shared by all services via the {@code common} module. No per-service
+ * {@code SecurityConfig} copy is needed — all services scan {@code com.demo.*}.
  */
 @Configuration
 @EnableWebSecurity

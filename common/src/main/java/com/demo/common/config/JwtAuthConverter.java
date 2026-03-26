@@ -1,4 +1,4 @@
-package com.demo.file.config;
+package com.demo.common.config;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
@@ -16,14 +16,21 @@ import java.util.stream.Stream;
 
 /**
  * Converts a validated JWT into a Spring Security {@link AbstractAuthenticationToken}
- * carrying both realm roles ({@code ROLE_<ROLE>}) and fine-grained rights from the
- * custom {@code rights} claim.
+ * that carries both realm roles and fine-grained rights as {@link GrantedAuthority} objects.
+ *
+ * <p>Roles are read from {@code realm_access.roles} (standard Keycloak claim) and mapped
+ * to {@code ROLE_<UPPERCASE_ROLE>} — e.g. {@code ROLE_ADMIN}.
+ *
+ * <p>Rights are read from the custom {@code rights} claim (a string list injected by a
+ * Keycloak protocol mapper) and mapped verbatim — e.g. {@code USER_READ}.
+ *
+ * <p>Shared by all services via the {@code common} module; no per-service copy needed.
  */
 @Component
 public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private static final String CLAIM_REALM_ACCESS = "realm_access";
-    private static final String CLAIM_RIGHTS       = "rights";
+    private static final String CLAIM_RIGHTS = "rights";
 
     /** Extracts roles and rights from the JWT and returns an authenticated token. */
     @Override
