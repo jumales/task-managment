@@ -506,6 +506,30 @@
           ]
         },
         {
+          "name": "Get comments for task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}", "comments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Add comment to task",
           "request": {
             "method": "POST",
@@ -527,7 +551,8 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Comment added', () => pm.expect(pm.response.json().comments).to.have.length.above(0));"
+                  "pm.test('Has id', () => pm.expect(pm.response.json()).to.have.property('id'));",
+                  "pm.test('Has content', () => pm.expect(pm.response.json()).to.have.property('content'));"
                 ],
                 "type": "text/javascript"
               }

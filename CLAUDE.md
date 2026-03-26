@@ -27,6 +27,7 @@
 # Postman Collections
 
 - **Always update Postman when adding or changing endpoints** — collections live in `postman/`; one file per service (e.g. `user-service.postman_collection.json`)
+- **Update Postman immediately after any controller change** — every time you add, remove, or modify an endpoint (path, method, request body, response shape, status code), update the corresponding Postman collection in the same commit; never leave the collection out of sync with the controller
 - **New service** — create `postman/<service-name>.postman_collection.json` following the existing structure: collection-level Bearer auth via `{{bearerToken}}`, collection variables for IDs auto-saved from create responses, and a test script on every request that asserts the expected status code
 - **New endpoint on an existing service** — add the request to the correct folder inside the existing collection; auto-save any returned IDs into collection variables so dependent requests work without manual copy-paste
 - **Modified response shape** — update or add test assertions to match the new fields
