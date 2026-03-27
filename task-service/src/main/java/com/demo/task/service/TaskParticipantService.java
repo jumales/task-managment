@@ -107,7 +107,8 @@ public class TaskParticipantService {
 
     /**
      * Creates an ASSIGNEE participant for the given user on the task.
-     * Replaces any existing ASSIGNEE by soft-deleting it first.
+     * Soft-deletes any existing ASSIGNEE first, then flushes to avoid a unique-constraint
+     * violation when the new ASSIGNEE carries the same user ID as the old one.
      */
     @Transactional
     public void setAssignee(UUID taskId, UUID userId) {
@@ -116,6 +117,8 @@ public class TaskParticipantService {
         repository.findByTaskId(taskId).stream()
                 .filter(p -> p.getRole() == TaskParticipantRole.ASSIGNEE)
                 .forEach(p -> repository.deleteById(p.getId()));
+        // Flush the soft-delete UPDATE before the INSERT to avoid unique-index conflicts
+        repository.flush();
         repository.save(TaskParticipant.builder()
                 .taskId(taskId)
                 .userId(userId)
