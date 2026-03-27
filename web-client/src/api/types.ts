@@ -37,12 +37,30 @@ export interface TaskCommentResponse {
   createdAt: string;
 }
 
+/** Mirrors com.demo.common.dto.TaskParticipantRole */
+export type TaskParticipantRole = 'CREATOR' | 'ASSIGNEE' | 'VIEWER' | 'REVIEWER';
+
+/** Mirrors com.demo.common.dto.TaskParticipantResponse */
+export interface TaskParticipantResponse {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  role: TaskParticipantRole;
+}
+
+/** Mirrors com.demo.common.dto.TaskParticipantRequest */
+export interface TaskParticipantRequest {
+  userId: string;
+  role: TaskParticipantRole;
+}
+
 export interface TaskResponse {
   id: string;
   title: string;
   description: string;
   status: TaskStatus;
-  assignedUser: UserDto | null;
+  participants: TaskParticipantResponse[];
   project: TaskProjectResponse;
   phase: TaskPhaseResponse | null;
 }

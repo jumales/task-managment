@@ -12,12 +12,14 @@ import com.demo.common.config.KafkaTopics;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.repository.OutboxRepository;
+import com.demo.task.repository.TaskParticipantRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -39,6 +41,7 @@ import static org.mockito.Mockito.when;
 
 @Import(TestSecurityConfig.class)
 @Testcontainers
+@DirtiesContext
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "eureka.client.enabled=false"
@@ -68,16 +71,22 @@ class TaskStatusKafkaIT {
     @Autowired
     OutboxRepository outboxRepository;
 
+    @Autowired
+    TaskParticipantRepository participantRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private UUID projectId;
 
     @BeforeEach
     void setUp() {
+        participantRepository.deleteAll();
         outboxRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
                 .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null));
+        when(userClient.getUserById(TestSecurityConfig.TEST_USER_ID))
+                .thenReturn(new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null));
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
