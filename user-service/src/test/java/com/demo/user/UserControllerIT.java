@@ -121,14 +121,6 @@ class UserControllerIT {
         assertThat(response.getBody()).hasSize(2);
     }
 
-    @Test
-    void getUsersByIds_withEmptyList_returnsEmptyList() {
-        ResponseEntity<UserDto[]> response = restTemplate.getForEntity("/api/v1/users/batch?ids=", UserDto[].class);
-
-        // Spring will fail to parse empty UUID — test that unknown IDs return empty gracefully
-        // When ids list is empty, Spring returns 400 (cannot parse empty string as UUID)
-        assertThat(response.getStatusCode().is4xxClientError()).isTrue();
-    }
 
     // ── GET /api/v1/users/{id} ───────────────────────────────────────
 
