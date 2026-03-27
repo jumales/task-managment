@@ -3,7 +3,7 @@ import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
   Drawer, Space, List, Popconfirm,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import type { TaskResponse, TaskCommentResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
@@ -23,6 +23,9 @@ const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 /** Displays all tasks and allows creating, editing, deleting, and commenting on them. */
 export function TasksPage() {
   const [tasks,         setTasks]         = useState<TaskResponse[]>([]);
+  const [totalTasks,    setTotalTasks]    = useState(0);
+  const [currentPage,   setCurrentPage]   = useState(1);
+  const [pageSize,      setPageSize]      = useState(20);
   const [projects,      setProjects]      = useState<TaskProjectResponse[]>([]);
   const [users,         setUsers]         = useState<UserResponse[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -39,9 +42,12 @@ export function TasksPage() {
 
   const [form] = Form.useForm();
 
-  const loadTasks = () =>
-    getTasks()
-      .then(setTasks)
+  const loadTasks = (page = currentPage, size = pageSize) =>
+    getTasks({ page: page - 1, size })
+      .then((data) => {
+        setTasks(data.content);
+        setTotalTasks(data.totalElements);
+      })
       .catch((err) => {
         const status  = err?.response?.status;
         const message = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
@@ -51,7 +57,7 @@ export function TasksPage() {
 
   const refreshDropdowns = () => {
     getProjects().then(setProjects).catch(() => setError('Failed to load projects.'));
-    getUsers().then(setUsers).catch(() => setError('Failed to load users.'));
+    getUsers().then((data) => setUsers(data.content)).catch(() => setError('Failed to load users.'));
   };
 
   useEffect(() => {
@@ -59,12 +65,22 @@ export function TasksPage() {
     refreshDropdowns();
   }, []);
 
+  const handleTableChange = (pagination: TablePaginationConfig) => {
+    const page = pagination.current ?? 1;
+    const size = pagination.pageSize ?? 20;
+    setCurrentPage(page);
+    setPageSize(size);
+    setLoading(true);
+    loadTasks(page, size);
+  };
+
   /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
   const openCreateModal = () => {
     setEditingTask(null);
     form.resetFields();
     Promise.all([getProjects(), getUsers()])
-      .then(([fetchedProjects, fetchedUsers]) => {
+      .then(([fetchedProjects, fetchedUsersPage]) => {
+        const fetchedUsers = fetchedUsersPage.content;
         setProjects(fetchedProjects);
         setUsers(fetchedUsers);
         if (fetchedProjects.length === 1) form.setFieldValue('projectId',      fetchedProjects[0].id);
@@ -188,7 +204,13 @@ export function TasksPage() {
         <Button type="primary" onClick={openCreateModal}>New Task</Button>
       </div>
 
-      <Table rowKey="id" dataSource={tasks} columns={columns} pagination={{ pageSize: 20 }} />
+      <Table
+        rowKey="id"
+        dataSource={tasks}
+        columns={columns}
+        pagination={{ current: currentPage, pageSize, total: totalTasks, showSizeChanger: true }}
+        onChange={handleTableChange}
+      />
 
       {/* Create / Edit Modal */}
       <Modal

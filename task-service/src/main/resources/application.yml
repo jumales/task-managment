@@ -9,6 +9,10 @@ spring:
     username: task_svc
     password: task_svc_pass
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20     # max concurrent DB connections (default: 10)
+      minimum-idle: 5           # keep warm connections ready at all times
+      connection-timeout: 30000 # 30 s — fail fast if pool is exhausted
   flyway:
     baseline-on-migrate: true  # handle pre-existing schema with no flyway_schema_history table
 

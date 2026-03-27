@@ -1,5 +1,6 @@
 package com.demo.task.service;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskPhaseResponse;
@@ -24,10 +25,13 @@ import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,9 +68,10 @@ public class TaskService {
         this.objectMapper = objectMapper;
     }
 
-    /** Returns all tasks. */
-    public List<TaskResponse> findAll() {
-        return toResponseList(repository.findAll());
+    /** Returns a paginated page of all tasks. */
+    public PageResponse<TaskResponse> findAll(Pageable pageable) {
+        Page<Task> page = repository.findAll(pageable);
+        return toPageResponse(page);
     }
 
     /** Returns the task with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
@@ -74,24 +79,27 @@ public class TaskService {
         return toResponse(getOrThrow(id));
     }
 
-    /** Returns all tasks assigned to the specified user. */
-    public List<TaskResponse> findByUser(UUID userId) {
-        return toResponseList(repository.findByAssignedUserId(userId));
+    /** Returns a paginated page of tasks assigned to the specified user. */
+    public PageResponse<TaskResponse> findByUser(UUID userId, Pageable pageable) {
+        Page<Task> page = repository.findByAssignedUserId(userId, pageable);
+        return toPageResponse(page);
     }
 
     /**
-     * Returns all tasks whose status matches the given value (case-insensitive).
+     * Returns a paginated page of tasks whose status matches the given value (case-insensitive).
      *
      * @param status string representation of {@link TaskStatus}
      */
-    public List<TaskResponse> findByStatus(String status) {
-        return toResponseList(repository.findByStatus(TaskStatus.valueOf(status.toUpperCase())));
+    public PageResponse<TaskResponse> findByStatus(String status, Pageable pageable) {
+        Page<Task> page = repository.findByStatus(TaskStatus.valueOf(status.toUpperCase()), pageable);
+        return toPageResponse(page);
     }
 
-    /** Returns all tasks belonging to the specified project. */
-    public List<TaskResponse> findByProject(UUID projectId) {
+    /** Returns a paginated page of tasks belonging to the specified project. */
+    public PageResponse<TaskResponse> findByProject(UUID projectId, Pageable pageable) {
         projectService.getOrThrow(projectId);
-        return toResponseList(repository.findByProjectId(projectId));
+        Page<Task> page = repository.findByProjectId(projectId, pageable);
+        return toPageResponse(page);
     }
 
     /** Creates a new task, resolving the phase and validating the assigned user and project. */
@@ -240,14 +248,15 @@ public class TaskService {
     }
 
     /**
-     * Converts a list of tasks to response DTOs using a single batch query per related entity,
-     * avoiding N+1 database round-trips for projects and phases.
+     * Converts a list of tasks to response DTOs using batch queries for projects, phases, and users,
+     * avoiding N+1 database and HTTP round-trips.
      */
     private List<TaskResponse> toResponseList(List<Task> tasks) {
         if (tasks.isEmpty()) return List.of();
 
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<UUID> userIds    = tasks.stream().map(Task::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
 
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
@@ -258,18 +267,40 @@ public class TaskService {
                         .stream()
                         .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
 
-        return tasks.stream().map(task -> {
-            UserDto user = null;
-            try {
-                user = userClient.getUserById(task.getAssignedUserId());
-            } catch (Exception e) {
-                // user-service unavailable — return task without user details
-            }
-            return new TaskResponse(
-                    task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
-                    user,
-                    projectsById.get(task.getProjectId()),
-                    task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null);
-        }).toList();
+        // Batch-fetch all unique assigned users in a single HTTP call instead of one call per task.
+        Map<UUID, UserDto> usersById = fetchUsersByIds(userIds);
+
+        return tasks.stream().map(task -> new TaskResponse(
+                task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
+                usersById.get(task.getAssignedUserId()),
+                projectsById.get(task.getProjectId()),
+                task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null))
+                .toList();
+    }
+
+    /**
+     * Fetches users from user-service in a single batch call.
+     * Returns an empty map if the user-service is unavailable.
+     */
+    private Map<UUID, UserDto> fetchUsersByIds(Set<UUID> userIds) {
+        if (userIds.isEmpty()) return Map.of();
+        try {
+            return userClient.getUsersByIds(new ArrayList<>(userIds)).stream()
+                    .collect(Collectors.toMap(UserDto::getId, u -> u));
+        } catch (Exception e) {
+            // user-service unavailable — return tasks without user details
+            return Map.of();
+        }
+    }
+
+    /** Converts a {@link Page} of tasks to a {@link PageResponse} with mapped response DTOs. */
+    private PageResponse<TaskResponse> toPageResponse(Page<Task> page) {
+        return new PageResponse<>(
+                toResponseList(page.getContent()),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast());
     }
 }

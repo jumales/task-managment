@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +16,8 @@ import java.util.UUID;
 public interface RoleRightRepository extends JpaRepository<RoleRight, UUID> {
     /** Returns all active right grants for the given role. */
     List<RoleRight> findByRole(Role role);
+    /** Returns all active right grants for the given set of roles; used for batch DTO conversion. */
+    List<RoleRight> findByRoleIn(Collection<Role> roles);
     /** Returns the active right grant for the given role and right, if one exists. */
     Optional<RoleRight> findByRoleAndRight(Role role, Right right);
     /** Returns {@code true} if the role has at least one active right grant. */

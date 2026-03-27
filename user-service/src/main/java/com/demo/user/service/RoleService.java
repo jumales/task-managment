@@ -17,8 +17,11 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class RoleService {
@@ -104,6 +107,24 @@ public class RoleService {
         Role role = getOrThrow(roleId);
         Right right = rightService.getOrThrow(rightId);
         roleRightRepository.softDeleteByRoleAndRight(role, right);
+    }
+
+    /**
+     * Batch-converts a collection of {@link Role} entities to a {@code Map<id, RoleDto>},
+     * loading all rights in a single query. Use this in list methods to avoid N+1 queries.
+     */
+    public Map<UUID, RoleDto> toDtoMap(Collection<Role> roles) {
+        if (roles.isEmpty()) return Map.of();
+        Map<UUID, List<com.demo.common.dto.RightDto>> rightsByRoleId = roleRightRepository.findByRoleIn(roles)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        rr -> rr.getRole().getId(),
+                        Collectors.mapping(rr -> rightService.toDto(rr.getRight()), Collectors.toList())));
+        return roles.stream()
+                .collect(Collectors.toMap(
+                        Role::getId,
+                        r -> new RoleDto(r.getId(), r.getName(), r.getDescription(),
+                                rightsByRoleId.getOrDefault(r.getId(), List.of()))));
     }
 
     /** Returns the raw {@link com.demo.user.model.Role} entity, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */

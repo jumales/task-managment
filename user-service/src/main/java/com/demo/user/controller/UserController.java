@@ -1,5 +1,6 @@
 package com.demo.user.controller;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.UserRequest;
 import com.demo.user.service.UserService;
@@ -10,13 +11,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "Users", description = "Create and manage user accounts")
@@ -30,11 +32,18 @@ public class UserController {
         this.service = service;
     }
 
-    /** Returns all users. */
+    /** Returns a paginated list of all users. */
     @Operation(summary = "List all users")
     @GetMapping
-    public List<UserDto> getAll() {
-        return service.findAll();
+    public PageResponse<UserDto> getAll(@PageableDefault(size = 20) Pageable pageable) {
+        return service.findAll(pageable);
+    }
+
+    /** Returns users whose IDs match the provided list; used for batch lookups by other services. */
+    @Operation(summary = "Batch-fetch users by IDs")
+    @GetMapping("/batch")
+    public List<UserDto> getByIds(@RequestParam("ids") List<UUID> ids) {
+        return service.findByIds(ids);
     }
 
     /** Returns the user identified by {@code id}. */

@@ -327,9 +327,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks",
+              "raw": "{{baseUrl}}/api/v1/tasks?page=0&size=20",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks"]
+              "path": ["api", "v1", "tasks"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
             }
           },
           "event": [
@@ -338,7 +342,13 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                  "var json = pm.response.json();",
+                  "pm.test('Response is paginated', () => {",
+                  "  pm.expect(json).to.have.property('content');",
+                  "  pm.expect(json).to.have.property('totalElements');",
+                  "  pm.expect(json).to.have.property('totalPages');",
+                  "  pm.expect(json.content).to.be.an('array');",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -351,10 +361,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks?userId={{userId}}",
+              "raw": "{{baseUrl}}/api/v1/tasks?userId={{userId}}&page=0&size=20",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "tasks"],
-              "query": [{ "key": "userId", "value": "{{userId}}" }]
+              "query": [
+                { "key": "userId", "value": "{{userId}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
             }
           },
           "event": [
@@ -363,7 +377,7 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                  "pm.test('Response is paginated', () => pm.expect(pm.response.json()).to.have.property('content'));"
                 ],
                 "type": "text/javascript"
               }
@@ -376,10 +390,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks?projectId={{projectId}}",
+              "raw": "{{baseUrl}}/api/v1/tasks?projectId={{projectId}}&page=0&size=20",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "tasks"],
-              "query": [{ "key": "projectId", "value": "{{projectId}}" }]
+              "query": [
+                { "key": "projectId", "value": "{{projectId}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
             }
           },
           "event": [
@@ -388,7 +406,7 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                  "pm.test('Response is paginated', () => pm.expect(pm.response.json()).to.have.property('content'));"
                 ],
                 "type": "text/javascript"
               }
@@ -401,10 +419,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks?status=TODO",
+              "raw": "{{baseUrl}}/api/v1/tasks?status=TODO&page=0&size=20",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "tasks"],
-              "query": [{ "key": "status", "value": "TODO", "description": "TODO | IN_PROGRESS | DONE (case-insensitive)" }]
+              "query": [
+                { "key": "status", "value": "TODO", "description": "TODO | IN_PROGRESS | DONE (case-insensitive)" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
             }
           },
           "event": [
@@ -413,7 +435,7 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                  "pm.test('Response is paginated', () => pm.expect(pm.response.json()).to.have.property('content'));"
                 ],
                 "type": "text/javascript"
               }

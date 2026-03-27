@@ -1,5 +1,6 @@
 package com.demo.user;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.UserRequest;
 import com.demo.user.repository.UserRepository;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -86,11 +88,12 @@ class UserControllerIT {
     // ── GET /api/v1/users ────────────────────────────────────────────
 
     @Test
-    void getAllUsers_whenEmpty_returnsEmptyList() {
-        ResponseEntity<UserDto[]> response = restTemplate.getForEntity("/api/v1/users", UserDto[].class);
+    void getAllUsers_whenEmpty_returnsEmptyPage() {
+        ResponseEntity<PageResponse<UserDto>> response = getUserPage("/api/v1/users");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEmpty();
+        assertThat(response.getBody().getContent()).isEmpty();
+        assertThat(response.getBody().getTotalElements()).isZero();
     }
 
     @Test
@@ -98,11 +101,26 @@ class UserControllerIT {
         restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class);
         restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com"),   UserDto.class);
 
-        ResponseEntity<UserDto[]> response = restTemplate.getForEntity("/api/v1/users", UserDto[].class);
+        ResponseEntity<PageResponse<UserDto>> response = getUserPage("/api/v1/users");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getContent()).hasSize(2);
+    }
+
+    // ── GET /api/v1/users/batch ──────────────────────────────────────
+
+    @Test
+    void getUsersByIds_returnsRequestedUsers() {
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto bob   = restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com"),   UserDto.class).getBody();
+
+        ResponseEntity<UserDto[]> response = restTemplate.getForEntity(
+                "/api/v1/users/batch?ids=" + alice.getId() + "&ids=" + bob.getId(), UserDto[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).hasSize(2);
     }
+
 
     // ── GET /api/v1/users/{id} ───────────────────────────────────────
 
@@ -329,6 +347,12 @@ class UserControllerIT {
     }
 
     // ── Helper ────────────────────────────────────────────────────
+
+    /** Deserializes a paginated user list response. */
+    private ResponseEntity<PageResponse<UserDto>> getUserPage(String url) {
+        return restTemplate.exchange(url, HttpMethod.GET, null,
+                new ParameterizedTypeReference<>() {});
+    }
 
     private UserRequest request(String name, String email) {
         UserRequest req = new UserRequest();

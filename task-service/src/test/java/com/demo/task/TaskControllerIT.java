@@ -1,5 +1,7 @@
 package com.demo.task;
 
+import com.demo.common.dto.PageResponse;
+import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
@@ -17,16 +19,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.context.annotation.Import;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 @Import(TestSecurityConfig.class)
@@ -70,6 +75,11 @@ class TaskControllerIT {
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
         when(userClient.getUserById(BOB_ID)).thenReturn(bob);
+        // Batch fetch used by toResponseList()
+        when(userClient.getUsersByIds(anyList())).thenAnswer(inv -> {
+            List<UUID> ids = inv.getArgument(0);
+            return List.of(alice, bob).stream().filter(u -> ids.contains(u.getId())).toList();
+        });
 
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Default Project");
@@ -80,11 +90,12 @@ class TaskControllerIT {
     // ── GET /api/v1/tasks ────────────────────────────────────────────
 
     @Test
-    void getAllTasks_whenEmpty_returnsEmptyList() {
-        ResponseEntity<TaskResponse[]> response = restTemplate.getForEntity("/api/v1/tasks", TaskResponse[].class);
+    void getAllTasks_whenEmpty_returnsEmptyPage() {
+        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEmpty();
+        assertThat(response.getBody().getContent()).isEmpty();
+        assertThat(response.getBody().getTotalElements()).isZero();
     }
 
     @Test
@@ -92,12 +103,11 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Setup CI", "Configure pipeline", TaskStatus.DONE, ALICE_ID), TaskResponse.class);
         restTemplate.postForEntity("/api/v1/tasks", request("Write tests", "Unit tests", TaskStatus.TODO, BOB_ID), TaskResponse.class);
 
-        ResponseEntity<TaskResponse[]> response = restTemplate.getForEntity("/api/v1/tasks", TaskResponse[].class);
+        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
-        assertThat(response.getBody()[0].getAssignedUser()).isNotNull();
-        assertThat(response.getBody()[0].getAssignedUser().getName()).isEqualTo("Alice Johnson");
+        assertThat(response.getBody().getContent()).hasSize(2);
+        assertThat(response.getBody().getContent().get(0).getAssignedUser()).isNotNull();
     }
 
     // ── GET /api/v1/tasks/{id} ───────────────────────────────────────
@@ -129,11 +139,11 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Task B", "For Bob",        TaskStatus.TODO, BOB_ID),   TaskResponse.class);
         restTemplate.postForEntity("/api/v1/tasks", request("Task C", "Also for Alice", TaskStatus.DONE, ALICE_ID), TaskResponse.class);
 
-        ResponseEntity<TaskResponse[]> response = restTemplate.getForEntity("/api/v1/tasks?userId=" + ALICE_ID, TaskResponse[].class);
+        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks?userId=" + ALICE_ID);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
-        assertThat(response.getBody()).allSatisfy(t -> assertThat(t.getAssignedUser().getId()).isEqualTo(ALICE_ID));
+        assertThat(response.getBody().getContent()).hasSize(2);
+        assertThat(response.getBody().getContent()).allSatisfy(t -> assertThat(t.getAssignedUser().getId()).isEqualTo(ALICE_ID));
     }
 
     // ── GET /api/v1/tasks?status={status} ───────────────────────────
@@ -144,21 +154,21 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Task B", "desc", TaskStatus.IN_PROGRESS, BOB_ID),   TaskResponse.class);
         restTemplate.postForEntity("/api/v1/tasks", request("Task C", "desc", TaskStatus.TODO,        ALICE_ID), TaskResponse.class);
 
-        ResponseEntity<TaskResponse[]> response = restTemplate.getForEntity("/api/v1/tasks?status=TODO", TaskResponse[].class);
+        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks?status=TODO");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
-        assertThat(response.getBody()).allSatisfy(t -> assertThat(t.getStatus()).isEqualTo(TaskStatus.TODO));
+        assertThat(response.getBody().getContent()).hasSize(2);
+        assertThat(response.getBody().getContent()).allSatisfy(t -> assertThat(t.getStatus()).isEqualTo(TaskStatus.TODO));
     }
 
     @Test
     void getTasksByStatus_caseInsensitive_returnsMatchingTasks() {
         restTemplate.postForEntity("/api/v1/tasks", request("Task A", "desc", TaskStatus.DONE, ALICE_ID), TaskResponse.class);
 
-        ResponseEntity<TaskResponse[]> response = restTemplate.getForEntity("/api/v1/tasks?status=done", TaskResponse[].class);
+        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks?status=done");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(1);
+        assertThat(response.getBody().getContent()).hasSize(1);
     }
 
     // ── POST /api/v1/tasks ───────────────────────────────────────────
@@ -278,16 +288,22 @@ class TaskControllerIT {
     @Test
     void getAllTasks_whenUserServiceDown_returnsTasksWithNullUser() {
         restTemplate.postForEntity("/api/v1/tasks", request("Orphan task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class);
-        when(userClient.getUserById(any(UUID.class))).thenThrow(new RuntimeException("user-service unavailable"));
+        when(userClient.getUsersByIds(anyList())).thenThrow(new RuntimeException("user-service unavailable"));
 
-        ResponseEntity<TaskResponse[]> response = restTemplate.getForEntity("/api/v1/tasks", TaskResponse[].class);
+        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(1);
-        assertThat(response.getBody()[0].getAssignedUser()).isNull();
+        assertThat(response.getBody().getContent()).hasSize(1);
+        assertThat(response.getBody().getContent().get(0).getAssignedUser()).isNull();
     }
 
     // ── Helper ────────────────────────────────────────────────────
+
+    /** Deserializes a paginated task list response. */
+    private ResponseEntity<PageResponse<TaskResponse>> getTaskPage(String url) {
+        return restTemplate.exchange(url, HttpMethod.GET, null,
+                new ParameterizedTypeReference<>() {});
+    }
 
     private TaskRequest request(String title, String description, TaskStatus status, UUID userId) {
         TaskRequest req = new TaskRequest();
@@ -299,8 +315,8 @@ class TaskControllerIT {
         return req;
     }
 
-    private com.demo.common.dto.TaskCommentRequest comment(String content) {
-        com.demo.common.dto.TaskCommentRequest req = new com.demo.common.dto.TaskCommentRequest();
+    private TaskCommentRequest comment(String content) {
+        TaskCommentRequest req = new TaskCommentRequest();
         req.setContent(content);
         return req;
     }
