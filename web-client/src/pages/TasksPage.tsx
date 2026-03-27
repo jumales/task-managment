@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
   Drawer, Space, List, Popconfirm,
 } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
+import { searchTasks } from '../api/searchApi';
 import type { TaskResponse, TaskCommentResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
@@ -30,6 +32,9 @@ export function TasksPage() {
   const [users,         setUsers]         = useState<UserResponse[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState<string | null>(null);
+  const [searchQuery,   setSearchQuery]   = useState('');
+  const [activeSearch,  setActiveSearch]  = useState('');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [modalOpen,     setModalOpen]     = useState(false);
   const [editingTask,   setEditingTask]   = useState<TaskResponse | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
@@ -64,6 +69,45 @@ export function TasksPage() {
     loadTasks();
     refreshDropdowns();
   }, []);
+
+  // Run Elasticsearch search on Enter; restore normal list when query is cleared
+  const handleSearch = useCallback(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setActiveSearch('');
+      loadTasks(1, pageSize);
+      return;
+    }
+    setActiveSearch(trimmed);
+    setLoading(true);
+    searchTasks(trimmed)
+      .then((docs) => {
+        const mapped = docs.map((d) => ({
+          id: d.id,
+          title: d.title,
+          description: d.description ?? '',
+          status: d.status ?? 'TODO',
+          project: { id: d.projectId ?? '', name: d.projectName ?? '—', description: '' },
+          assignedUser: d.assignedUserName ? { id: d.assignedUserId ?? '', name: d.assignedUserName, email: '', username: null, active: true } : null,
+          phase: null,
+        } as TaskResponse));
+        setTasks(mapped);
+        setTotalTasks(mapped.length);
+      })
+      .catch(() => setError('Search failed.'))
+      .finally(() => {
+        setLoading(false);
+        searchInputRef.current?.focus();
+      });
+  }, [searchQuery, pageSize]);
+
+  // Clear search when input is emptied via the × button
+  useEffect(() => {
+    if (searchQuery === '' && activeSearch !== '') {
+      setActiveSearch('');
+      loadTasks(1, pageSize);
+    }
+  }, [searchQuery]);
 
   const handleTableChange = (pagination: TablePaginationConfig) => {
     const page = pagination.current ?? 1;
@@ -201,15 +245,30 @@ export function TasksPage() {
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Tasks</Typography.Title>
-        <Button type="primary" onClick={openCreateModal}>New Task</Button>
+        <Space>
+          <Input
+            ref={searchInputRef}
+            placeholder="Search tasks…"
+            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onPressEnter={handleSearch}
+            allowClear
+            autoFocus
+            style={{ width: 240 }}
+          />
+          <Button type="primary" onClick={openCreateModal}>New Task</Button>
+        </Space>
       </div>
 
       <Table
         rowKey="id"
         dataSource={tasks}
         columns={columns}
-        pagination={{ current: currentPage, pageSize, total: totalTasks, showSizeChanger: true }}
-        onChange={handleTableChange}
+        pagination={activeSearch
+          ? false
+          : { current: currentPage, pageSize, total: totalTasks, showSizeChanger: true }}
+        onChange={activeSearch ? undefined : handleTableChange}
       />
 
       {/* Create / Edit Modal */}

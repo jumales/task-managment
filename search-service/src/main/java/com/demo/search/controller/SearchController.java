@@ -2,18 +2,17 @@ package com.demo.search.controller;
 
 import com.demo.search.document.TaskDocument;
 import com.demo.search.document.UserDocument;
+import com.demo.search.service.ReindexService;
 import com.demo.search.service.TaskIndexService;
 import com.demo.search.service.UserIndexService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST API for full-text search across tasks and users using Elasticsearch.
@@ -26,10 +25,14 @@ public class SearchController {
 
     private final TaskIndexService taskIndexService;
     private final UserIndexService userIndexService;
+    private final ReindexService reindexService;
 
-    public SearchController(TaskIndexService taskIndexService, UserIndexService userIndexService) {
+    public SearchController(TaskIndexService taskIndexService,
+                            UserIndexService userIndexService,
+                            ReindexService reindexService) {
         this.taskIndexService = taskIndexService;
         this.userIndexService = userIndexService;
+        this.reindexService = reindexService;
     }
 
     /**
@@ -58,5 +61,18 @@ public class SearchController {
     public List<UserDocument> searchUsers(
             @Parameter(description = "Search query") @RequestParam String q) {
         return userIndexService.search(q);
+    }
+
+    /**
+     * Re-indexes all users and tasks from the source services into Elasticsearch.
+     * Use this after first startup or when the index is out of sync with the database.
+     */
+    @PostMapping("/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Re-index all data", description = "Fetches all users and tasks from source services and rebuilds the Elasticsearch index")
+    public Map<String, Integer> reindex() {
+        int users = reindexService.reindexUsers();
+        int tasks = reindexService.reindexTasks();
+        return Map.of("users", users, "tasks", tasks);
     }
 }

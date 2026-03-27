@@ -1,5 +1,6 @@
 package com.demo.search.service;
 
+import com.demo.common.dto.UserDto;
 import com.demo.common.event.UserEvent;
 import com.demo.search.document.UserDocument;
 import com.demo.search.repository.UserSearchRepository;
@@ -41,6 +42,21 @@ public class UserIndexService {
     public void delete(UserEvent event) {
         repository.deleteById(event.getUserId().toString());
         log.info("Removed user {} from index", event.getUserId());
+    }
+
+    /** Bulk-indexes a list of users fetched from user-service during re-indexing. */
+    public void indexAll(List<UserDto> users) {
+        List<UserDocument> docs = users.stream()
+                .map(u -> UserDocument.builder()
+                        .id(u.getId().toString())
+                        .name(u.getName())
+                        .email(u.getEmail())
+                        .username(u.getUsername())
+                        .active(u.isActive())
+                        .build())
+                .toList();
+        repository.saveAll(docs);
+        log.info("Bulk-indexed {} users", docs.size());
     }
 
     /**

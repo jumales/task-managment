@@ -6,7 +6,6 @@ import {
   CheckSquareOutlined,
   ProjectOutlined,
   TeamOutlined,
-  SearchOutlined,
   LogoutOutlined,
   UserOutlined,
   MenuFoldOutlined,
@@ -23,7 +22,6 @@ const NAV_ITEMS = [
   { key: '/tasks',     label: 'Tasks',     icon: <CheckSquareOutlined /> },
   { key: '/projects',  label: 'Projects',  icon: <ProjectOutlined /> },
   { key: '/users',     label: 'Users',     icon: <TeamOutlined /> },
-  { key: '/search',    label: 'Search',    icon: <SearchOutlined /> },
 ];
 
 /** Main application shell with a collapsible sidebar and top header. */

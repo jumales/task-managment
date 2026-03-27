@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -28,7 +29,8 @@ public class UserEventPublisher {
         this.objectMapper = objectMapper;
     }
 
-    /** Publishes the given event to the {@code user-events} topic. Logs and swallows on failure to avoid rolling back the DB transaction. */
+    /** Publishes the given event to the {@code user-events} topic asynchronously. Logs and swallows on failure to avoid rolling back the DB transaction. */
+    @Async
     public void publish(UserEvent event) {
         try {
             String payload = objectMapper.writeValueAsString(event);

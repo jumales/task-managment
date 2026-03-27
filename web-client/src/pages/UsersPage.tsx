@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, message } from 'antd';
+import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, downloadFile } from '../api/userApi';
+import { searchUsers } from '../api/searchApi';
 import { useAuth } from '../auth/AuthProvider';
 import type { UserResponse, RoleDto } from '../api/types';
 
@@ -62,6 +63,9 @@ export function UsersPage() {
   const [pageSize,    setPageSize]    = useState(20);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
+  const [searchQuery,  setSearchQuery]  = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [modalOpen,   setModalOpen]   = useState(false);
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
   const [submitting,  setSubmitting]  = useState(false);
@@ -78,6 +82,43 @@ export function UsersPage() {
       .finally(() => setLoading(false));
 
   useEffect(() => { loadUsers(); }, []);
+
+  const handleSearch = useCallback(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setActiveSearch('');
+      loadUsers(1, pageSize);
+      return;
+    }
+    setActiveSearch(trimmed);
+    setLoading(true);
+    searchUsers(trimmed)
+      .then((docs) => {
+        const mapped = docs.map((d) => ({
+          id: d.id,
+          name: d.name,
+          email: d.email,
+          username: d.username,
+          active: d.active,
+          roles: [],
+          avatarFileId: null,
+        } as UserResponse));
+        setUsers(mapped);
+        setTotalUsers(mapped.length);
+      })
+      .catch(() => setError('Search failed.'))
+      .finally(() => {
+        setLoading(false);
+        searchInputRef.current?.focus();
+      });
+  }, [searchQuery, pageSize]);
+
+  useEffect(() => {
+    if (searchQuery === '' && activeSearch !== '') {
+      setActiveSearch('');
+      loadUsers(1, pageSize);
+    }
+  }, [searchQuery]);
 
   const handleTableChange = (pagination: TablePaginationConfig) => {
     const page = pagination.current ?? 1;
@@ -159,15 +200,30 @@ export function UsersPage() {
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>Users</Typography.Title>
-        {isAdmin && <Button type="primary" onClick={openCreateModal}>New User</Button>}
+        <Space>
+          <Input
+            ref={searchInputRef}
+            placeholder="Search users…"
+            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onPressEnter={handleSearch}
+            allowClear
+            autoFocus
+            style={{ width: 240 }}
+          />
+          {isAdmin && <Button type="primary" onClick={openCreateModal}>New User</Button>}
+        </Space>
       </div>
 
       <Table
         rowKey="id"
         dataSource={users}
         columns={columns}
-        pagination={{ current: currentPage, pageSize, total: totalUsers, showSizeChanger: true }}
-        onChange={handleTableChange}
+        pagination={activeSearch
+          ? false
+          : { current: currentPage, pageSize, total: totalUsers, showSizeChanger: true }}
+        onChange={activeSearch ? undefined : handleTableChange}
       />
 
       <Modal

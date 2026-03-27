@@ -119,6 +119,34 @@ if [[ -n "$RESTART_SERVICE" ]]; then
   exit 0
 fi
 
+# ── Step 0: Stop everything and free ports ────────────────────────────────────
+
+log "Stopping existing services and freeing ports ..."
+
+# Kill all Java Spring Boot processes started from this project
+pkill -f "spring-boot:run" 2>/dev/null || true
+pkill -f "task-managment.*java"  2>/dev/null || true
+
+# Kill Vite / node dev server
+pkill -f "web-client.*vite" 2>/dev/null || true
+pkill -f "web-client.*node" 2>/dev/null || true
+
+# Free known service ports: eureka, gateway, microservices, web-client
+for port in 8761 8080 8081 8082 8083 8084 8085 8086 3000; do
+  pids=$(lsof -ti:"$port" 2>/dev/null) || true
+  if [[ -n "$pids" ]]; then
+    log "Freeing port $port (pids: $pids)"
+    echo "$pids" | xargs kill -9 2>/dev/null || true
+  fi
+done
+
+# Stop Docker infrastructure (ignore errors if already down)
+log "Stopping Docker infrastructure ..."
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" down 2>/dev/null || true
+
+sleep 2
+log "All stopped. Starting fresh ..."
+
 # ── Step 1: Docker infrastructure ────────────────────────────────────────────
 
 INFRA_SERVICES="postgres zookeeper kafka keycloak minio minio-init redis"
