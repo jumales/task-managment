@@ -16,10 +16,7 @@ public interface UserClient {
     @GetMapping("/api/v1/users/{id}")
     UserDto getUserById(@PathVariable UUID id);
 
-    /**
-     * Fetches multiple users from the user-service in a single HTTP call.
-     * Returns only users that were found; silently omits unknown IDs.
-     */
+    /** Batch-fetches users by their IDs in a single HTTP call. */
     @GetMapping("/api/v1/users/batch")
     List<UserDto> getUsersByIds(@RequestParam("ids") List<UUID> ids);
 }

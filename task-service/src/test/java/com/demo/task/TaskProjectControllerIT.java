@@ -1,5 +1,6 @@
 package com.demo.task;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -16,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -204,12 +206,13 @@ class TaskProjectControllerIT {
         createTask("Task 2", TaskStatus.TODO, ALICE_ID, projectA.getId());
         createTask("Task 3", TaskStatus.TODO, ALICE_ID, projectB.getId());
 
-        ResponseEntity<TaskResponse[]> response =
-                restTemplate.getForEntity("/api/v1/tasks?projectId=" + projectA.getId(), TaskResponse[].class);
+        ResponseEntity<PageResponse<TaskResponse>> response = restTemplate.exchange(
+                "/api/v1/tasks?projectId=" + projectA.getId(),
+                HttpMethod.GET, null, new ParameterizedTypeReference<>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
-        assertThat(response.getBody()).allSatisfy(t ->
+        assertThat(response.getBody().getContent()).hasSize(2);
+        assertThat(response.getBody().getContent()).allSatisfy(t ->
                 assertThat(t.getProject().getId()).isEqualTo(projectA.getId()));
     }
 

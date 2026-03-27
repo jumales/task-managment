@@ -16,7 +16,7 @@ import java.util.UUID;
 public interface RoleRightRepository extends JpaRepository<RoleRight, UUID> {
     /** Returns all active right grants for the given role. */
     List<RoleRight> findByRole(Role role);
-    /** Returns all active right grants for the given set of roles (batch load). */
+    /** Returns all active right grants for the given set of roles; used for batch DTO conversion. */
     List<RoleRight> findByRoleIn(Collection<Role> roles);
     /** Returns the active right grant for the given role and right, if one exists. */
     Optional<RoleRight> findByRoleAndRight(Role role, Right right);

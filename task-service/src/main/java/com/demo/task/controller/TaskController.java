@@ -39,6 +39,7 @@ public class TaskController {
      * @param userId    filter by assigned user UUID (optional)
      * @param projectId filter by project UUID (optional)
      * @param status    filter by task status string, case-insensitive (optional)
+     * @param pageable  pagination parameters (page, size, sort)
      */
     @Operation(summary = "List all tasks (paginated)",
                description = "Returns a page of tasks. Optionally filter by `userId`, `projectId`, or `status`. "

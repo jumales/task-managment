@@ -16,7 +16,7 @@ import java.util.UUID;
 public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
     /** Returns all active role assignments for the given user. */
     List<UserRole> findByUser(User user);
-    /** Returns all active role assignments for the given set of users (batch load). */
+    /** Returns all active role assignments for the given set of users; used for batch DTO conversion. */
     List<UserRole> findByUserIn(Collection<User> users);
     /** Returns the active role assignment for the given user and role, if one exists. */
     Optional<UserRole> findByUserAndRole(User user, Role role);

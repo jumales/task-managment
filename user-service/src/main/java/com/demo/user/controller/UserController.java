@@ -32,27 +32,17 @@ public class UserController {
         this.service = service;
     }
 
-    /**
-     * Returns a paginated list of all users.
-     * Supports {@code ?page=0&size=20&sort=name,asc} query parameters.
-     */
-    @Operation(summary = "List all users (paginated)",
-               description = "Returns a page of users. Use `page`, `size`, and `sort` query parameters to control pagination.")
+    /** Returns a paginated list of all users. */
+    @Operation(summary = "List all users")
     @GetMapping
     public PageResponse<UserDto> getAll(@PageableDefault(size = 20) Pageable pageable) {
         return service.findAll(pageable);
     }
 
-    /**
-     * Returns users whose IDs are in the given list. Used by task-service to resolve
-     * assigned-user details without making one HTTP call per task.
-     *
-     * @param ids comma-separated or repeated {@code ids} query parameters
-     */
-    @Operation(summary = "Batch fetch users by IDs",
-               description = "Returns all users whose UUID matches one of the provided `ids` query parameters.")
+    /** Returns users whose IDs match the provided list; used for batch lookups by other services. */
+    @Operation(summary = "Batch-fetch users by IDs")
     @GetMapping("/batch")
-    public List<UserDto> getByIds(@Parameter(description = "User UUIDs to fetch") @RequestParam List<UUID> ids) {
+    public List<UserDto> getByIds(@RequestParam("ids") List<UUID> ids) {
         return service.findByIds(ids);
     }
 
