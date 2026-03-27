@@ -1,12 +1,12 @@
 import apiClient from './client';
-import type { FileUploadResponse, PresignedUrlResponse, UserResponse, UserRequest } from './types';
+import type { FileUploadResponse, PageResponse, PresignedUrlResponse, UserResponse, UserRequest } from './types';
 
 const USERS_URL = '/api/v1/users';
 const FILES_URL = '/api/v1/files';
 
-/** Fetches all users. */
-export function getUsers() {
-  return apiClient.get<UserResponse[]>(USERS_URL).then((r) => r.data);
+/** Fetches a paginated list of users. */
+export function getUsers(params?: { page?: number; size?: number }) {
+  return apiClient.get<PageResponse<UserResponse>>(USERS_URL, { params: { size: 20, ...params } }).then((r) => r.data);
 }
 
 /** Fetches a single user by ID. */

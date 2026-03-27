@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, downloadFile } from '../api/userApi';
 import { useAuth } from '../auth/AuthProvider';
 import type { UserResponse, RoleDto } from '../api/types';
@@ -57,6 +57,9 @@ export function UsersPage() {
   const { isAdmin } = useAuth();
 
   const [users,       setUsers]       = useState<UserResponse[]>([]);
+  const [totalUsers,  setTotalUsers]  = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize,    setPageSize]    = useState(20);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   const [modalOpen,   setModalOpen]   = useState(false);
@@ -65,13 +68,25 @@ export function UsersPage() {
 
   const [form] = Form.useForm();
 
-  const loadUsers = () =>
-    getUsers()
-      .then(setUsers)
+  const loadUsers = (page = currentPage, size = pageSize) =>
+    getUsers({ page: page - 1, size })
+      .then((data) => {
+        setUsers(data.content);
+        setTotalUsers(data.totalElements);
+      })
       .catch(() => setError('Failed to load users.'))
       .finally(() => setLoading(false));
 
   useEffect(() => { loadUsers(); }, []);
+
+  const handleTableChange = (pagination: TablePaginationConfig) => {
+    const page = pagination.current ?? 1;
+    const size = pagination.pageSize ?? 20;
+    setCurrentPage(page);
+    setPageSize(size);
+    setLoading(true);
+    loadUsers(page, size);
+  };
 
   /** Opens the modal in create mode. */
   const openCreateModal = () => {
@@ -147,7 +162,13 @@ export function UsersPage() {
         {isAdmin && <Button type="primary" onClick={openCreateModal}>New User</Button>}
       </div>
 
-      <Table rowKey="id" dataSource={users} columns={columns} pagination={{ pageSize: 20 }} />
+      <Table
+        rowKey="id"
+        dataSource={users}
+        columns={columns}
+        pagination={{ current: currentPage, pageSize, total: totalUsers, showSizeChanger: true }}
+        onChange={handleTableChange}
+      />
 
       <Modal
         title={editingUser ? 'Edit User' : 'New User'}

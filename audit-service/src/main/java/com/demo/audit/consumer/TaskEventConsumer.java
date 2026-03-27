@@ -37,7 +37,7 @@ public class TaskEventConsumer {
     }
 
     /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
-    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "audit-group")
+    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "audit-group", concurrency = "3")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
 

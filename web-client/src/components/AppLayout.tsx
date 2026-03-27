@@ -36,9 +36,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Look up the current user's avatarFileId from the user-service
   useEffect(() => {
-    getUsers()
-      .then((users) => {
-        const me = users.find((u) => u.username === username);
+    getUsers({ size: 100 })
+      .then((page) => {
+        const me = page.content.find((u) => u.username === username);
         setAvatarFileId(me?.avatarFileId ?? null);
       })
       .catch(() => {});

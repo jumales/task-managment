@@ -1,5 +1,6 @@
 package com.demo.user.controller;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.UserRequest;
 import com.demo.user.service.UserService;
@@ -10,13 +11,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "Users", description = "Create and manage user accounts")
@@ -30,11 +32,28 @@ public class UserController {
         this.service = service;
     }
 
-    /** Returns all users. */
-    @Operation(summary = "List all users")
+    /**
+     * Returns a paginated list of all users.
+     * Supports {@code ?page=0&size=20&sort=name,asc} query parameters.
+     */
+    @Operation(summary = "List all users (paginated)",
+               description = "Returns a page of users. Use `page`, `size`, and `sort` query parameters to control pagination.")
     @GetMapping
-    public List<UserDto> getAll() {
-        return service.findAll();
+    public PageResponse<UserDto> getAll(@PageableDefault(size = 20) Pageable pageable) {
+        return service.findAll(pageable);
+    }
+
+    /**
+     * Returns users whose IDs are in the given list. Used by task-service to resolve
+     * assigned-user details without making one HTTP call per task.
+     *
+     * @param ids comma-separated or repeated {@code ids} query parameters
+     */
+    @Operation(summary = "Batch fetch users by IDs",
+               description = "Returns all users whose UUID matches one of the provided `ids` query parameters.")
+    @GetMapping("/batch")
+    public List<UserDto> getByIds(@Parameter(description = "User UUIDs to fetch") @RequestParam List<UUID> ids) {
+        return service.findByIds(ids);
     }
 
     /** Returns the user identified by {@code id}. */

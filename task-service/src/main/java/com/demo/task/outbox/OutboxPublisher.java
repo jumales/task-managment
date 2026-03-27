@@ -39,16 +39,21 @@ public class OutboxPublisher {
     @Transactional
     public void publishPending() {
         List<OutboxEvent> pending = outboxRepository.findByPublishedFalse();
+        List<OutboxEvent> published = new java.util.ArrayList<>();
         for (OutboxEvent event : pending) {
             try {
                 TaskChangedEvent payload = objectMapper.readValue(event.getPayload(), TaskChangedEvent.class);
                 kafkaTemplate.send(TOPIC, event.getAggregateId().toString(), payload);
                 event.setPublished(true);
-                outboxRepository.save(event);
+                published.add(event);
                 log.info("Published {} event {} for task {}", payload.getChangeType(), event.getId(), event.getAggregateId());
             } catch (Exception e) {
                 log.error("Failed to publish outbox event {}, will retry: {}", event.getId(), e.getMessage());
             }
+        }
+        // Batch-persist all successfully published events in a single UPDATE rather than N individual saves.
+        if (!published.isEmpty()) {
+            outboxRepository.saveAll(published);
         }
     }
 }

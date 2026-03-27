@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +16,8 @@ import java.util.UUID;
 public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
     /** Returns all active role assignments for the given user. */
     List<UserRole> findByUser(User user);
+    /** Returns all active role assignments for the given set of users (batch load). */
+    List<UserRole> findByUserIn(Collection<User> users);
     /** Returns the active role assignment for the given user and role, if one exists. */
     Optional<UserRole> findByUserAndRole(User user, Role role);
     /** Returns {@code true} if the user has at least one active role assignment. */

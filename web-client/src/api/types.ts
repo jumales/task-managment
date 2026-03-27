@@ -1,6 +1,16 @@
 /** Mirrors com.demo.common.dto.TaskStatus */
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 
+/** Mirrors com.demo.common.dto.PageResponse */
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
 export interface UserDto {
   id: string;
   name: string;
