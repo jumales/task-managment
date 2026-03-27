@@ -1,13 +1,13 @@
-package com.demo.user;
+package com.demo.search;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
-@EnableAsync
+@EnableFeignClients
 @SpringBootApplication(scanBasePackages = "com.demo")
-public class UserServiceApplication {
+public class SearchServiceApplication {
     public static void main(String[] args) {
-        SpringApplication.run(UserServiceApplication.class, args);
+        SpringApplication.run(SearchServiceApplication.class, args);
     }
 }

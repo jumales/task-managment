@@ -1,0 +1,102 @@
+{
+  "info": {
+    "_postman_id": "a3f8e1b2-4c7d-4e9f-8a2b-1d6c5e4f3a9b",
+    "name": "Search Service",
+    "description": "Full-text search across tasks and users via Elasticsearch.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bearerToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Search tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/search/tasks?q=login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "search", "tasks"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "login",
+                  "description": "Free-text search query"
+                }
+              ]
+            },
+            "description": "Full-text search across task title and description. Returns results ranked by Elasticsearch relevance score."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Search users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/search/users?q=alice",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "search", "users"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "alice",
+                  "description": "Free-text search query"
+                }
+              ]
+            },
+            "description": "Full-text search across user name, email, and username. Returns results ranked by Elasticsearch relevance score."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

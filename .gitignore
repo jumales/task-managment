@@ -6,6 +6,7 @@
 /file-service/target/
 /task-service/target/
 /user-service/target/
+/search-service/target/
 .claude/settings.local.json
 
 # IDE

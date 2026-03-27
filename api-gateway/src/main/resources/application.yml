@@ -74,7 +74,14 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        - id: search-service-search
+          uri: lb://search-service
+          predicates:
+            - Path=/api/v1/search/**
+
         # Rate-limited: POST /api/v1/files/* (avatar/attachment upload) — 10 req/min per user
+        # replenishRate 1/s, requestedTokens 6 → 1 upload per 6s (~10/min)
+        # burstCapacity must be >= requestedTokens so the bucket can ever satisfy a request
         - id: file-service-upload-avatars
           uri: lb://file-service
           predicates:
@@ -83,9 +90,8 @@ spring:
           filters:
             - name: RequestRateLimiter
               args:
-                # Redis token bucket: ~10 req/min = replenishRate 1/6s, burst 2
                 redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 2
+                redis-rate-limiter.burstCapacity: 6
                 redis-rate-limiter.requestedTokens: 6
                 key-resolver: "#{@principalKeyResolver}"
 
@@ -98,7 +104,7 @@ spring:
             - name: RequestRateLimiter
               args:
                 redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 2
+                redis-rate-limiter.burstCapacity: 6
                 redis-rate-limiter.requestedTokens: 6
                 key-resolver: "#{@principalKeyResolver}"
 

@@ -9,7 +9,9 @@ import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.UserDto;
+import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
+import com.demo.common.event.TaskEvent;
 import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
@@ -103,9 +105,10 @@ public class TaskService {
     }
 
     /** Creates a new task, resolving the phase and validating the assigned user and project. */
+    @Transactional
     public TaskResponse create(TaskRequest request) {
-        userClient.getUserById(request.getAssignedUserId());
-        projectService.getOrThrow(request.getProjectId());
+        UserDto user = userClient.getUserById(request.getAssignedUserId());
+        TaskProject project = projectService.getOrThrow(request.getProjectId());
 
         // Use the explicitly requested phase, or fall back to the project's default phase.
         UUID phaseId = resolvePhaseId(request.getPhaseId(), request.getProjectId());
@@ -118,7 +121,10 @@ public class TaskService {
                 .projectId(request.getProjectId())
                 .phaseId(phaseId)
                 .build();
-        return toResponse(repository.save(task));
+        Task saved = repository.save(task);
+        writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_CREATED,
+                project.getName(), phaseId, user.getName());
+        return toResponse(saved);
     }
 
     /** Updates the task fields and writes outbox events for any status or phase change. */
@@ -145,6 +151,12 @@ public class TaskService {
         Task saved = repository.save(task);
 
         publishOutboxEvents(saved, oldStatus, request.getStatus(), oldPhaseId, request.getPhaseId());
+
+        // Publish lifecycle event to task-events topic so search-service keeps its index current.
+        TaskProject project = projectService.getOrThrow(saved.getProjectId());
+        String userName = resolveUserName(saved.getAssignedUserId());
+        writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_UPDATED,
+                project.getName(), saved.getPhaseId(), userName);
 
         return toResponse(saved);
     }
@@ -194,6 +206,8 @@ public class TaskService {
         if (commentRepository.existsByTaskId(id)) {
             throw new RelatedEntityActiveException("Task", "comments");
         }
+        // Write the lifecycle event before the soft-delete so the task ID is still in context.
+        writeTaskDeletedOutboxEvent(id);
         repository.deleteById(id);
     }
 
@@ -211,6 +225,57 @@ public class TaskService {
                     .build());
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize outbox event", e);
+        }
+    }
+
+    /**
+     * Writes a TASK_CREATED or TASK_UPDATED lifecycle event to the outbox so search-service
+     * can update its Elasticsearch index.
+     */
+    private void writeTaskLifecycleOutboxEvent(Task task, OutboxEventType eventType,
+                                               String projectName, UUID phaseId, String userName) {
+        String phaseName = phaseId != null ? phaseService.getOrThrow(phaseId).getName() : null;
+        TaskEvent event = switch (eventType) {
+            case TASK_CREATED -> TaskEvent.created(task.getId(), task.getTitle(), task.getDescription(),
+                    task.getStatus(), task.getProjectId(), projectName,
+                    phaseId, phaseName, task.getAssignedUserId(), userName);
+            case TASK_UPDATED -> TaskEvent.updated(task.getId(), task.getTitle(), task.getDescription(),
+                    task.getStatus(), task.getProjectId(), projectName,
+                    phaseId, phaseName, task.getAssignedUserId(), userName);
+            default -> throw new IllegalArgumentException("Unexpected lifecycle event type: " + eventType);
+        };
+        writeLifecycleToOutbox(task.getId(), eventType, event);
+    }
+
+    /** Writes a TASK_DELETED lifecycle event to the outbox so search-service can remove the document. */
+    private void writeTaskDeletedOutboxEvent(UUID taskId) {
+        writeLifecycleToOutbox(taskId, OutboxEventType.TASK_DELETED, TaskEvent.deleted(taskId));
+    }
+
+    /** Resolves the assigned user's display name; returns null if user-service is unavailable. */
+    private String resolveUserName(UUID assignedUserId) {
+        if (assignedUserId == null) return null;
+        try {
+            return userClient.getUserById(assignedUserId).getName();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Serializes a lifecycle event to JSON and saves it to the outbox for the {@code task-events} topic. */
+    private void writeLifecycleToOutbox(UUID taskId, OutboxEventType eventType, TaskEvent event) {
+        try {
+            outboxRepository.save(OutboxEvent.builder()
+                    .aggregateType(AGGREGATE_TYPE)
+                    .aggregateId(taskId)
+                    .eventType(eventType)
+                    .topic(KafkaTopics.TASK_EVENTS)
+                    .payload(objectMapper.writeValueAsString(event))
+                    .published(false)
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize task lifecycle outbox event", e);
         }
     }
 

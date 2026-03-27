@@ -1,5 +1,12 @@
 package com.demo.task.model;
 
 public enum OutboxEventType {
-    TASK_CHANGED
+    /** Task field change (status, comment, phase) — consumed by audit-service. */
+    TASK_CHANGED,
+    /** Full task created — consumed by search-service. */
+    TASK_CREATED,
+    /** Full task updated — consumed by search-service. */
+    TASK_UPDATED,
+    /** Task deleted — consumed by search-service. */
+    TASK_DELETED
 }

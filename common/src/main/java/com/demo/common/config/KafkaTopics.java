@@ -7,8 +7,14 @@ package com.demo.common.config;
  */
 public final class KafkaTopics {
 
-    /** Topic for all task change events (status, comment, phase). */
+    /** Topic for all task change events (status, comment, phase). Consumed by audit-service. */
     public static final String TASK_CHANGED = "task-changed";
+
+    /** Topic for task lifecycle events (created, updated, deleted). Consumed by search-service. */
+    public static final String TASK_EVENTS = "task-events";
+
+    /** Topic for user lifecycle events (created, updated, deleted). Consumed by search-service. */
+    public static final String USER_EVENTS = "user-events";
 
     private KafkaTopics() {}
 }

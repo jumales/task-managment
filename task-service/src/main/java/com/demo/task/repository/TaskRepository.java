@@ -5,7 +5,6 @@ import com.demo.task.model.Task;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
@@ -19,4 +18,5 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     boolean existsByProjectId(UUID projectId);
     /** Returns {@code true} if any non-deleted task references the given phase. */
     boolean existsByPhaseId(UUID phaseId);
+
 }
