@@ -8,6 +8,8 @@ import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangeType;
 import com.demo.task.client.UserClient;
+import com.demo.common.config.KafkaTopics;
+import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskProjectRepository;
@@ -90,7 +92,8 @@ class TaskStatusKafkaIT {
 
         updateTask(created.getId(), TaskStatus.IN_PROGRESS);
 
-        var events = outboxRepository.findAll();
+        // Filter to task-changed topic only (lifecycle events go to task-events topic)
+        var events = changedEvents();
         assertThat(events).hasSize(1);
         assertThat(events.get(0).getEventType()).isEqualTo(OutboxEventType.TASK_CHANGED);
         assertThat(events.get(0).getTopic()).isEqualTo("task-changed");
@@ -104,7 +107,8 @@ class TaskStatusKafkaIT {
 
         updateTask(created.getId(), TaskStatus.TODO);
 
-        assertThat(outboxRepository.findAll()).isEmpty();
+        // Only task-changed events; task-events (lifecycle) are expected but not the concern here
+        assertThat(changedEvents()).isEmpty();
     }
 
     @Test
@@ -114,7 +118,16 @@ class TaskStatusKafkaIT {
         updateTask(created.getId(), TaskStatus.IN_PROGRESS);
         updateTask(created.getId(), TaskStatus.DONE);
 
-        assertThat(outboxRepository.findAll()).hasSize(2);
+        assertThat(changedEvents()).hasSize(2);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    /** Returns only outbox events for the {@code task-changed} topic (audit events). */
+    private java.util.List<OutboxEvent> changedEvents() {
+        return outboxRepository.findAll().stream()
+                .filter(e -> KafkaTopics.TASK_CHANGED.equals(e.getTopic()))
+                .toList();
     }
 
     // ── Kafka publishing ──────────────────────────────────────────

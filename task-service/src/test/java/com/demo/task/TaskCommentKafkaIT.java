@@ -10,6 +10,8 @@ import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangeType;
 import com.demo.task.client.UserClient;
+import com.demo.common.config.KafkaTopics;
+import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCommentRepository;
@@ -100,7 +102,8 @@ class TaskCommentKafkaIT {
         assertThat(comment.getContent()).isEqualTo("First comment");
         assertThat(comment.getId()).isNotNull();
 
-        var events = outboxRepository.findAll();
+        // Filter to task-changed topic only (lifecycle events go to task-events topic)
+        var events = changedEvents();
         assertThat(events).hasSize(1);
         assertThat(events.get(0).getEventType()).isEqualTo(OutboxEventType.TASK_CHANGED);
         assertThat(events.get(0).getPayload()).contains(TaskChangeType.COMMENT_ADDED.name());
@@ -119,7 +122,7 @@ class TaskCommentKafkaIT {
         assertThat(comments).hasSize(3);
         assertThat(comments).extracting("content")
                 .containsExactly("First comment", "Second comment", "Third comment");
-        assertThat(outboxRepository.findAll()).hasSize(3);
+        assertThat(changedEvents()).hasSize(3);
     }
 
     @Test
@@ -161,6 +164,13 @@ class TaskCommentKafkaIT {
     }
 
     // ── Helpers ───────────────────────────────────────────────────
+
+    /** Returns only outbox events for the {@code task-changed} topic (audit events). */
+    private java.util.List<OutboxEvent> changedEvents() {
+        return outboxRepository.findAll().stream()
+                .filter(e -> KafkaTopics.TASK_CHANGED.equals(e.getTopic()))
+                .toList();
+    }
 
     private TaskResponse createTask() {
         TaskRequest req = new TaskRequest();

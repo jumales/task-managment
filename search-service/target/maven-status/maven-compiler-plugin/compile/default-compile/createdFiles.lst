@@ -1,0 +1,14 @@
+com/demo/search/consumer/TaskEventConsumer.class
+com/demo/search/repository/UserSearchRepository.class
+com/demo/search/document/UserDocument$UserDocumentBuilder.class
+com/demo/search/consumer/TaskEventConsumer$1.class
+com/demo/search/SearchServiceApplication.class
+com/demo/search/controller/SearchController.class
+com/demo/search/service/UserIndexService.class
+com/demo/search/document/TaskDocument.class
+com/demo/search/service/TaskIndexService.class
+com/demo/search/consumer/UserEventConsumer.class
+com/demo/search/document/TaskDocument$TaskDocumentBuilder.class
+com/demo/search/repository/TaskSearchRepository.class
+com/demo/search/document/UserDocument.class
+com/demo/search/consumer/UserEventConsumer$1.class

@@ -10,6 +10,7 @@ import com.demo.common.dto.UserRequest;
 import com.demo.user.model.Role;
 import com.demo.user.model.User;
 import com.demo.user.model.UserRole;
+import com.demo.user.event.UserEventPublisher;
 import com.demo.user.repository.UserRepository;
 import com.demo.user.repository.UserRoleRepository;
 import org.springframework.data.domain.Page;
@@ -30,13 +31,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleService roleService;
+    private final UserEventPublisher eventPublisher;
 
     public UserService(UserRepository userRepository,
                        UserRoleRepository userRoleRepository,
-                       RoleService roleService) {
+                       RoleService roleService,
+                       UserEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.roleService = roleService;
+        this.eventPublisher = eventPublisher;
     }
 
     /** Returns a paginated page of users. */
@@ -73,7 +77,10 @@ public class UserService {
                 .username(request.getUsername())
                 .active(true) // new users are always active
                 .build();
-        return toDto(userRepository.save(user));
+        UserDto created = toDto(userRepository.save(user));
+        eventPublisher.publishCreated(created.getId(), created.getName(), created.getEmail(),
+                created.getUsername(), created.isActive());
+        return created;
     }
 
     /** Updates name, email and active flag. Username is immutable after creation and is ignored here. */
@@ -82,7 +89,10 @@ public class UserService {
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setActive(request.isActive());
-        return toDto(userRepository.save(user));
+        UserDto updated = toDto(userRepository.save(user));
+        eventPublisher.publishUpdated(updated.getId(), updated.getName(), updated.getEmail(),
+                updated.getUsername(), updated.isActive());
+        return updated;
     }
 
     /**
@@ -102,6 +112,7 @@ public class UserService {
             throw new RelatedEntityActiveException("User", "roles");
         }
         userRepository.deleteById(id);
+        eventPublisher.publishDeleted(id);
     }
 
     /**

@@ -10,7 +10,7 @@
 #   ./scripts/start-dev.sh --restart <service>  # kill & reopen one service terminal
 #
 # Valid service names for --restart:
-#   eureka-server | api-gateway | user-service | task-service | audit-service | file-service | web-client
+#   eureka-server | api-gateway | user-service | task-service | audit-service | file-service | search-service | web-client
 
 set -euo pipefail
 
@@ -93,7 +93,7 @@ wait_for_http() {
 start_service() {
   local name="$1"
   case "$name" in
-    eureka-server|api-gateway|user-service|task-service|audit-service|file-service)
+    eureka-server|api-gateway|user-service|task-service|audit-service|file-service|search-service)
       open_terminal_window "$name" \
         "cd '$PROJECT_ROOT' && mvn spring-boot:run -pl $name; exec \$SHELL"
       ;;
@@ -103,7 +103,7 @@ start_service() {
       ;;
     *)
       warn "Unknown service '$name'."
-      echo "Valid names: eureka-server api-gateway user-service task-service audit-service file-service web-client"
+      echo "Valid names: eureka-server api-gateway user-service task-service audit-service file-service search-service web-client"
       exit 1
       ;;
   esac
@@ -195,7 +195,7 @@ wait_for_http "Eureka" "http://localhost:8761/actuator/health" 120
 
 # ── Step 4: Other microservices (parallel, all register with Eureka) ──────────
 
-for service in api-gateway user-service task-service audit-service file-service; do
+for service in api-gateway user-service task-service audit-service file-service search-service; do
   log "Starting $service ..."
   start_service "$service"
 done
@@ -209,17 +209,18 @@ start_service web-client
 
 cat <<'BANNER'
 
-  ┌─────────────────────────────────────────┐
-  │  Dev stack is starting up               │
-  │                                         │
-  │  Eureka    http://localhost:8761         │
-  │  Gateway   http://localhost:8080         │
-  │  Keycloak  http://localhost:8180         │
-  │  Web app   http://localhost:3000         │
-  │  Kibana    http://localhost:5601         │
-  │  MinIO     http://localhost:9001         │
-  │  Redis     localhost:6379               │
-  └─────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────┐
+  │  Dev stack is starting up                    │
+  │                                              │
+  │  Eureka       http://localhost:8761          │
+  │  Gateway      http://localhost:8080          │
+  │  Keycloak     http://localhost:8180          │
+  │  Web app      http://localhost:3000          │
+  │  Kibana       http://localhost:5601          │
+  │  MinIO        http://localhost:9001          │
+  │  Elasticsearch http://localhost:9200         │
+  │  Redis        localhost:6379                │
+  └──────────────────────────────────────────────┘
 
   Each service has its own Terminal window.
   Restart one service:  ./scripts/start-dev.sh --restart <name>

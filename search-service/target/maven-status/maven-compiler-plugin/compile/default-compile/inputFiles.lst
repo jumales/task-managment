@@ -1,0 +1,10 @@
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/SearchServiceApplication.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/consumer/TaskEventConsumer.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/consumer/UserEventConsumer.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/controller/SearchController.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/document/TaskDocument.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/document/UserDocument.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/repository/TaskSearchRepository.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/repository/UserSearchRepository.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/service/TaskIndexService.java
+/Users/admin/projects/cc/task-managment/search-service/src/main/java/com/demo/search/service/UserIndexService.java
