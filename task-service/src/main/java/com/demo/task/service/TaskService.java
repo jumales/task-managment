@@ -3,6 +3,7 @@ package com.demo.task.service;
 import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskParticipantResponse;
 import com.demo.common.dto.TaskPhaseResponse;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -52,6 +53,7 @@ public class TaskService {
     private final UserClient userClient;
     private final TaskProjectService projectService;
     private final TaskPhaseService phaseService;
+    private final TaskParticipantService participantService;
     private final ObjectMapper objectMapper;
 
     public TaskService(TaskRepository repository,
@@ -60,6 +62,7 @@ public class TaskService {
                        UserClient userClient,
                        TaskProjectService projectService,
                        TaskPhaseService phaseService,
+                       TaskParticipantService participantService,
                        ObjectMapper objectMapper) {
         this.repository = repository;
         this.commentRepository = commentRepository;
@@ -67,6 +70,7 @@ public class TaskService {
         this.userClient = userClient;
         this.projectService = projectService;
         this.phaseService = phaseService;
+        this.participantService = participantService;
         this.objectMapper = objectMapper;
     }
 
@@ -122,6 +126,7 @@ public class TaskService {
                 .phaseId(phaseId)
                 .build();
         Task saved = repository.save(task);
+        participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_CREATED,
                 project.getName(), phaseId, user.getName());
         return toResponse(saved);
@@ -150,6 +155,7 @@ public class TaskService {
         task.setPhaseId(request.getPhaseId());
         Task saved = repository.save(task);
 
+        participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         publishOutboxEvents(saved, oldStatus, request.getStatus(), oldPhaseId, request.getPhaseId());
 
         // Publish lifecycle event to task-events topic so search-service keeps its index current.
@@ -294,34 +300,29 @@ public class TaskService {
     }
 
     /**
-     * Converts a single task to its response DTO, fetching related data individually.
-     * Use for single-task endpoints (findById, create, update) to keep the code simple.
+     * Converts a single task to its response DTO, fetching participants and related data individually.
+     * Use for single-task endpoints (findById, create, update).
      */
     private TaskResponse toResponse(Task task) {
-        UserDto user = null;
-        try {
-            user = userClient.getUserById(task.getAssignedUserId());
-        } catch (Exception e) {
-            // user-service unavailable — return task without user details
-        }
+        List<TaskParticipantResponse> participants = participantService.findByTaskId(task.getId());
         TaskProjectResponse project = projectService.toResponse(projectService.getOrThrow(task.getProjectId()));
         TaskPhaseResponse phase = task.getPhaseId() != null
                 ? phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()))
                 : null;
         return new TaskResponse(task.getId(), task.getTitle(), task.getDescription(),
-                task.getStatus(), user, project, phase);
+                task.getStatus(), participants, project, phase);
     }
 
     /**
-     * Converts a list of tasks to response DTOs using batch queries for projects, phases, and users,
+     * Converts a list of tasks to response DTOs using batch queries for projects, phases, and participants,
      * avoiding N+1 database and HTTP round-trips.
      */
     private List<TaskResponse> toResponseList(List<Task> tasks) {
         if (tasks.isEmpty()) return List.of();
 
+        Set<UUID> taskIds    = tasks.stream().map(Task::getId).collect(Collectors.toSet());
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Set<UUID> userIds    = tasks.stream().map(Task::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
 
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
@@ -332,30 +333,16 @@ public class TaskService {
                         .stream()
                         .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
 
-        // Batch-fetch all unique assigned users in a single HTTP call instead of one call per task.
-        Map<UUID, UserDto> usersById = fetchUsersByIds(userIds);
+        // Batch-load all participants for these tasks in two queries (DB + user-service batch)
+        Map<UUID, List<TaskParticipantResponse>> participantsByTaskId =
+                participantService.findByTaskIds(taskIds);
 
         return tasks.stream().map(task -> new TaskResponse(
                 task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
-                usersById.get(task.getAssignedUserId()),
+                participantsByTaskId.getOrDefault(task.getId(), List.of()),
                 projectsById.get(task.getProjectId()),
                 task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null))
                 .toList();
-    }
-
-    /**
-     * Fetches users from user-service in a single batch call.
-     * Returns an empty map if the user-service is unavailable.
-     */
-    private Map<UUID, UserDto> fetchUsersByIds(Set<UUID> userIds) {
-        if (userIds.isEmpty()) return Map.of();
-        try {
-            return userClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-                    .collect(Collectors.toMap(UserDto::getId, u -> u));
-        } catch (Exception e) {
-            // user-service unavailable — return tasks without user details
-            return Map.of();
-        }
     }
 
     /** Converts a {@link Page} of tasks to a {@link PageResponse} with mapped response DTOs. */

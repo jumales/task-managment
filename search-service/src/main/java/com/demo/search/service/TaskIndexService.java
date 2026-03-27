@@ -1,5 +1,7 @@
 package com.demo.search.service;
 
+import com.demo.common.dto.TaskParticipantResponse;
+import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.event.TaskEvent;
 import com.demo.search.document.TaskDocument;
@@ -9,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Manages the Elasticsearch task index: indexes task documents on CREATED/UPDATED events
@@ -61,12 +64,20 @@ public class TaskIndexService {
                         .projectName(t.getProject() != null ? t.getProject().getName() : null)
                         .phaseId(t.getPhase() != null ? t.getPhase().getId().toString() : null)
                         .phaseName(t.getPhase() != null ? t.getPhase().getName() : null)
-                        .assignedUserId(t.getAssignedUser() != null ? t.getAssignedUser().getId().toString() : null)
-                        .assignedUserName(t.getAssignedUser() != null ? t.getAssignedUser().getName() : null)
+                        .assignedUserId(findAssignee(t).map(p -> p.getUserId().toString()).orElse(null))
+                        .assignedUserName(findAssignee(t).map(TaskParticipantResponse::getUserName).orElse(null))
                         .build())
                 .toList();
         repository.saveAll(docs);
         log.info("Bulk-indexed {} tasks", docs.size());
+    }
+
+    /** Returns the ASSIGNEE participant from the task's participant list, if present. */
+    private Optional<TaskParticipantResponse> findAssignee(TaskResponse task) {
+        if (task.getParticipants() == null) return Optional.empty();
+        return task.getParticipants().stream()
+                .filter(p -> p.getRole() == TaskParticipantRole.ASSIGNEE)
+                .findFirst();
     }
 
     /**

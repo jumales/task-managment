@@ -3,6 +3,7 @@ package com.demo.task;
 import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -10,6 +11,7 @@ import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
+import com.demo.task.repository.TaskParticipantRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +60,9 @@ class TaskControllerIT {
     @Autowired
     TaskProjectRepository projectRepository;
 
+    @Autowired
+    TaskParticipantRepository participantRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private static final UUID BOB_ID   = UUID.randomUUID();
 
@@ -67,6 +72,7 @@ class TaskControllerIT {
 
     @BeforeEach
     void setUp() {
+        participantRepository.deleteAll();
         repository.deleteAll();
         projectRepository.deleteAll();
 
@@ -107,7 +113,7 @@ class TaskControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(2);
-        assertThat(response.getBody().getContent().get(0).getAssignedUser()).isNotNull();
+        assertThat(response.getBody().getContent().get(0).getParticipants()).isNotEmpty();
     }
 
     // ── GET /api/v1/tasks/{id} ───────────────────────────────────────
@@ -121,7 +127,8 @@ class TaskControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getTitle()).isEqualTo("Implement login");
         assertThat(response.getBody().getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
-        assertThat(response.getBody().getAssignedUser().getName()).isEqualTo("Bob Smith");
+        assertThat(response.getBody().getParticipants()).anyMatch(p ->
+                p.getRole() == TaskParticipantRole.ASSIGNEE && "Bob Smith".equals(p.getUserName()));
     }
 
     @Test
@@ -143,7 +150,9 @@ class TaskControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(2);
-        assertThat(response.getBody().getContent()).allSatisfy(t -> assertThat(t.getAssignedUser().getId()).isEqualTo(ALICE_ID));
+        assertThat(response.getBody().getContent()).allSatisfy(t ->
+                assertThat(t.getParticipants()).anyMatch(p ->
+                        p.getRole() == TaskParticipantRole.ASSIGNEE && ALICE_ID.equals(p.getUserId())));
     }
 
     // ── GET /api/v1/tasks?status={status} ───────────────────────────
@@ -208,7 +217,8 @@ class TaskControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getTitle()).isEqualTo("New title");
         assertThat(response.getBody().getStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
-        assertThat(response.getBody().getAssignedUser().getId()).isEqualTo(BOB_ID);
+        assertThat(response.getBody().getParticipants()).anyMatch(p ->
+                p.getRole() == TaskParticipantRole.ASSIGNEE && BOB_ID.equals(p.getUserId()));
     }
 
     // ── DELETE /api/v1/tasks/{id} ────────────────────────────────────
@@ -294,7 +304,9 @@ class TaskControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(1);
-        assertThat(response.getBody().getContent().get(0).getAssignedUser()).isNull();
+        // Participants are still returned but with null user name when user-service is unavailable
+        assertThat(response.getBody().getContent().get(0).getParticipants()).isNotEmpty();
+        assertThat(response.getBody().getContent().get(0).getParticipants().get(0).getUserName()).isNull();
     }
 
     // ── Helper ────────────────────────────────────────────────────

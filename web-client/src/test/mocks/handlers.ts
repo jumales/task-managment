@@ -45,7 +45,7 @@ export const mockTask: TaskResponse = {
   title: 'Fix login bug',
   description: 'Users cannot log in',
   status: 'TODO',
-  assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', username: 'alice', active: true },
+  participants: [{ id: 'part-1', userId: 'user-1', userName: 'Alice Smith', userEmail: 'alice@example.com', role: 'ASSIGNEE' }],
   project: mockProject,
   phase: null,
 };
@@ -79,7 +79,7 @@ export const handlers = [
       title: body.title as string,
       description: (body.description as string) ?? '',
       status: (body.status as TaskResponse['status']) ?? 'TODO',
-      assignedUser: { id: 'user-1', name: 'Alice Smith', email: 'alice@example.com', username: 'alice', active: true },
+      participants: [{ id: 'part-new', userId: 'user-1', userName: 'Alice Smith', userEmail: 'alice@example.com', role: 'ASSIGNEE' as const }],
       project: mockProject,
       phase: null,
     };
@@ -97,6 +97,22 @@ export const handlers = [
 
   http.get('*/api/v1/tasks/:taskId/comments', () => {
     return HttpResponse.json([]);
+  }),
+
+  http.get('*/api/v1/tasks/:taskId/participants', () => {
+    return HttpResponse.json([]);
+  }),
+
+  http.post('*/api/v1/tasks/:taskId/participants', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: 'part-new', userId: body.userId as string, userName: null, userEmail: null, role: body.role as string },
+      { status: 201 },
+    );
+  }),
+
+  http.delete('*/api/v1/tasks/:taskId/participants/:participantId', () => {
+    return new HttpResponse(null, { status: 204 });
   }),
 
   http.post('*/api/v1/tasks/:taskId/comments', async ({ request }) => {

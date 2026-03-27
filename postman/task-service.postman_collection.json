@@ -12,10 +12,11 @@
     ]
   },
   "variable": [
-    { "key": "projectId", "value": "" },
-    { "key": "phaseId",   "value": "" },
-    { "key": "taskId",    "value": "" },
-    { "key": "userId",    "value": "" }
+    { "key": "projectId",     "value": "" },
+    { "key": "phaseId",       "value": "" },
+    { "key": "taskId",        "value": "" },
+    { "key": "userId",        "value": "" },
+    { "key": "participantId", "value": "" }
   ],
   "item": [
     {
@@ -590,6 +591,88 @@
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "tasks", "{{taskId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Task Participants",
+      "item": [
+        {
+          "name": "Get task participants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}", "participants"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add participant to task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"role\": \"REVIEWER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}", "participants"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.collectionVariables.set('participantId', body.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove participant from task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants/{{participantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "tasks", "{{taskId}}", "participants", "{{participantId}}"]
             }
           },
           "event": [

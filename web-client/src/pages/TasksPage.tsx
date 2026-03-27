@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
-  Drawer, Space, List, Popconfirm,
+  Drawer, Space, List, Popconfirm, Divider,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects } from '../api/taskApi';
+import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects, addParticipant, removeParticipant } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskResponse, TaskCommentResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskParticipantResponse, TaskParticipantRole, TaskResponse, TaskCommentResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -39,11 +39,16 @@ export function TasksPage() {
   const [editingTask,   setEditingTask]   = useState<TaskResponse | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
-  const [detailTask,       setDetailTask]       = useState<TaskResponse | null>(null);
-  const [comments,         setComments]         = useState<TaskCommentResponse[]>([]);
-  const [commentsLoading,  setCommentsLoading]  = useState(false);
-  const [comment,          setComment]          = useState('');
-  const [addingComment,    setAddingComment]    = useState(false);
+  const [detailTask,         setDetailTask]         = useState<TaskResponse | null>(null);
+  const [comments,           setComments]           = useState<TaskCommentResponse[]>([]);
+  const [commentsLoading,    setCommentsLoading]    = useState(false);
+  const [comment,            setComment]            = useState('');
+  const [addingComment,      setAddingComment]      = useState(false);
+  const [drawerParticipants, setDrawerParticipants] = useState<TaskParticipantResponse[]>([]);
+  const [removingPId,        setRemovingPId]        = useState<string | null>(null);
+  const [addingParticipant,  setAddingParticipant]  = useState(false);
+  const [newParticipantUserId, setNewParticipantUserId] = useState<string | null>(null);
+  const [newParticipantRole,   setNewParticipantRole]   = useState<TaskParticipantRole>('VIEWER');
 
   const [form] = Form.useForm();
 
@@ -88,7 +93,9 @@ export function TasksPage() {
           description: d.description ?? '',
           status: d.status ?? 'TODO',
           project: { id: d.projectId ?? '', name: d.projectName ?? '—', description: '' },
-          assignedUser: d.assignedUserName ? { id: d.assignedUserId ?? '', name: d.assignedUserName, email: '', username: null, active: true } : null,
+          participants: d.assignedUserName
+            ? [{ id: d.assignedUserId ?? '', userId: d.assignedUserId ?? '', userName: d.assignedUserName, userEmail: null, role: 'ASSIGNEE' as TaskParticipantRole }]
+            : [],
           phase: null,
         } as TaskResponse));
         setTasks(mapped);
@@ -137,12 +144,13 @@ export function TasksPage() {
   /** Opens the modal in edit mode, pre-filled with the given task's values. */
   const openEditModal = (task: TaskResponse) => {
     setEditingTask(task);
+    const assignee = task.participants.find((p) => p.role === 'ASSIGNEE');
     form.setFieldsValue({
       title:          task.title,
       description:    task.description,
       status:         task.status,
       projectId:      task.project.id,
-      assignedUserId: task.assignedUser?.id ?? null,
+      assignedUserId: assignee?.userId ?? null,
     });
     refreshDropdowns();
     setModalOpen(true);
@@ -175,12 +183,37 @@ export function TasksPage() {
   /** Opens the detail drawer and asynchronously loads the task's comments. */
   const openDetailDrawer = (task: TaskResponse) => {
     setDetailTask(task);
+    setDrawerParticipants(task.participants ?? []);
+    setNewParticipantUserId(null);
+    setNewParticipantRole('VIEWER');
     setComments([]);
     setCommentsLoading(true);
     getTaskComments(task.id)
       .then(setComments)
       .catch(() => setError('Failed to load comments.'))
       .finally(() => setCommentsLoading(false));
+  };
+
+  /** Adds a participant to the open task and refreshes the local participants list. */
+  const handleAddParticipant = () => {
+    if (!detailTask || !newParticipantUserId) return;
+    setAddingParticipant(true);
+    addParticipant(detailTask.id, { userId: newParticipantUserId, role: newParticipantRole })
+      .then((created) => {
+        setDrawerParticipants((prev) => [...prev, created]);
+        setNewParticipantUserId(null);
+      })
+      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to add participant.'))
+      .finally(() => setAddingParticipant(false));
+  };
+
+  /** Removes a participant from the open task and updates the local participants list. */
+  const handleRemoveParticipant = (taskId: string, participantId: string) => {
+    setRemovingPId(participantId);
+    removeParticipant(taskId, participantId)
+      .then(() => setDrawerParticipants((prev) => prev.filter((p) => p.id !== participantId)))
+      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to remove participant.'))
+      .finally(() => setRemovingPId(null));
   };
 
   /** Soft-deletes a task after confirmation. */
@@ -214,8 +247,12 @@ export function TasksPage() {
   const columns: ColumnsType<TaskResponse> = [
     { title: 'Title',       dataIndex: 'title',                  key: 'title' },
     { title: 'Project',     dataIndex: ['project', 'name'],      key: 'project' },
-    { title: 'Assigned to', dataIndex: ['assignedUser', 'name'], key: 'user',
-      render: (name: string | null) => name ?? '—' },
+    { title: 'Assigned to', key: 'user',
+      render: (_: unknown, record: TaskResponse) => {
+        const assignee = record.participants?.find((p) => p.role === 'ASSIGNEE');
+        return assignee?.userName ?? '—';
+      },
+    },
     { title: 'Status', dataIndex: 'status', key: 'status',
       render: (status: TaskStatus) => <Tag color={STATUS_COLORS[status]}>{status}</Tag> },
     {
@@ -309,7 +346,7 @@ export function TasksPage() {
       <Drawer
         title={detailTask?.title}
         open={detailTask !== null}
-        onClose={() => { setDetailTask(null); setComments([]); setComment(''); }}
+        onClose={() => { setDetailTask(null); setComments([]); setComment(''); setDrawerParticipants([]); }}
         width={480}
       >
         {detailTask && (
@@ -320,7 +357,57 @@ export function TasksPage() {
               <Tag color={STATUS_COLORS[detailTask.status]}>{detailTask.status}</Tag>
             </div>
             <div><strong>Project:</strong> {detailTask.project.name}</div>
-            <div><strong>Assigned to:</strong> {detailTask.assignedUser?.name ?? '—'}</div>
+
+            <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>Participants</Divider>
+            <List
+              size="small"
+              dataSource={drawerParticipants}
+              locale={{ emptyText: 'No participants yet.' }}
+              renderItem={(p) => (
+                <List.Item
+                  key={p.id}
+                  actions={[
+                    <Popconfirm
+                      key="remove"
+                      title="Remove participant?"
+                      onConfirm={() => handleRemoveParticipant(detailTask.id, p.id)}
+                      okText="Remove"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button danger size="small" loading={removingPId === p.id}>Remove</Button>
+                    </Popconfirm>,
+                  ]}
+                >
+                  <Space>
+                    <Tag color="blue">{p.role}</Tag>
+                    {p.userName ?? p.userId}
+                  </Space>
+                </List.Item>
+              )}
+            />
+            <Space.Compact style={{ width: '100%' }}>
+              <Select
+                style={{ flex: 1 }}
+                placeholder="Select user"
+                value={newParticipantUserId}
+                onChange={setNewParticipantUserId}
+                options={users.map((u) => ({ label: u.name, value: u.id }))}
+              />
+              <Select
+                style={{ width: 120 }}
+                value={newParticipantRole}
+                onChange={setNewParticipantRole}
+                options={(['CREATOR', 'ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }))}
+              />
+              <Button
+                type="primary"
+                loading={addingParticipant}
+                disabled={!newParticipantUserId}
+                onClick={handleAddParticipant}
+              >
+                Add
+              </Button>
+            </Space.Compact>
 
             <Typography.Title level={5} style={{ marginTop: 16, marginBottom: 0 }}>Comments</Typography.Title>
 

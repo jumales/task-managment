@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { PageResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest } from './types';
+import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
@@ -37,6 +37,21 @@ export function getTaskComments(taskId: string) {
 /** Adds a comment to a task and returns the created comment. */
 export function addComment(taskId: string, content: string) {
   return apiClient.post<TaskCommentResponse>(`${TASKS_URL}/${taskId}/comments`, { content }).then((r) => r.data);
+}
+
+/** Fetches all participants for a task. */
+export function getParticipants(taskId: string) {
+  return apiClient.get<TaskParticipantResponse[]>(`${TASKS_URL}/${taskId}/participants`).then((r) => r.data);
+}
+
+/** Adds a participant with a role to a task. */
+export function addParticipant(taskId: string, request: TaskParticipantRequest) {
+  return apiClient.post<TaskParticipantResponse>(`${TASKS_URL}/${taskId}/participants`, request).then((r) => r.data);
+}
+
+/** Removes a participant from a task. */
+export function removeParticipant(taskId: string, participantId: string) {
+  return apiClient.delete(`${TASKS_URL}/${taskId}/participants/${participantId}`);
 }
 
 /** Fetches all projects. */

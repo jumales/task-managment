@@ -1,0 +1,198 @@
+package com.demo.task;
+
+import com.demo.common.dto.TaskParticipantRequest;
+import com.demo.common.dto.TaskParticipantResponse;
+import com.demo.common.dto.TaskParticipantRole;
+import com.demo.common.dto.TaskProjectRequest;
+import com.demo.common.dto.TaskProjectResponse;
+import com.demo.common.dto.TaskRequest;
+import com.demo.common.dto.TaskResponse;
+import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.UserDto;
+import com.demo.task.client.UserClient;
+import com.demo.task.repository.TaskParticipantRepository;
+import com.demo.task.repository.TaskProjectRepository;
+import com.demo.task.repository.TaskRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.*;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.when;
+
+/**
+ * Integration tests for {@link com.demo.task.controller.TaskParticipantController}.
+ */
+@Import(TestSecurityConfig.class)
+@Testcontainers
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "eureka.client.enabled=false"
+)
+class TaskParticipantControllerIT {
+
+    @Container
+    @ServiceConnection
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    @MockitoBean
+    UserClient userClient;
+
+    @Autowired
+    TestRestTemplate restTemplate;
+
+    @Autowired
+    TaskRepository taskRepository;
+
+    @Autowired
+    TaskProjectRepository projectRepository;
+
+    @Autowired
+    TaskParticipantRepository participantRepository;
+
+    private static final UUID ALICE_ID = UUID.randomUUID();
+    private static final UUID BOB_ID   = UUID.randomUUID();
+
+    private UserDto alice;
+    private UserDto bob;
+    private String taskId;
+
+    @BeforeEach
+    void setUp() {
+        participantRepository.deleteAll();
+        taskRepository.deleteAll();
+        projectRepository.deleteAll();
+
+        alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null);
+        bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, null);
+
+        when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
+        when(userClient.getUserById(BOB_ID)).thenReturn(bob);
+        when(userClient.getUsersByIds(anyList())).thenAnswer(inv -> {
+            List<UUID> ids = inv.getArgument(0);
+            return List.of(alice, bob).stream().filter(u -> ids.contains(u.getId())).toList();
+        });
+
+        // Create a project then a task to use across tests
+        TaskProjectRequest projectReq = new TaskProjectRequest();
+        projectReq.setName("Test Project");
+        UUID projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
+                .getBody().getId();
+
+        TaskRequest taskReq = new TaskRequest();
+        taskReq.setTitle("Sample Task");
+        taskReq.setDescription("desc");
+        taskReq.setStatus(TaskStatus.TODO);
+        taskReq.setAssignedUserId(ALICE_ID);
+        taskReq.setProjectId(projectId);
+        taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
+                .getBody().getId().toString();
+    }
+
+    // ── GET /api/v1/tasks/{taskId}/participants ──────────────────────────────
+
+    @Test
+    void getParticipants_afterTaskCreate_returnsAssignee() {
+        ResponseEntity<TaskParticipantResponse[]> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                TaskParticipantResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(1);
+        assertThat(response.getBody()[0].getRole()).isEqualTo(TaskParticipantRole.ASSIGNEE);
+        assertThat(response.getBody()[0].getUserId()).isEqualTo(ALICE_ID);
+    }
+
+    // ── POST /api/v1/tasks/{taskId}/participants ─────────────────────────────
+
+    @Test
+    void addParticipant_createsParticipantWithRole() {
+        TaskParticipantRequest request = new TaskParticipantRequest();
+        request.setUserId(BOB_ID);
+        request.setRole(TaskParticipantRole.REVIEWER);
+
+        ResponseEntity<TaskParticipantResponse> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                request,
+                TaskParticipantResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getId()).isNotNull();
+        assertThat(response.getBody().getUserId()).isEqualTo(BOB_ID);
+        assertThat(response.getBody().getUserName()).isEqualTo("Bob Smith");
+        assertThat(response.getBody().getRole()).isEqualTo(TaskParticipantRole.REVIEWER);
+    }
+
+    @Test
+    void addParticipant_duplicate_returns409() {
+        // ASSIGNEE for Alice was auto-created; try adding her as ASSIGNEE again
+        TaskParticipantRequest request = new TaskParticipantRequest();
+        request.setUserId(ALICE_ID);
+        request.setRole(TaskParticipantRole.ASSIGNEE);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                request,
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void addParticipant_sameUserDifferentRole_succeeds() {
+        // Alice is already ASSIGNEE; add her as VIEWER — should succeed
+        TaskParticipantRequest request = new TaskParticipantRequest();
+        request.setUserId(ALICE_ID);
+        request.setRole(TaskParticipantRole.VIEWER);
+
+        ResponseEntity<TaskParticipantResponse> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                request,
+                TaskParticipantResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    // ── DELETE /api/v1/tasks/{taskId}/participants/{participantId} ───────────
+
+    @Test
+    void removeParticipant_removesItFromList() {
+        // Add Bob as REVIEWER, then remove him
+        TaskParticipantRequest request = new TaskParticipantRequest();
+        request.setUserId(BOB_ID);
+        request.setRole(TaskParticipantRole.REVIEWER);
+        String participantId = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                request,
+                TaskParticipantResponse.class).getBody().getId().toString();
+
+        restTemplate.delete("/api/v1/tasks/" + taskId + "/participants/" + participantId);
+
+        ResponseEntity<TaskParticipantResponse[]> listResponse = restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                TaskParticipantResponse[].class);
+        assertThat(listResponse.getBody()).noneMatch(p -> p.getId().toString().equals(participantId));
+    }
+
+    @Test
+    void removeParticipant_whenNotFound_returns404() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + taskId + "/participants/" + UUID.randomUUID(),
+                HttpMethod.DELETE, HttpEntity.EMPTY, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+}
