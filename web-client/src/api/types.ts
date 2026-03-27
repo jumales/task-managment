@@ -95,6 +95,29 @@ export interface PresignedUrlResponse {
   url: string;
 }
 
+/** Mirrors com.demo.search.document.TaskDocument */
+export interface TaskDocument {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus | null;
+  projectId: string | null;
+  projectName: string | null;
+  phaseId: string | null;
+  phaseName: string | null;
+  assignedUserId: string | null;
+  assignedUserName: string | null;
+}
+
+/** Mirrors com.demo.search.document.UserDocument */
+export interface UserDocument {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  active: boolean;
+}
+
 export interface AuditRecord {
   id: string;
   taskId: string;
