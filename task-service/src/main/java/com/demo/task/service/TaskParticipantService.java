@@ -36,10 +36,14 @@ public class TaskParticipantService {
 
     /**
      * Adds a participant with the given role to the task.
-     * Throws if the user already holds that role on the task.
+     * Throws 400 if the CREATOR role is requested (set automatically at task creation only).
+     * Throws 409 if the user already holds that role on the task.
      */
     @Transactional
     public TaskParticipantResponse add(UUID taskId, TaskParticipantRequest request) {
+        if (request.getRole() == TaskParticipantRole.CREATOR) {
+            throw new IllegalArgumentException("CREATOR role is assigned automatically at task creation and cannot be added manually");
+        }
         if (repository.existsByTaskIdAndUserIdAndRole(taskId, request.getUserId(), request.getRole())) {
             throw new DuplicateResourceException(
                     "User already has role " + request.getRole() + " on this task");
@@ -84,6 +88,21 @@ public class TaskParticipantService {
 
         return enriched.stream()
                 .collect(Collectors.groupingBy(r -> participantToTask.get(r.getId())));
+    }
+
+    /**
+     * Creates a CREATOR participant for the given user on the task.
+     * Only called once at task creation; does nothing if userId is null.
+     */
+    @Transactional
+    public void setCreator(UUID taskId, UUID userId) {
+        if (userId == null) return;
+        repository.save(TaskParticipant.builder()
+                .taskId(taskId)
+                .userId(userId)
+                .role(TaskParticipantRole.CREATOR)
+                .createdAt(Instant.now())
+                .build());
     }
 
     /**

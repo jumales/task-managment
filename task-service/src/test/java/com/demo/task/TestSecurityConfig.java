@@ -12,14 +12,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Overrides production security for all integration tests — permits all requests and injects
  * an ADMIN authentication into the security context so that {@code @PreAuthorize} checks pass.
  * Takes precedence via {@code @Order(1)}.
+ *
+ * <p>Uses a fixed UUID as the principal name so that creator-ID extraction in
+ * {@link com.demo.task.controller.TaskController} behaves the same way as in production.
  */
 @TestConfiguration
 public class TestSecurityConfig {
+
+    /** Fixed UUID used as the authenticated user's ID in all integration tests. */
+    public static final UUID TEST_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Bean
     @Order(1)
@@ -35,7 +42,7 @@ public class TestSecurityConfig {
                                                     jakarta.servlet.FilterChain chain)
                             throws java.io.IOException, jakarta.servlet.ServletException {
                         SecurityContextHolder.getContext().setAuthentication(
-                                new UsernamePasswordAuthenticationToken("test-admin", null,
+                                new UsernamePasswordAuthenticationToken(TEST_USER_ID.toString(), null,
                                         List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         );
                         chain.doFilter(request, response);

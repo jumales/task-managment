@@ -108,9 +108,14 @@ public class TaskService {
         return toPageResponse(page);
     }
 
-    /** Creates a new task, resolving the phase and validating the assigned user and project. */
+    /**
+     * Creates a new task, resolving the phase, validating the assigned user and project,
+     * and recording both the CREATOR and ASSIGNEE participants.
+     *
+     * @param creatorId the authenticated user's ID — becomes the CREATOR participant
+     */
     @Transactional
-    public TaskResponse create(TaskRequest request) {
+    public TaskResponse create(TaskRequest request, UUID creatorId) {
         UserDto user = userClient.getUserById(request.getAssignedUserId());
         TaskProject project = projectService.getOrThrow(request.getProjectId());
 
@@ -126,6 +131,7 @@ public class TaskService {
                 .phaseId(phaseId)
                 .build();
         Task saved = repository.save(task);
+        participantService.setCreator(saved.getId(), creatorId);
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_CREATED,
                 project.getName(), phaseId, user.getName());

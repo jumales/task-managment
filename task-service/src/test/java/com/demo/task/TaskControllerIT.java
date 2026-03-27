@@ -78,13 +78,15 @@ class TaskControllerIT {
 
         alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null);
         bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, null);
+        UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null);
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
         when(userClient.getUserById(BOB_ID)).thenReturn(bob);
+        when(userClient.getUserById(TestSecurityConfig.TEST_USER_ID)).thenReturn(testAdmin);
         // Batch fetch used by toResponseList()
         when(userClient.getUsersByIds(anyList())).thenAnswer(inv -> {
             List<UUID> ids = inv.getArgument(0);
-            return List.of(alice, bob).stream().filter(u -> ids.contains(u.getId())).toList();
+            return List.of(alice, bob, testAdmin).stream().filter(u -> ids.contains(u.getId())).toList();
         });
 
         TaskProjectRequest projectReq = new TaskProjectRequest();

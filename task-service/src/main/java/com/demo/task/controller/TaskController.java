@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -76,8 +77,19 @@ public class TaskController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("isAuthenticated()")
-    public TaskResponse create(@RequestBody TaskRequest request) {
-        return service.create(request);
+    public TaskResponse create(@RequestBody TaskRequest request, Authentication authentication) {
+        UUID creatorId = resolveUserId(authentication);
+        return service.create(request, creatorId);
+    }
+
+    /** Parses the authenticated user's ID from the authentication principal name (JWT subject). */
+    private UUID resolveUserId(Authentication authentication) {
+        if (authentication == null) return null;
+        try {
+            return UUID.fromString(authentication.getName());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** Updates the task identified by {@code id} with the values from the request body. */

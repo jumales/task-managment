@@ -78,12 +78,14 @@ class TaskParticipantControllerIT {
 
         alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null);
         bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, null);
+        UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null);
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
         when(userClient.getUserById(BOB_ID)).thenReturn(bob);
+        when(userClient.getUserById(TestSecurityConfig.TEST_USER_ID)).thenReturn(testAdmin);
         when(userClient.getUsersByIds(anyList())).thenAnswer(inv -> {
             List<UUID> ids = inv.getArgument(0);
-            return List.of(alice, bob).stream().filter(u -> ids.contains(u.getId())).toList();
+            return List.of(alice, bob, testAdmin).stream().filter(u -> ids.contains(u.getId())).toList();
         });
 
         // Create a project then a task to use across tests
@@ -105,15 +107,17 @@ class TaskParticipantControllerIT {
     // ── GET /api/v1/tasks/{taskId}/participants ──────────────────────────────
 
     @Test
-    void getParticipants_afterTaskCreate_returnsAssignee() {
+    void getParticipants_afterTaskCreate_returnsCreatorAndAssignee() {
         ResponseEntity<TaskParticipantResponse[]> response = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/participants",
                 TaskParticipantResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(1);
-        assertThat(response.getBody()[0].getRole()).isEqualTo(TaskParticipantRole.ASSIGNEE);
-        assertThat(response.getBody()[0].getUserId()).isEqualTo(ALICE_ID);
+        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()).anyMatch(p ->
+                p.getRole() == TaskParticipantRole.CREATOR && TestSecurityConfig.TEST_USER_ID.equals(p.getUserId()));
+        assertThat(response.getBody()).anyMatch(p ->
+                p.getRole() == TaskParticipantRole.ASSIGNEE && ALICE_ID.equals(p.getUserId()));
     }
 
     // ── POST /api/v1/tasks/{taskId}/participants ─────────────────────────────
@@ -134,6 +138,20 @@ class TaskParticipantControllerIT {
         assertThat(response.getBody().getUserId()).isEqualTo(BOB_ID);
         assertThat(response.getBody().getUserName()).isEqualTo("Bob Smith");
         assertThat(response.getBody().getRole()).isEqualTo(TaskParticipantRole.REVIEWER);
+    }
+
+    @Test
+    void addParticipant_withCreatorRole_returns400() {
+        TaskParticipantRequest request = new TaskParticipantRequest();
+        request.setUserId(BOB_ID);
+        request.setRole(TaskParticipantRole.CREATOR);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                request,
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test

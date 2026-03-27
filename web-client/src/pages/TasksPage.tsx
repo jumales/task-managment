@@ -397,7 +397,7 @@ export function TasksPage() {
                 style={{ width: 120 }}
                 value={newParticipantRole}
                 onChange={setNewParticipantRole}
-                options={(['CREATOR', 'ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }))}
+                options={(['ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }))}
               />
               <Button
                 type="primary"
