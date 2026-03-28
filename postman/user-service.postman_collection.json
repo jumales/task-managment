@@ -110,7 +110,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice@demo.com\"\n}",
+              "raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice@demo.com\",\n  \"username\": \"alice.johnson\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -141,7 +141,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Alice Johnson Updated\",\n  \"email\": \"alice.updated@demo.com\"\n}",
+              "raw": "{\n  \"name\": \"Alice Johnson Updated\",\n  \"email\": \"alice.updated@demo.com\",\n  \"username\": \"alice.johnson\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {

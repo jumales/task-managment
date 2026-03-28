@@ -68,7 +68,7 @@ public class UserService {
 
     /** Creates and persists a new user; throws {@link DuplicateResourceException} if the username is already taken. */
     public UserDto create(UserRequest request) {
-        if (request.getUsername() != null && userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByUsername(request.getUsername())) {
             throw new DuplicateResourceException("Username already taken: " + request.getUsername());
         }
         User user = User.builder()

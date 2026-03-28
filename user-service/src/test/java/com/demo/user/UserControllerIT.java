@@ -104,8 +104,8 @@ class UserControllerIT {
 
     @Test
     void getAllUsers_returnsAllPersistedUsers() {
-        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class);
-        restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com"),   UserDto.class);
+        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+        restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com",   "bob"),   UserDto.class);
 
         ResponseEntity<PageResponse<UserDto>> response = getUserPage("/api/v1/users");
 
@@ -117,8 +117,8 @@ class UserControllerIT {
 
     @Test
     void getUsersByIds_returnsRequestedUsers() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
-        UserDto bob   = restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com"),   UserDto.class).getBody();
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
+        UserDto bob   = restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com",   "bob"),   UserDto.class).getBody();
 
         ResponseEntity<UserDto[]> response = restTemplate.getForEntity(
                 "/api/v1/users/batch?ids=" + alice.getId() + "&ids=" + bob.getId(), UserDto[].class);
@@ -132,7 +132,7 @@ class UserControllerIT {
 
     @Test
     void getUserById_returnsUser() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
         ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/" + created.getId(), UserDto.class);
 
@@ -153,7 +153,7 @@ class UserControllerIT {
 
     @Test
     void createUser_persistsAndReturnsUser() {
-        ResponseEntity<UserDto> response = restTemplate.postForEntity("/api/v1/users", request("Carol", "carol@demo.com"), UserDto.class);
+        ResponseEntity<UserDto> response = restTemplate.postForEntity("/api/v1/users", request("Carol", "carol@demo.com", "carol"), UserDto.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
@@ -163,8 +163,8 @@ class UserControllerIT {
 
     @Test
     void createMultipleUsers_allArePersisted() {
-        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class);
-        restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com"),   UserDto.class);
+        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+        restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com",   "bob"),   UserDto.class);
 
         assertThat(repository.count()).isEqualTo(2);
     }
@@ -173,12 +173,12 @@ class UserControllerIT {
 
     @Test
     void updateUser_updatesAllFields() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
         ResponseEntity<UserDto> response = restTemplate.exchange(
                 "/api/v1/users/" + created.getId(),
                 HttpMethod.PUT,
-                new HttpEntity<>(request("Alice Updated", "alice.new@demo.com")),
+                new HttpEntity<>(request("Alice Updated", "alice.new@demo.com", "alice")),
                 UserDto.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -190,7 +190,7 @@ class UserControllerIT {
 
     @Test
     void deleteUser_removesUserFromDatabase() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
         restTemplate.delete("/api/v1/users/" + created.getId());
 
@@ -199,7 +199,7 @@ class UserControllerIT {
 
     @Test
     void deleteUser_thenGetById_returns404() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
         restTemplate.delete("/api/v1/users/" + created.getId());
 
@@ -212,7 +212,7 @@ class UserControllerIT {
     @Test
     void createUser_withInvalidEmail_returns400() {
         ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "not-an-email"), String.class);
+                "/api/v1/users", request("Alice", "not-an-email", "alice"), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("email");
@@ -221,12 +221,12 @@ class UserControllerIT {
     @Test
     void updateUser_withInvalidEmail_returns400() {
         UserDto alice = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/v1/users/" + alice.getId(),
                 HttpMethod.PUT,
-                new HttpEntity<>(request("Alice", "not-an-email")),
+                new HttpEntity<>(request("Alice", "not-an-email", "alice")),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -234,6 +234,18 @@ class UserControllerIT {
     }
 
     // ── username ─────────────────────────────────────────────────
+
+    @Test
+    void createUser_withoutUsername_returns400() {
+        UserRequest req = new UserRequest();
+        req.setName("Alice");
+        req.setEmail("alice@demo.com");
+
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/users", req, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("username");
+    }
 
     @Test
     void createUser_withUsername_persistsUsername() {
@@ -275,7 +287,7 @@ class UserControllerIT {
     @Test
     void createUser_isActiveByDefault() {
         ResponseEntity<UserDto> response = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class);
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
 
         assertThat(response.getBody().isActive()).isTrue();
     }
@@ -283,9 +295,9 @@ class UserControllerIT {
     @Test
     void updateUser_canDeactivateUser() {
         UserDto alice = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
 
-        UserRequest deactivate = request("Alice", "alice@demo.com");
+        UserRequest deactivate = request("Alice", "alice@demo.com", "alice");
         deactivate.setActive(false);
         ResponseEntity<UserDto> response = restTemplate.exchange(
                 "/api/v1/users/" + alice.getId(), HttpMethod.PUT, new HttpEntity<>(deactivate), UserDto.class);
@@ -298,7 +310,7 @@ class UserControllerIT {
 
     @Test
     void updateAvatar_setsAvatarFileId() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
         UUID fileId = UUID.randomUUID();
 
         ResponseEntity<UserDto> response = restTemplate.exchange(
@@ -313,7 +325,7 @@ class UserControllerIT {
 
     @Test
     void updateAvatar_clearAvatar_setsAvatarFileIdToNull() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
         UUID fileId = UUID.randomUUID();
         restTemplate.exchange("/api/v1/users/" + alice.getId() + "/avatar",
                 HttpMethod.PATCH, new HttpEntity<>(Map.of("fileId", fileId)), UserDto.class);
@@ -342,7 +354,7 @@ class UserControllerIT {
 
     @Test
     void updateAvatar_persistedOnSubsequentGet() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com"), UserDto.class).getBody();
+        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
         UUID fileId = UUID.randomUUID();
         restTemplate.exchange("/api/v1/users/" + alice.getId() + "/avatar",
                 HttpMethod.PATCH, new HttpEntity<>(Map.of("fileId", fileId)), UserDto.class);
@@ -360,15 +372,10 @@ class UserControllerIT {
                 new ParameterizedTypeReference<>() {});
     }
 
-    private UserRequest request(String name, String email) {
+    private UserRequest request(String name, String email, String username) {
         UserRequest req = new UserRequest();
         req.setName(name);
         req.setEmail(email);
-        return req;
-    }
-
-    private UserRequest request(String name, String email, String username) {
-        UserRequest req = request(name, email);
         req.setUsername(username);
         return req;
     }
