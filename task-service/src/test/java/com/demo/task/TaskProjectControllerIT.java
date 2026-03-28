@@ -6,6 +6,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskProjectRepository;
@@ -206,14 +207,14 @@ class TaskProjectControllerIT {
         createTask("Task 2", TaskStatus.TODO, ALICE_ID, projectA.getId());
         createTask("Task 3", TaskStatus.TODO, ALICE_ID, projectB.getId());
 
-        ResponseEntity<PageResponse<TaskResponse>> response = restTemplate.exchange(
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = restTemplate.exchange(
                 "/api/v1/tasks?projectId=" + projectA.getId(),
                 HttpMethod.GET, null, new ParameterizedTypeReference<>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(2);
         assertThat(response.getBody().getContent()).allSatisfy(t ->
-                assertThat(t.getProject().getId()).isEqualTo(projectA.getId()));
+                assertThat(t.getProjectId()).isEqualTo(projectA.getId()));
     }
 
     @Test
