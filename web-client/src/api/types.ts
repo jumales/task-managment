@@ -4,6 +4,28 @@ export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 /** Mirrors com.demo.common.dto.TaskType */
 export type TaskType = 'FEATURE' | 'BUG_FIXING' | 'TESTING' | 'PLANNING' | 'TECHNICAL_DEBT' | 'DOCUMENTATION' | 'OTHER';
 
+/** Mirrors com.demo.common.dto.WorkType */
+export type WorkType = 'DEVELOPMENT' | 'TESTING' | 'CODE_REVIEW' | 'DESIGN' | 'PLANNING' | 'DOCUMENTATION' | 'DEPLOYMENT' | 'MEETING' | 'OTHER';
+
+/** Mirrors com.demo.common.dto.TaskWorkLogRequest */
+export interface TaskWorkLogRequest {
+  userId: string;
+  workType: WorkType;
+  plannedHours: number;
+  bookedHours: number;
+}
+
+/** Mirrors com.demo.common.dto.TaskWorkLogResponse */
+export interface TaskWorkLogResponse {
+  id: string;
+  userId: string;
+  userName: string | null;
+  workType: WorkType;
+  plannedHours: number;
+  bookedHours: number;
+  createdAt: string;
+}
+
 /** Mirrors com.demo.common.dto.PageResponse */
 export interface PageResponse<T> {
   content: T[];

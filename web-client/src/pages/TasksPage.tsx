@@ -5,10 +5,10 @@ import {
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects, addParticipant, removeParticipant } from '../api/taskApi';
+import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects, addParticipant, removeParticipant, getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskParticipantResponse, TaskParticipantRole, TaskResponse, TaskCommentResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskParticipantResponse, TaskParticipantRole, TaskResponse, TaskCommentResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse, WorkType, TaskWorkLogResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -46,6 +46,23 @@ const TYPE_OPTIONS: { label: string; value: TaskType }[] = (
   Object.keys(TYPE_LABELS) as TaskType[]
 ).map((t) => ({ label: TYPE_LABELS[t], value: t }));
 
+const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  DEVELOPMENT:   'Development',
+  TESTING:       'Testing',
+  CODE_REVIEW:   'Code Review',
+  DESIGN:        'Design',
+  PLANNING:      'Planning',
+  DOCUMENTATION: 'Documentation',
+  DEPLOYMENT:    'Deployment',
+  MEETING:       'Meeting',
+  OTHER:         'Other',
+};
+
+const WORK_TYPE_OPTIONS = (Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((w) => ({
+  label: WORK_TYPE_LABELS[w],
+  value: w,
+}));
+
 /** Displays all tasks and allows creating, editing, deleting, and commenting on them. */
 export function TasksPage() {
   const [tasks,         setTasks]         = useState<TaskResponse[]>([]);
@@ -73,6 +90,16 @@ export function TasksPage() {
   const [addingParticipant,  setAddingParticipant]  = useState(false);
   const [newParticipantUserId, setNewParticipantUserId] = useState<string | null>(null);
   const [newParticipantRole,   setNewParticipantRole]   = useState<TaskParticipantRole>('VIEWER');
+
+  const [workLogs,          setWorkLogs]          = useState<TaskWorkLogResponse[]>([]);
+  const [workLogsLoading,   setWorkLogsLoading]   = useState(false);
+  const [editingWorkLog,    setEditingWorkLog]     = useState<TaskWorkLogResponse | null>(null);
+  const [workLogUserId,     setWorkLogUserId]      = useState<string | null>(null);
+  const [workLogType,       setWorkLogType]        = useState<WorkType>('DEVELOPMENT');
+  const [workLogPlanned,    setWorkLogPlanned]     = useState<number>(0);
+  const [workLogBooked,     setWorkLogBooked]      = useState<number>(0);
+  const [savingWorkLog,     setSavingWorkLog]      = useState(false);
+  const [deletingWorkLogId, setDeletingWorkLogId]  = useState<string | null>(null);
 
   const [form] = Form.useForm();
 
@@ -206,7 +233,7 @@ export function TasksPage() {
     });
   };
 
-  /** Opens the detail drawer and asynchronously loads the task's comments. */
+  /** Opens the detail drawer and asynchronously loads the task's comments and work logs. */
   const openDetailDrawer = (task: TaskResponse) => {
     setDetailTask(task);
     setDrawerParticipants(task.participants ?? []);
@@ -214,10 +241,62 @@ export function TasksPage() {
     setNewParticipantRole('VIEWER');
     setComments([]);
     setCommentsLoading(true);
+    setWorkLogs([]);
+    setWorkLogsLoading(true);
+    resetWorkLogForm();
     getTaskComments(task.id)
       .then(setComments)
       .catch(() => setError('Failed to load comments.'))
       .finally(() => setCommentsLoading(false));
+    getWorkLogs(task.id)
+      .then(setWorkLogs)
+      .catch(() => setError('Failed to load work logs.'))
+      .finally(() => setWorkLogsLoading(false));
+  };
+
+  const resetWorkLogForm = () => {
+    setEditingWorkLog(null);
+    setWorkLogUserId(null);
+    setWorkLogType('DEVELOPMENT');
+    setWorkLogPlanned(0);
+    setWorkLogBooked(0);
+  };
+
+  const startEditWorkLog = (log: TaskWorkLogResponse) => {
+    setEditingWorkLog(log);
+    setWorkLogUserId(log.userId);
+    setWorkLogType(log.workType);
+    setWorkLogPlanned(Number(log.plannedHours));
+    setWorkLogBooked(Number(log.bookedHours));
+  };
+
+  /** Saves (creates or updates) a work log entry and refreshes the list. */
+  const handleSaveWorkLog = () => {
+    if (!detailTask || !workLogUserId) return;
+    setSavingWorkLog(true);
+    const request = { userId: workLogUserId, workType: workLogType, plannedHours: workLogPlanned, bookedHours: workLogBooked };
+    const apiCall = editingWorkLog
+      ? updateWorkLog(detailTask.id, editingWorkLog.id, request)
+      : createWorkLog(detailTask.id, request);
+    apiCall
+      .then((saved) => {
+        setWorkLogs((prev) =>
+          editingWorkLog ? prev.map((l) => (l.id === saved.id ? saved : l)) : [...prev, saved]
+        );
+        resetWorkLogForm();
+      })
+      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to save work log.'))
+      .finally(() => setSavingWorkLog(false));
+  };
+
+  /** Soft-deletes a work log entry and removes it from the local list. */
+  const handleDeleteWorkLog = (workLogId: string) => {
+    if (!detailTask) return;
+    setDeletingWorkLogId(workLogId);
+    deleteWorkLog(detailTask.id, workLogId)
+      .then(() => setWorkLogs((prev) => prev.filter((l) => l.id !== workLogId)))
+      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to delete work log.'))
+      .finally(() => setDeletingWorkLogId(null));
   };
 
   /** Adds a participant to the open task and refreshes the local participants list. */
@@ -386,7 +465,7 @@ export function TasksPage() {
       <Drawer
         title={detailTask?.title}
         open={detailTask !== null}
-        onClose={() => { setDetailTask(null); setComments([]); setComment(''); setDrawerParticipants([]); }}
+        onClose={() => { setDetailTask(null); setComments([]); setComment(''); setDrawerParticipants([]); setWorkLogs([]); resetWorkLogForm(); }}
         width={480}
       >
         {detailTask && (
@@ -462,6 +541,105 @@ export function TasksPage() {
                 Add
               </Button>
             </Space.Compact>
+
+            <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>Work Logs</Divider>
+            {workLogsLoading ? (
+              <Spin size="small" />
+            ) : (
+              <>
+                <List
+                  size="small"
+                  dataSource={workLogs}
+                  locale={{ emptyText: 'No work logs yet.' }}
+                  renderItem={(log) => (
+                    <List.Item
+                      key={log.id}
+                      actions={[
+                        <Button key="edit" size="small" onClick={() => startEditWorkLog(log)}>Edit</Button>,
+                        <Popconfirm
+                          key="del"
+                          title="Delete work log?"
+                          onConfirm={() => handleDeleteWorkLog(log.id)}
+                          okText="Delete"
+                          okButtonProps={{ danger: true }}
+                        >
+                          <Button danger size="small" loading={deletingWorkLogId === log.id}>Delete</Button>
+                        </Popconfirm>,
+                      ]}
+                    >
+                      <Space direction="vertical" size={0}>
+                        <Space>
+                          <Tag color="blue">{WORK_TYPE_LABELS[log.workType]}</Tag>
+                          <Typography.Text strong>{log.userName ?? log.userId}</Typography.Text>
+                        </Space>
+                        <Typography.Text type="secondary">
+                          Planned: <strong>{log.plannedHours}h</strong>
+                          {' · '}
+                          Booked: <strong>{log.bookedHours}h</strong>
+                        </Typography.Text>
+                      </Space>
+                    </List.Item>
+                  )}
+                />
+                <div style={{ marginTop: 8, padding: '8px 0', borderTop: '1px solid #f0f0f0' }}>
+                  <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
+                    {editingWorkLog ? 'Edit Work Log' : 'Add Work Log'}
+                  </Typography.Text>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="User"
+                      value={workLogUserId}
+                      onChange={setWorkLogUserId}
+                      options={users.map((u) => ({ label: u.name, value: u.id }))}
+                    />
+                    <Select
+                      style={{ width: '100%' }}
+                      value={workLogType}
+                      onChange={setWorkLogType}
+                      options={WORK_TYPE_OPTIONS}
+                    />
+                    <Space style={{ width: '100%' }}>
+                      {!editingWorkLog && (
+                        <InputNumber
+                          min={0}
+                          step={1}
+                          precision={0}
+                          value={workLogPlanned}
+                          onChange={(v) => setWorkLogPlanned(v ?? 0)}
+                          addonBefore="Planned"
+                          addonAfter="h"
+                          style={{ flex: 1 }}
+                        />
+                      )}
+                      <InputNumber
+                        min={0}
+                        step={1}
+                        precision={0}
+                        value={workLogBooked}
+                        onChange={(v) => setWorkLogBooked(v ?? 0)}
+                        addonBefore="Booked"
+                        addonAfter="h"
+                        style={{ flex: 1 }}
+                      />
+                    </Space>
+                    <Space>
+                      <Button
+                        type="primary"
+                        loading={savingWorkLog}
+                        disabled={!workLogUserId}
+                        onClick={handleSaveWorkLog}
+                      >
+                        {editingWorkLog ? 'Save' : 'Add'}
+                      </Button>
+                      {editingWorkLog && (
+                        <Button onClick={resetWorkLogForm}>Cancel</Button>
+                      )}
+                    </Space>
+                  </Space>
+                </div>
+              </>
+            )}
 
             <Typography.Title level={5} style={{ marginTop: 16, marginBottom: 0 }}>Comments</Typography.Title>
 
