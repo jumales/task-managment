@@ -296,11 +296,11 @@ class NotificationConsumerIT {
                 assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(2)
         );
 
-        ResponseEntity<Object[]> response = restTemplate.getForEntity(
-                "/api/v1/notifications/tasks/" + taskId, Object[].class);
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                "/api/v1/notifications/tasks/" + taskId, Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
+        assertThat((List<?>) response.getBody().get("content")).hasSize(2);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
