@@ -1,8 +1,11 @@
 package com.demo.notification;
 
+import com.demo.common.dto.ProjectNotificationTemplateResponse;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.UserDto;
+import com.demo.common.event.TaskChangeType;
 import com.demo.common.event.TaskChangedEvent;
+import com.demo.notification.client.TaskServiceClient;
 import com.demo.notification.client.UserClient;
 import com.demo.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -123,6 +126,9 @@ class NotificationConsumerIT {
     @MockBean
     UserClient userClient;
 
+    @MockBean
+    TaskServiceClient taskServiceClient;
+
     private static final String TEST_EMAIL = "testuser@demo.com";
     private static final String TEST_NAME  = "Test User";
 
@@ -134,6 +140,9 @@ class NotificationConsumerIT {
         // Default mock: return a user with a valid email
         when(userClient.getUserById(any(UUID.class)))
                 .thenReturn(new UserDto(UUID.randomUUID(), TEST_NAME, TEST_EMAIL, "testuser", true, List.of(), null));
+        // Default mock: no project template configured
+        when(taskServiceClient.getTemplate(any(UUID.class), any(TaskChangeType.class)))
+                .thenThrow(new RuntimeException("404 not found"));
     }
 
     // ── Consumer tests ────────────────────────────────────────────────────────
@@ -144,7 +153,8 @@ class NotificationConsumerIT {
         UUID assignee  = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, assignee, TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+                TaskChangedEvent.statusChanged(taskId, assignee, null, "Test Task",
+                        TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
@@ -161,7 +171,8 @@ class NotificationConsumerIT {
         UUID assignee = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, assignee, UUID.randomUUID(), "Great progress!"));
+                TaskChangedEvent.commentAdded(taskId, assignee, null, "Test Task",
+                        UUID.randomUUID(), "Great progress!"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
@@ -177,7 +188,7 @@ class NotificationConsumerIT {
         UUID assignee = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.phaseChanged(taskId, assignee,
+                TaskChangedEvent.phaseChanged(taskId, assignee, null, "Test Task",
                         UUID.randomUUID(), "Backlog", UUID.randomUUID(), "In Review"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
@@ -194,7 +205,8 @@ class NotificationConsumerIT {
         UUID workLogUser  = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogCreated(taskId, UUID.randomUUID(), workLogUser,
+                TaskChangedEvent.workLogCreated(taskId, null, "Test Task",
+                        UUID.randomUUID(), workLogUser,
                         com.demo.common.dto.WorkType.DEVELOPMENT,
                         java.math.BigInteger.valueOf(8), java.math.BigInteger.ZERO));
 
@@ -210,13 +222,58 @@ class NotificationConsumerIT {
 
         // assignedUserId = null → no recipient → notification skipped
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, null, TaskStatus.TODO, TaskStatus.DONE));
+                TaskChangedEvent.statusChanged(taskId, null, null, "Test Task",
+                        TaskStatus.TODO, TaskStatus.DONE));
 
         // Wait a bit to confirm nothing arrives
         await().atMost(5, SECONDS).untilAsserted(() ->
                 assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).isEmpty()
         );
         assertThat(getMailhogMessages()).isEmpty();
+    }
+
+    @Test
+    void consumeTaskCreatedEvent_sendsEmailAndPersistsRecord() {
+        UUID taskId   = UUID.randomUUID();
+        UUID assignee = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.taskCreated(taskId, assignee, projectId, "My New Task"));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            List<Map<String, Object>> messages = getMailhogMessages();
+            assertThat(messages).hasSize(1);
+            assertThat(subjectOf(messages.get(0))).contains("My New Task");
+        });
+    }
+
+    @Test
+    void consumeEventWithProjectTemplate_usesTemplateContent() {
+        UUID taskId    = UUID.randomUUID();
+        UUID assignee  = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+
+        // Configure mock to return a project-level template for STATUS_CHANGED
+        when(taskServiceClient.getTemplate(projectId, TaskChangeType.STATUS_CHANGED))
+                .thenReturn(new ProjectNotificationTemplateResponse(
+                        UUID.randomUUID(), projectId, TaskChangeType.STATUS_CHANGED,
+                        "Custom: task {taskTitle} changed to {toStatus}",
+                        "Body for {taskTitle} in project {projectId}"));
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.statusChanged(taskId, assignee, projectId, "Template Task",
+                        TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            List<Map<String, Object>> messages = getMailhogMessages();
+            assertThat(messages).hasSize(1);
+            // Subject should use the custom template with placeholders rendered
+            assertThat(subjectOf(messages.get(0))).contains("Template Task");
+            assertThat(subjectOf(messages.get(0))).contains("IN_PROGRESS");
+        });
     }
 
     // ── Controller test ───────────────────────────────────────────────────────
@@ -227,9 +284,11 @@ class NotificationConsumerIT {
         UUID assignee = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, assignee, TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+                TaskChangedEvent.statusChanged(taskId, assignee, null, "Test Task",
+                        TaskStatus.TODO, TaskStatus.IN_PROGRESS));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, assignee, UUID.randomUUID(), "A comment"));
+                TaskChangedEvent.commentAdded(taskId, assignee, null, "Test Task",
+                        UUID.randomUUID(), "A comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(2)
