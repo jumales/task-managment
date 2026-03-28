@@ -49,6 +49,10 @@ spring:
         jwt:
           issuer-uri: http://localhost:8180/realms/demo
 
+app:
+  # Base URL of the frontend — used to build {taskUrl} in notification templates
+  frontend-url: http://localhost:3000
+
 notification:
   mail:
     from: noreply@demo.local

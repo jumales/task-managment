@@ -4,6 +4,7 @@ import com.demo.common.dto.ProjectNotificationTemplateRequest;
 import com.demo.common.dto.ProjectNotificationTemplateResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
+import com.demo.common.dto.TemplatePlaceholder;
 import com.demo.common.event.TaskChangeType;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.ProjectNotificationTemplateRepository;
@@ -62,6 +63,19 @@ class ProjectNotificationTemplateControllerIT {
         req.setName("Demo Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", req, TaskProjectResponse.class)
                 .getBody().getId();
+    }
+
+    // ── GET /api/v1/projects/{projectId}/notification-templates/placeholders ─
+
+    @Test
+    void getPlaceholders_returnsAllSupportedTokens() {
+        ResponseEntity<TemplatePlaceholder[]> response = restTemplate.getForEntity(
+                "/api/v1/projects/" + projectId + "/notification-templates/placeholders",
+                TemplatePlaceholder[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(TemplatePlaceholder.values().length);
+        assertThat(response.getBody()).contains(TemplatePlaceholder.TASK_URL, TemplatePlaceholder.USER_NAME);
     }
 
     // ── GET /api/v1/projects/{projectId}/notification-templates ─────────────
@@ -169,6 +183,32 @@ class ProjectNotificationTemplateControllerIT {
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void upsert_withUnknownPlaceholder_returns400() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/projects/" + projectId + "/notification-templates/TASK_CREATED",
+                HttpMethod.PUT,
+                new HttpEntity<>(templateRequest("Hello {typo}", "Body {unknownVar}")),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void upsert_withNewPlaceholders_taskUrlAndUserName_persists() {
+        ResponseEntity<ProjectNotificationTemplateResponse> response = restTemplate.exchange(
+                "/api/v1/projects/" + projectId + "/notification-templates/TASK_CREATED",
+                HttpMethod.PUT,
+                new HttpEntity<>(templateRequest(
+                        "Hi {userName}, new task: {taskTitle}",
+                        "View it at {taskUrl}")),
+                ProjectNotificationTemplateResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getSubjectTemplate()).contains("{userName}");
+        assertThat(response.getBody().getBodyTemplate()).contains("{taskUrl}");
     }
 
     // ── DELETE /api/v1/projects/{projectId}/notification-templates/{eventType}

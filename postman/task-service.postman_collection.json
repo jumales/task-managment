@@ -2,22 +2,44 @@
   "info": {
     "_postman_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
     "name": "Task Service",
-    "description": "Projects, Phases and Tasks management.\n\nRecommended execution order:\n1. Create project  → sets `projectId`\n2. Create phase    → sets `phaseId`\n3. Create task     → sets `taskId`\n4. Update / comment / delete as needed",
+    "description": "Projects, Phases and Tasks management.\n\nRecommended execution order:\n1. Create project  \u2192 sets `projectId`\n2. Create phase    \u2192 sets `phaseId`\n3. Create task     \u2192 sets `taskId`\n4. Update / comment / delete as needed",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
     "type": "bearer",
     "bearer": [
-      { "key": "token", "value": "{{bearerToken}}", "type": "string" }
+      {
+        "key": "token",
+        "value": "{{bearerToken}}",
+        "type": "string"
+      }
     ]
   },
   "variable": [
-    { "key": "projectId",     "value": "" },
-    { "key": "phaseId",       "value": "" },
-    { "key": "taskId",        "value": "" },
-    { "key": "userId",        "value": "" },
-    { "key": "participantId", "value": "" },
-    { "key": "workLogId",     "value": "" }
+    {
+      "key": "projectId",
+      "value": ""
+    },
+    {
+      "key": "phaseId",
+      "value": ""
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "participantId",
+      "value": ""
+    },
+    {
+      "key": "workLogId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -30,8 +52,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
             }
           },
           "event": [
@@ -54,8 +82,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
             }
           },
           "event": [
@@ -75,16 +110,31 @@
           "name": "Create project",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Backend Rewrite\",\n  \"description\": \"Full rewrite of the legacy backend\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects"
+              ]
             }
           },
           "event": [
@@ -106,16 +156,32 @@
           "name": "Update project",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Backend Rewrite v2\",\n  \"description\": \"Updated description\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
             }
           },
           "event": [
@@ -137,8 +203,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}"
+              ]
             }
           },
           "event": [
@@ -165,9 +238,20 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/phases?projectId={{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "phases"],
-              "query": [{ "key": "projectId", "value": "{{projectId}}" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "phases"
+              ],
+              "query": [
+                {
+                  "key": "projectId",
+                  "value": "{{projectId}}"
+                }
+              ]
             }
           },
           "event": [
@@ -190,8 +274,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/phases/{{phaseId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "phases", "{{phaseId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "phases",
+                "{{phaseId}}"
+              ]
             }
           },
           "event": [
@@ -211,16 +302,31 @@
           "name": "Create phase (default)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Backlog\",\n  \"description\": \"Work not yet started\",\n  \"projectId\": \"{{projectId}}\",\n  \"isDefault\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/phases",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "phases"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "phases"
+              ]
             }
           },
           "event": [
@@ -243,16 +349,31 @@
           "name": "Create phase (non-default)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"In Review\",\n  \"description\": \"Work under review\",\n  \"projectId\": \"{{projectId}}\",\n  \"isDefault\": false\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/phases",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "phases"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "phases"
+              ]
             }
           },
           "event": [
@@ -271,16 +392,32 @@
           "name": "Update phase",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Backlog Updated\",\n  \"description\": \"Updated description\",\n  \"projectId\": \"{{projectId}}\",\n  \"isDefault\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/phases/{{phaseId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "phases", "{{phaseId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "phases",
+                "{{phaseId}}"
+              ]
             }
           },
           "event": [
@@ -302,8 +439,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/phases/{{phaseId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "phases", "{{phaseId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "phases",
+                "{{phaseId}}"
+              ]
             }
           },
           "event": [
@@ -330,11 +474,23 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks?page=0&size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks"
+              ],
               "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -364,12 +520,27 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks?userId={{userId}}&page=0&size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks"
+              ],
               "query": [
-                { "key": "userId", "value": "{{userId}}" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -393,12 +564,27 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks?projectId={{projectId}}&page=0&size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks"
+              ],
               "query": [
-                { "key": "projectId", "value": "{{projectId}}" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "projectId",
+                  "value": "{{projectId}}"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -422,12 +608,28 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks?status=TODO&page=0&size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks"
+              ],
               "query": [
-                { "key": "status", "value": "TODO", "description": "TODO | IN_PROGRESS | DONE (case-insensitive)" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "status",
+                  "value": "TODO",
+                  "description": "TODO | IN_PROGRESS | DONE (case-insensitive)"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             }
           },
@@ -451,8 +653,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}"
+              ]
             }
           },
           "event": [
@@ -472,16 +681,31 @@
           "name": "Create task",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"type\": \"FEATURE\",\n  \"progress\": 0,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks"
+              ]
             }
           },
           "event": [
@@ -504,16 +728,32 @@
           "name": "Update task",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"IN_PROGRESS\",\n  \"type\": \"FEATURE\",\n  \"progress\": 40,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}"
+              ]
             }
           },
           "event": [
@@ -536,8 +776,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/comments",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "comments"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
             }
           },
           "event": [
@@ -557,16 +805,33 @@
           "name": "Add comment to task",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"content\": \"Started working on the JWT token generation part.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/comments",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "comments"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "comments"
+              ]
             }
           },
           "event": [
@@ -590,8 +855,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}"
+              ]
             }
           },
           "event": [
@@ -618,8 +890,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "participants"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "participants"
+              ]
             }
           },
           "event": [
@@ -639,15 +919,28 @@
           "name": "Add participant to task",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"role\": \"REVIEWER\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "participants"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "participants"
+              ]
             }
           },
           "event": [
@@ -672,8 +965,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants/{{participantId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "participants", "{{participantId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "participants",
+                "{{participantId}}"
+              ]
             }
           },
           "event": [
@@ -700,8 +1002,16 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "work-logs"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "work-logs"
+              ]
             }
           },
           "event": [
@@ -721,16 +1031,33 @@
           "name": "Add work log",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"DEVELOPMENT\",\n  \"plannedHours\": 8,\n  \"bookedHours\": 5\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "work-logs"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "work-logs"
+              ]
             }
           },
           "event": [
@@ -753,16 +1080,34 @@
           "name": "Update work log",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"TESTING\",\n  \"bookedHours\": 4\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs/{{workLogId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "work-logs", "{{workLogId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "work-logs",
+                "{{workLogId}}"
+              ]
             }
           },
           "event": [
@@ -785,8 +1130,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs/{{workLogId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "tasks", "{{taskId}}", "work-logs", "{{workLogId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "work-logs",
+                "{{workLogId}}"
+              ]
             }
           },
           "event": [
@@ -807,14 +1161,56 @@
       "name": "Project Notification Templates",
       "item": [
         {
+          "name": "Get placeholder catalogue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/notification-templates/placeholders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "notification-templates",
+                "placeholders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Contains taskUrl placeholder', () => pm.expect(pm.response.json().some(p => p === 'TASK_URL')).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Get all templates for project",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/notification-templates",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}", "notification-templates"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "notification-templates"
+              ]
             }
           },
           "event": [
@@ -837,8 +1233,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/notification-templates/TASK_CREATED",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}", "notification-templates", "TASK_CREATED"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "notification-templates",
+                "TASK_CREATED"
+              ]
             }
           },
           "event": [
@@ -858,16 +1263,34 @@
           "name": "Upsert template",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subjectTemplate\": \"New task: {taskTitle}\",\n  \"bodyTemplate\": \"A new task '{taskTitle}' was created in project {projectId}.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"subjectTemplate\": \"Hi {userName}, new task: {taskTitle}\",\n  \"bodyTemplate\": \"Task '{taskTitle}' was created. View it at {taskUrl}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/notification-templates/TASK_CREATED",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}", "notification-templates", "TASK_CREATED"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "notification-templates",
+                "TASK_CREATED"
+              ]
             }
           },
           "event": [
@@ -891,8 +1314,17 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/projects/{{projectId}}/notification-templates/TASK_CREATED",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "projects", "{{projectId}}", "notification-templates", "TASK_CREATED"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "projects",
+                "{{projectId}}",
+                "notification-templates",
+                "TASK_CREATED"
+              ]
             }
           },
           "event": [
