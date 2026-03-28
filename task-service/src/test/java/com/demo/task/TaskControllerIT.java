@@ -9,6 +9,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
@@ -100,7 +101,7 @@ class TaskControllerIT {
 
     @Test
     void getAllTasks_whenEmpty_returnsEmptyPage() {
-        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks");
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = getTaskPage("/api/v1/tasks");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).isEmpty();
@@ -112,11 +113,11 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Setup CI", "Configure pipeline", TaskStatus.DONE, ALICE_ID), TaskResponse.class);
         restTemplate.postForEntity("/api/v1/tasks", request("Write tests", "Unit tests", TaskStatus.TODO, BOB_ID), TaskResponse.class);
 
-        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks");
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = getTaskPage("/api/v1/tasks");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(2);
-        assertThat(response.getBody().getContent().get(0).getParticipants()).isNotEmpty();
+        assertThat(response.getBody().getContent().get(0).getAssignedUserName()).isNotNull();
     }
 
     // ── GET /api/v1/tasks/{id} ───────────────────────────────────────
@@ -149,13 +150,12 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Task B", "For Bob",        TaskStatus.TODO, BOB_ID),   TaskResponse.class);
         restTemplate.postForEntity("/api/v1/tasks", request("Task C", "Also for Alice", TaskStatus.DONE, ALICE_ID), TaskResponse.class);
 
-        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks?userId=" + ALICE_ID);
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = getTaskPage("/api/v1/tasks?userId=" + ALICE_ID);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(2);
         assertThat(response.getBody().getContent()).allSatisfy(t ->
-                assertThat(t.getParticipants()).anyMatch(p ->
-                        p.getRole() == TaskParticipantRole.ASSIGNEE && ALICE_ID.equals(p.getUserId())));
+                assertThat(t.getAssignedUserId()).isEqualTo(ALICE_ID));
     }
 
     // ── GET /api/v1/tasks?status={status} ───────────────────────────
@@ -166,7 +166,7 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Task B", "desc", TaskStatus.IN_PROGRESS, BOB_ID),   TaskResponse.class);
         restTemplate.postForEntity("/api/v1/tasks", request("Task C", "desc", TaskStatus.TODO,        ALICE_ID), TaskResponse.class);
 
-        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks?status=TODO");
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = getTaskPage("/api/v1/tasks?status=TODO");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(2);
@@ -177,7 +177,7 @@ class TaskControllerIT {
     void getTasksByStatus_caseInsensitive_returnsMatchingTasks() {
         restTemplate.postForEntity("/api/v1/tasks", request("Task A", "desc", TaskStatus.DONE, ALICE_ID), TaskResponse.class);
 
-        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks?status=done");
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = getTaskPage("/api/v1/tasks?status=done");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(1);
@@ -335,19 +335,18 @@ class TaskControllerIT {
         restTemplate.postForEntity("/api/v1/tasks", request("Orphan task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class);
         when(userClient.getUsersByIds(anyList())).thenThrow(new RuntimeException("user-service unavailable"));
 
-        ResponseEntity<PageResponse<TaskResponse>> response = getTaskPage("/api/v1/tasks");
+        ResponseEntity<PageResponse<TaskSummaryResponse>> response = getTaskPage("/api/v1/tasks");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getContent()).hasSize(1);
-        // Participants are still returned but with null user name when user-service is unavailable
-        assertThat(response.getBody().getContent().get(0).getParticipants()).isNotEmpty();
-        assertThat(response.getBody().getContent().get(0).getParticipants().get(0).getUserName()).isNull();
+        // assignedUserName is null when user-service is unavailable
+        assertThat(response.getBody().getContent().get(0).getAssignedUserName()).isNull();
     }
 
     // ── Helper ────────────────────────────────────────────────────
 
-    /** Deserializes a paginated task list response. */
-    private ResponseEntity<PageResponse<TaskResponse>> getTaskPage(String url) {
+    /** Deserializes a paginated task list (summary) response. */
+    private ResponseEntity<PageResponse<TaskSummaryResponse>> getTaskPage(String url) {
         return restTemplate.exchange(url, HttpMethod.GET, null,
                 new ParameterizedTypeReference<>() {});
     }
