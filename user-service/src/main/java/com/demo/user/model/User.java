@@ -25,7 +25,8 @@ public class User {
     private String name;
     private String email;
 
-    /** Unique login handle; nullable for accounts created before this field was introduced. */
+    /** Unique login handle; required on creation and immutable thereafter. */
+    @Column(nullable = false)
     private String username;
 
     /** Whether the account is active. Defaults to true on creation. */
