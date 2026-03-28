@@ -13,6 +13,10 @@ public class TaskResponse {
     private String title;
     private String description;
     private TaskStatus status;
+    /** Optional classification of the task (FEATURE, BUG_FIXING, etc.). */
+    private TaskType type;
+    /** Completion percentage in the range 0–100. */
+    private int progress;
     /** All users associated with this task, each with their role (CREATOR, ASSIGNEE, VIEWER, REVIEWER). */
     private List<TaskParticipantResponse> participants;
     private TaskProjectResponse project;

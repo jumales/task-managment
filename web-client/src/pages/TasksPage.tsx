@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
-  Drawer, Space, List, Popconfirm, Divider,
+  Drawer, Space, List, Popconfirm, Divider, Progress, InputNumber,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects, addParticipant, removeParticipant } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskParticipantResponse, TaskParticipantRole, TaskResponse, TaskCommentResponse, TaskStatus, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskParticipantResponse, TaskParticipantRole, TaskResponse, TaskCommentResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -21,6 +21,30 @@ const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
   { label: 'In Progress', value: 'IN_PROGRESS' },
   { label: 'Done',        value: 'DONE' },
 ];
+
+const TYPE_COLORS: Record<TaskType, string> = {
+  FEATURE:        'purple',
+  BUG_FIXING:     'red',
+  TESTING:        'cyan',
+  PLANNING:       'gold',
+  TECHNICAL_DEBT: 'orange',
+  DOCUMENTATION:  'geekblue',
+  OTHER:          'default',
+};
+
+const TYPE_LABELS: Record<TaskType, string> = {
+  FEATURE:        'Feature',
+  BUG_FIXING:     'Bug Fix',
+  TESTING:        'Testing',
+  PLANNING:       'Planning',
+  TECHNICAL_DEBT: 'Tech Debt',
+  DOCUMENTATION:  'Docs',
+  OTHER:          'Other',
+};
+
+const TYPE_OPTIONS: { label: string; value: TaskType }[] = (
+  Object.keys(TYPE_LABELS) as TaskType[]
+).map((t) => ({ label: TYPE_LABELS[t], value: t }));
 
 /** Displays all tasks and allows creating, editing, deleting, and commenting on them. */
 export function TasksPage() {
@@ -149,6 +173,8 @@ export function TasksPage() {
       title:          task.title,
       description:    task.description,
       status:         task.status,
+      type:           task.type ?? null,
+      progress:       task.progress,
       projectId:      task.project.id,
       assignedUserId: assignee?.userId ?? null,
     });
@@ -161,7 +187,7 @@ export function TasksPage() {
     form.validateFields().catch(() => {}).then((values) => {
       if (!values) return;
       setSubmitting(true);
-      const request = { ...values, phaseId: null };
+      const request = { ...values, phaseId: null, type: values.type ?? null, progress: values.progress ?? 0 };
       const apiCall = editingTask
         ? updateTask(editingTask.id, request)
         : createTask(request);
@@ -253,8 +279,16 @@ export function TasksPage() {
         return assignee?.userName ?? '—';
       },
     },
+    { title: 'Type', dataIndex: 'type', key: 'type',
+      render: (type: TaskType | null) => type
+        ? <Tag color={TYPE_COLORS[type]}>{TYPE_LABELS[type]}</Tag>
+        : '—' },
     { title: 'Status', dataIndex: 'status', key: 'status',
       render: (status: TaskStatus) => <Tag color={STATUS_COLORS[status]}>{status}</Tag> },
+    { title: 'Progress', dataIndex: 'progress', key: 'progress', width: 140,
+      render: (progress: number) => (
+        <Progress percent={progress} size="small" strokeColor={progress === 100 ? '#52c41a' : undefined} />
+      ) },
     {
       title: 'Actions', key: 'actions',
       render: (_, record) => (
@@ -327,6 +361,12 @@ export function TasksPage() {
           <Form.Item name="status" label="Status" initialValue="TODO" rules={[{ required: true }]}>
             <Select options={STATUS_OPTIONS} />
           </Form.Item>
+          <Form.Item name="type" label="Type">
+            <Select options={TYPE_OPTIONS} placeholder="Select type (optional)" allowClear />
+          </Form.Item>
+          <Form.Item name="progress" label="Progress (%)" initialValue={0}>
+            <InputNumber min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
+          </Form.Item>
           <Form.Item name="projectId" label="Project" rules={[{ required: true, message: 'Project is required' }]}>
             <Select
               options={projects.map((p) => ({ label: p.name, value: p.id }))}
@@ -355,6 +395,20 @@ export function TasksPage() {
             <div>
               <strong>Status:</strong>{' '}
               <Tag color={STATUS_COLORS[detailTask.status]}>{detailTask.status}</Tag>
+            </div>
+            {detailTask.type && (
+              <div>
+                <strong>Type:</strong>{' '}
+                <Tag color={TYPE_COLORS[detailTask.type]}>{TYPE_LABELS[detailTask.type]}</Tag>
+              </div>
+            )}
+            <div>
+              <strong>Progress:</strong>
+              <Progress
+                percent={detailTask.progress}
+                strokeColor={detailTask.progress === 100 ? '#52c41a' : undefined}
+                style={{ marginTop: 4 }}
+              />
             </div>
             <div><strong>Project:</strong> {detailTask.project.name}</div>
 

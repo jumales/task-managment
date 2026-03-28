@@ -474,7 +474,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
+              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"type\": \"FEATURE\",\n  \"progress\": 0,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -506,7 +506,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"IN_PROGRESS\",\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
+              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"IN_PROGRESS\",\n  \"type\": \"FEATURE\",\n  \"progress\": 40,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
