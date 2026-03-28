@@ -6,6 +6,9 @@ import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TemplatePlaceholder;
 import com.demo.common.event.TaskChangeType;
+
+import java.util.Arrays;
+import java.util.Map;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.ProjectNotificationTemplateRepository;
 import com.demo.task.repository.TaskProjectRepository;
@@ -68,14 +71,18 @@ class ProjectNotificationTemplateControllerIT {
     // ── GET /api/v1/projects/{projectId}/notification-templates/placeholders ─
 
     @Test
+    @SuppressWarnings("unchecked")
     void getPlaceholders_returnsAllSupportedTokens() {
-        ResponseEntity<TemplatePlaceholder[]> response = restTemplate.getForEntity(
+        // TemplatePlaceholder is serialized as an object {key, description} due to @JsonFormat(OBJECT),
+        // so we deserialize as Map[] and inspect the key field instead of the enum constant.
+        ResponseEntity<Map[]> response = restTemplate.getForEntity(
                 "/api/v1/projects/" + projectId + "/notification-templates/placeholders",
-                TemplatePlaceholder[].class);
+                Map[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).hasSize(TemplatePlaceholder.values().length);
-        assertThat(response.getBody()).contains(TemplatePlaceholder.TASK_URL, TemplatePlaceholder.USER_NAME);
+        var keys = Arrays.stream(response.getBody()).map(m -> m.get("key")).toList();
+        assertThat(keys).contains("taskUrl", "userName");
     }
 
     // ── GET /api/v1/projects/{projectId}/notification-templates ─────────────
