@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAvatarBlobUrl } from '../hooks/useAvatarBlobUrl';
-import { Layout, Menu, Button, Typography, Avatar, Space } from 'antd';
+import { Layout, Menu, Button, Typography, Avatar, Space, Select } from 'antd';
 import {
   DashboardOutlined,
   CheckSquareOutlined,
@@ -11,40 +12,67 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SettingOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { getUsers } from '../api/userApi';
+import { getUsers, updateUserLanguage } from '../api/userApi';
+import i18n from '../i18n';
 
 const { Sider, Header, Content } = Layout;
 
-const NAV_ITEMS = [
-  { key: '/dashboard',     label: 'Dashboard',     icon: <DashboardOutlined /> },
-  { key: '/tasks',         label: 'Tasks',         icon: <CheckSquareOutlined /> },
-  { key: '/projects',      label: 'Projects',      icon: <ProjectOutlined /> },
-  { key: '/users',         label: 'Users',         icon: <TeamOutlined /> },
-  { key: '/configuration', label: 'Configuration', icon: <SettingOutlined /> },
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'hr', label: 'Hrvatski' },
 ];
 
 /** Main application shell with a collapsible sidebar and top header. */
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const navigate  = useNavigate();
   const location  = useLocation();
   const { name, username, logout } = useAuth();
 
-  const [collapsed,      setCollapsed]      = useState(false);
-  const [avatarFileId,   setAvatarFileId]   = useState<string | null>(null);
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [avatarFileId, setAvatarFileId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [language, setLanguage] = useState<string>(i18n.language);
   const avatarUrl = useAvatarBlobUrl(avatarFileId);
 
-  // Look up the current user's avatarFileId from the user-service
+  // Look up the current user's profile (avatar + language) from the user-service
   useEffect(() => {
     getUsers({ size: 100 })
       .then((page) => {
         const me = page.content.find((u) => u.username === username);
-        setAvatarFileId(me?.avatarFileId ?? null);
+        if (!me) return;
+        setAvatarFileId(me.avatarFileId ?? null);
+        setCurrentUserId(me.id);
+        // Apply the language stored in the backend, persisting it locally as well
+        const lang = me.language ?? 'en';
+        setLanguage(lang);
+        i18n.changeLanguage(lang);
+        localStorage.setItem('language', lang);
       })
       .catch(() => {});
   }, [username]);
+
+  /** Switches the UI language, persists to localStorage and to the backend. */
+  function handleLanguageChange(lang: string) {
+    setLanguage(lang);
+    i18n.changeLanguage(lang);
+    localStorage.setItem('language', lang);
+    if (currentUserId) {
+      updateUserLanguage(currentUserId, lang).catch(() => {});
+    }
+  }
+
+  const navItems = [
+    { key: '/dashboard',     label: t('nav.dashboard'),     icon: <DashboardOutlined /> },
+    { key: '/tasks',         label: t('nav.tasks'),         icon: <CheckSquareOutlined /> },
+    { key: '/projects',      label: t('nav.projects'),      icon: <ProjectOutlined /> },
+    { key: '/users',         label: t('nav.users'),         icon: <TeamOutlined /> },
+    { key: '/configuration', label: t('nav.configuration'), icon: <SettingOutlined /> },
+  ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -65,7 +93,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         }}>
           {!collapsed && (
             <Typography.Text style={{ color: 'white', fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }}>
-              Task Management
+              {t('nav.appName')}
             </Typography.Text>
           )}
         </div>
@@ -74,7 +102,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          items={NAV_ITEMS}
+          items={navItems}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
@@ -96,11 +124,22 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           />
 
           <Space>
+            <GlobalOutlined style={{ color: '#888' }} />
+            <Select
+              value={language}
+              onChange={handleLanguageChange}
+              options={LANGUAGE_OPTIONS}
+              size="small"
+              style={{ width: 110 }}
+              bordered={false}
+            />
             {avatarUrl
               ? <Avatar src={avatarUrl} size="small" />
               : <Avatar icon={<UserOutlined />} size="small" />}
             <Typography.Text>{name}</Typography.Text>
-            <Button icon={<LogoutOutlined />} onClick={logout} size="small">Logout</Button>
+            <Button icon={<LogoutOutlined />} onClick={logout} size="small">
+              {t('common.logout')}
+            </Button>
           </Space>
         </Header>
 

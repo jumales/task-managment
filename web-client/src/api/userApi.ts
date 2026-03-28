@@ -36,6 +36,13 @@ export function uploadAvatar(file: File) {
     .then((r) => r.data);
 }
 
+/** Updates the user's preferred UI language. */
+export function updateUserLanguage(userId: string, language: string) {
+  return apiClient
+    .patch<UserResponse>(`${USERS_URL}/${userId}/language`, { language })
+    .then((r) => r.data);
+}
+
 /** Sets or clears the user's profile picture. Pass null to remove the avatar. */
 export function updateUserAvatar(userId: string, fileId: string | null) {
   return apiClient

@@ -96,6 +96,17 @@ public class UserService {
     }
 
     /**
+     * Sets the user's preferred UI language.
+     *
+     * @param language ISO 639-1 code, e.g. "en" or "hr"
+     */
+    public UserDto updateLanguage(UUID userId, String language) {
+        User user = getOrThrow(userId);
+        user.setLanguage(language);
+        return toDto(userRepository.save(user));
+    }
+
+    /**
      * Sets the user's avatar to the file identified by {@code fileId}.
      * Pass {@code null} to remove the avatar (revert to default placeholder).
      */
@@ -155,7 +166,7 @@ public class UserService {
         var roles = userRoleRepository.findByUser(user).stream()
                 .map(ur -> roleService.toDto(ur.getRole()))
                 .toList();
-        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getUsername(), user.isActive(), roles, user.getAvatarFileId());
+        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getUsername(), user.isActive(), roles, user.getAvatarFileId(), user.getLanguage());
     }
 
     /**
@@ -180,7 +191,7 @@ public class UserService {
 
         return users.stream()
                 .map(u -> new UserDto(u.getId(), u.getName(), u.getEmail(), u.getUsername(), u.isActive(),
-                        rolesByUserId.getOrDefault(u.getId(), List.of()), u.getAvatarFileId()))
+                        rolesByUserId.getOrDefault(u.getId(), List.of()), u.getAvatarFileId(), u.getLanguage()))
                 .toList();
     }
 }

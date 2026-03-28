@@ -69,7 +69,7 @@ class TaskPhaseControllerIT {
         phaseRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
-                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null));
+                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
         projectId = createProject("Default Project").getId();
     }
 

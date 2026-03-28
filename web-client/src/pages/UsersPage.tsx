@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, message } from 'antd';
 import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, downloadFile } from '../api/userApi';
+import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar } from '../api/userApi';
 import { searchUsers } from '../api/searchApi';
 import { useAuth } from '../auth/AuthProvider';
 import type { UserResponse, RoleDto } from '../api/types';
 
 /** Upload button that triggers a hidden file input. */
 function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (updated: UserResponse) => void }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +22,7 @@ function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (upd
       const { fileId } = await uploadAvatar(file);
       const updated = await updateUserAvatar(user.id, fileId);
       onDone(updated);
-      message.success('Avatar updated');
+      message.success(t('users.avatarUpdated'));
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number; data?: unknown } })?.response?.status;
       const data   = (err as { response?: { data?: unknown } })?.response?.data;
@@ -47,7 +49,7 @@ function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (upd
         loading={loading}
         onClick={() => inputRef.current?.click()}
       >
-        Upload
+        {t('common.upload')}
       </Button>
     </>
   );
@@ -55,6 +57,7 @@ function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (upd
 
 /** Displays all users with name, role and status. Admins can create, edit, and upload avatars. */
 export function UsersPage() {
+  const { t } = useTranslation();
   const { isAdmin } = useAuth();
 
   const [users,       setUsers]       = useState<UserResponse[]>([]);
@@ -78,7 +81,7 @@ export function UsersPage() {
         setUsers(data.content);
         setTotalUsers(data.totalElements);
       })
-      .catch(() => setError('Failed to load users.'))
+      .catch(() => setError(t('users.failedLoad')))
       .finally(() => setLoading(false));
 
   useEffect(() => { loadUsers(); }, []);
@@ -102,11 +105,12 @@ export function UsersPage() {
           active: d.active,
           roles: [],
           avatarFileId: null,
+          language: 'en',
         } as UserResponse));
         setUsers(mapped);
         setTotalUsers(mapped.length);
       })
-      .catch(() => setError('Search failed.'))
+      .catch(() => setError(t('users.failedSearch')))
       .finally(() => {
         setLoading(false);
         searchInputRef.current?.focus();
@@ -159,9 +163,9 @@ export function UsersPage() {
           loadUsers();
         })
         .catch((err) => {
-          const action  = editingUser ? 'update' : 'create';
-          const msg = err?.response?.data?.message ?? err?.message ?? `Failed to ${action} user.`;
-          setError(`Failed to ${action} user: ${msg}`);
+          const action = editingUser ? t('users.failedUpdate') : t('users.failedCreate');
+          const msg = err?.response?.data?.message ?? err?.message ?? action;
+          setError(`${action}: ${msg}`);
         })
         .finally(() => setSubmitting(false));
     });
@@ -172,23 +176,23 @@ export function UsersPage() {
   }
 
   const columns: ColumnsType<UserResponse> = [
-    { title: 'Name',     dataIndex: 'name',     key: 'name' },
-    { title: 'Username', dataIndex: 'username', key: 'username',
+    { title: t('common.name'),     dataIndex: 'name',     key: 'name' },
+    { title: t('common.username'), dataIndex: 'username', key: 'username',
       render: (v: string | null) => v ?? '—' },
-    { title: 'Email',    dataIndex: 'email',    key: 'email' },
-    { title: 'Active',   dataIndex: 'active',   key: 'active',
-      render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Tag> },
-    { title: 'Roles',    dataIndex: 'roles',    key: 'roles',
+    { title: t('common.email'),    dataIndex: 'email',    key: 'email' },
+    { title: t('common.status'),   dataIndex: 'active',   key: 'active',
+      render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? t('common.active') : t('common.inactive')}</Tag> },
+    { title: t('users.roles'),     dataIndex: 'roles',    key: 'roles',
       render: (roles: RoleDto[]) => roles.map((r) => <Tag key={r.id}>{r.name}</Tag>) },
     {
-      title: 'Upload Avatar',
+      title: t('users.uploadAvatar'),
       key: 'upload',
       render: (_, user) => <AvatarUploadButton user={user} onDone={handleAvatarUpdated} />,
     },
     ...(isAdmin ? [{
-      title: 'Actions', key: 'actions',
+      title: t('common.actions'), key: 'actions',
       render: (_: unknown, record: UserResponse) => (
-        <Button size="small" onClick={() => openEditModal(record)}>Edit</Button>
+        <Button size="small" onClick={() => openEditModal(record)}>{t('common.edit')}</Button>
       ),
     }] : []),
   ];
@@ -199,11 +203,11 @@ export function UsersPage() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Users</Typography.Title>
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('users.title')}</Typography.Title>
         <Space>
           <Input
             ref={searchInputRef}
-            placeholder="Search users…"
+            placeholder={t('users.searchPlaceholder')}
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -212,7 +216,7 @@ export function UsersPage() {
             autoFocus
             style={{ width: 240 }}
           />
-          {isAdmin && <Button type="primary" onClick={openCreateModal}>New User</Button>}
+          {isAdmin && <Button type="primary" onClick={openCreateModal}>{t('users.newUser')}</Button>}
         </Space>
       </div>
 
@@ -227,36 +231,36 @@ export function UsersPage() {
       />
 
       <Modal
-        title={editingUser ? 'Edit User' : 'New User'}
+        title={editingUser ? t('users.editUser') : t('users.newUser')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => { setModalOpen(false); setEditingUser(null); }}
-        okText={editingUser ? 'Save' : 'Create'}
+        okText={editingUser ? t('common.save') : t('common.create')}
         confirmLoading={submitting}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Name is required' }]}>
+          <Form.Item name="name" label={t('common.name')} rules={[{ required: true, message: t('users.nameRequired') }]}>
             <Input />
           </Form.Item>
           <Form.Item
             name="email"
-            label="Email"
+            label={t('common.email')}
             rules={[
-              { required: true, message: 'Email is required' },
-              { type: 'email',  message: 'Must be a valid email address' },
+              { required: true, message: t('users.emailRequired') },
+              { type: 'email',  message: t('users.emailInvalid') },
             ]}
           >
             <Input />
           </Form.Item>
           {/* Username is set on creation only — immutable after that */}
           {!editingUser && (
-            <Form.Item name="username" label="Username">
+            <Form.Item name="username" label={t('common.username')} rules={[{ required: true, message: t('users.usernameRequired') }]}>
               <Input />
             </Form.Item>
           )}
           {/* Active toggle is only meaningful when editing an existing user */}
           {editingUser && (
-            <Form.Item name="active" label="Active" valuePropName="checked">
+            <Form.Item name="active" label={t('common.active')} valuePropName="checked">
               <Switch />
             </Form.Item>
           )}

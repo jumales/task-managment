@@ -129,6 +129,8 @@ export interface UserResponse {
   active: boolean;
   roles: RoleDto[];
   avatarFileId: string | null;
+  /** ISO 639-1 language code for the user's preferred UI language (e.g. "en", "hr"). */
+  language: string;
 }
 
 export interface FileUploadResponse {

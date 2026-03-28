@@ -77,9 +77,9 @@ class TaskControllerIT {
         repository.deleteAll();
         projectRepository.deleteAll();
 
-        alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null);
-        bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, null);
-        UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null);
+        alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null, "en");
+        bob   = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, null, "en");
+        UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null, "en");
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
         when(userClient.getUserById(BOB_ID)).thenReturn(bob);
