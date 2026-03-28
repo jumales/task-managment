@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Table, Typography, Alert, Spin, Button, Modal, Form, Input, Popconfirm } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { getProjects, createProject, deleteProject } from '../api/taskApi';
@@ -7,6 +8,7 @@ import type { TaskProjectResponse } from '../api/types';
 
 /** Displays all projects. Admins can create and delete projects. */
 export function ProjectsPage() {
+  const { t } = useTranslation();
   const { isAdmin } = useAuth();
   const [projects,   setProjects]   = useState<TaskProjectResponse[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -20,7 +22,7 @@ export function ProjectsPage() {
   const loadProjects = () =>
     getProjects()
       .then(setProjects)
-      .catch(() => setError('Failed to load projects.'))
+      .catch(() => setError(t('projects.failedLoad')))
       .finally(() => setLoading(false));
 
   useEffect(() => { loadProjects(); }, []);
@@ -42,8 +44,8 @@ export function ProjectsPage() {
           loadProjects();
         })
         .catch((err) => {
-          const message = err?.response?.data?.message ?? err?.message ?? 'Failed to create project.';
-          setError(`Failed to create project: ${message}`);
+          const message = err?.response?.data?.message ?? err?.message ?? t('projects.failedCreate');
+          setError(`${t('projects.failedCreate')}: ${message}`);
         })
         .finally(() => setSubmitting(false));
     });
@@ -55,27 +57,27 @@ export function ProjectsPage() {
     deleteProject(id)
       .then(() => loadProjects())
       .catch((err) => {
-        const message = err?.response?.data?.message ?? err?.message ?? 'Failed to delete project.';
-        setError(`Failed to delete project: ${message}`);
+        const message = err?.response?.data?.message ?? err?.message ?? t('projects.failedDelete');
+        setError(`${t('projects.failedDelete')}: ${message}`);
       })
       .finally(() => setDeletingId(null));
   };
 
   const columns: ColumnsType<TaskProjectResponse> = [
-    { title: 'Name',        dataIndex: 'name',        key: 'name' },
-    { title: 'Description', dataIndex: 'description', key: 'description',
+    { title: t('common.name'),        dataIndex: 'name',        key: 'name' },
+    { title: t('common.description'), dataIndex: 'description', key: 'description',
       render: (v: string) => v || '—' },
     ...(isAdmin ? [{
-      title: 'Actions', key: 'actions',
+      title: t('common.actions'), key: 'actions',
       render: (_: unknown, record: TaskProjectResponse) => (
         <Popconfirm
-          title="Delete project?"
-          description="This action cannot be undone."
+          title={t('projects.deleteConfirm')}
+          description={t('projects.deleteDescription')}
           onConfirm={() => handleDelete(record.id)}
-          okText="Delete"
+          okText={t('common.delete')}
           okButtonProps={{ danger: true }}
         >
-          <Button danger size="small" loading={deletingId === record.id}>Delete</Button>
+          <Button danger size="small" loading={deletingId === record.id}>{t('common.delete')}</Button>
         </Popconfirm>
       ),
     }] : []),
@@ -87,25 +89,25 @@ export function ProjectsPage() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Projects</Typography.Title>
-        {isAdmin && <Button type="primary" onClick={openModal}>New Project</Button>}
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('projects.title')}</Typography.Title>
+        {isAdmin && <Button type="primary" onClick={openModal}>{t('projects.newProject')}</Button>}
       </div>
 
       <Table rowKey="id" dataSource={projects} columns={columns} pagination={{ pageSize: 20 }} />
 
       <Modal
-        title="Create Project"
+        title={t('projects.createProject')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
-        okText="Create"
+        okText={t('common.create')}
         confirmLoading={submitting}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Name is required' }]}>
+          <Form.Item name="name" label={t('common.name')} rules={[{ required: true, message: t('projects.nameRequired') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="description" label="Description">
+          <Form.Item name="description" label={t('common.description')}>
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>

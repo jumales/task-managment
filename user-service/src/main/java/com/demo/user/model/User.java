@@ -35,5 +35,10 @@ public class User {
     /** UUID of the file-service record for the user's profile picture; null if not set. */
     private UUID avatarFileId;
 
+    /** ISO 639-1 language code for the user's preferred UI language (e.g. "en", "hr"). Defaults to "en". */
+    @Column(nullable = false)
+    @Builder.Default
+    private String language = "en";
+
     private Instant deletedAt;
 }

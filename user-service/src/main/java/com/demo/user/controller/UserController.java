@@ -94,6 +94,23 @@ public class UserController {
     }
 
     /**
+     * Updates the user's preferred UI language.
+     * The request body must contain {@code "language"} (ISO 639-1 code, e.g. "en" or "hr").
+     * Any authenticated user may call this endpoint — no admin role required.
+     */
+    @Operation(summary = "Set preferred UI language for a user")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Language updated"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
+    })
+    @PatchMapping("/{id}/language")
+    public UserDto updateLanguage(
+            @Parameter(description = "User UUID") @PathVariable UUID id,
+            @RequestBody Map<String, String> body) {
+        return service.updateLanguage(id, body.get("language"));
+    }
+
+    /**
      * Sets or removes the user's profile picture.
      * The request body must contain {@code "fileId"} (UUID from file-service) or {@code null} to clear.
      */

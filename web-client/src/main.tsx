@@ -4,6 +4,7 @@ import { Spin } from 'antd';
 import keycloak from './auth/keycloak';
 import { AuthProvider } from './auth/AuthProvider';
 import App from './App';
+import './i18n';
 
 // Initialize Keycloak BEFORE React renders to avoid double-init from StrictMode.
 // onLoad: 'login-required' redirects to Keycloak login if not authenticated.

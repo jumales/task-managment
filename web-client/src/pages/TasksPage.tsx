@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
   Drawer, Space, List, Popconfirm, Divider, Progress, InputNumber,
@@ -16,12 +17,6 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
   DONE:        'green',
 };
 
-const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
-  { label: 'To Do',       value: 'TODO' },
-  { label: 'In Progress', value: 'IN_PROGRESS' },
-  { label: 'Done',        value: 'DONE' },
-];
-
 const TYPE_COLORS: Record<TaskType, string> = {
   FEATURE:        'purple',
   BUG_FIXING:     'red',
@@ -32,39 +27,10 @@ const TYPE_COLORS: Record<TaskType, string> = {
   OTHER:          'default',
 };
 
-const TYPE_LABELS: Record<TaskType, string> = {
-  FEATURE:        'Feature',
-  BUG_FIXING:     'Bug Fix',
-  TESTING:        'Testing',
-  PLANNING:       'Planning',
-  TECHNICAL_DEBT: 'Tech Debt',
-  DOCUMENTATION:  'Docs',
-  OTHER:          'Other',
-};
-
-const TYPE_OPTIONS: { label: string; value: TaskType }[] = (
-  Object.keys(TYPE_LABELS) as TaskType[]
-).map((t) => ({ label: TYPE_LABELS[t], value: t }));
-
-const WORK_TYPE_LABELS: Record<WorkType, string> = {
-  DEVELOPMENT:   'Development',
-  TESTING:       'Testing',
-  CODE_REVIEW:   'Code Review',
-  DESIGN:        'Design',
-  PLANNING:      'Planning',
-  DOCUMENTATION: 'Documentation',
-  DEPLOYMENT:    'Deployment',
-  MEETING:       'Meeting',
-  OTHER:         'Other',
-};
-
-const WORK_TYPE_OPTIONS = (Object.keys(WORK_TYPE_LABELS) as WorkType[]).map((w) => ({
-  label: WORK_TYPE_LABELS[w],
-  value: w,
-}));
-
 /** Displays all tasks and allows creating, editing, deleting, and commenting on them. */
 export function TasksPage() {
+  const { t } = useTranslation();
+
   const [tasks,         setTasks]         = useState<TaskResponse[]>([]);
   const [totalTasks,    setTotalTasks]    = useState(0);
   const [currentPage,   setCurrentPage]   = useState(1);
@@ -103,6 +69,42 @@ export function TasksPage() {
 
   const [form] = Form.useForm();
 
+  // Derived translation maps — recomputed on language change
+  const statusOptions = [
+    { label: t('tasks.statuses.TODO'),        value: 'TODO' as TaskStatus },
+    { label: t('tasks.statuses.IN_PROGRESS'), value: 'IN_PROGRESS' as TaskStatus },
+    { label: t('tasks.statuses.DONE'),        value: 'DONE' as TaskStatus },
+  ];
+
+  const typeLabels: Record<TaskType, string> = {
+    FEATURE:        t('tasks.types.FEATURE'),
+    BUG_FIXING:     t('tasks.types.BUG_FIXING'),
+    TESTING:        t('tasks.types.TESTING'),
+    PLANNING:       t('tasks.types.PLANNING'),
+    TECHNICAL_DEBT: t('tasks.types.TECHNICAL_DEBT'),
+    DOCUMENTATION:  t('tasks.types.DOCUMENTATION'),
+    OTHER:          t('tasks.types.OTHER'),
+  };
+
+  const typeOptions = (Object.keys(typeLabels) as TaskType[]).map((k) => ({ label: typeLabels[k], value: k }));
+
+  const workTypeLabels: Record<WorkType, string> = {
+    DEVELOPMENT:   t('tasks.workTypes.DEVELOPMENT'),
+    TESTING:       t('tasks.workTypes.TESTING'),
+    CODE_REVIEW:   t('tasks.workTypes.CODE_REVIEW'),
+    DESIGN:        t('tasks.workTypes.DESIGN'),
+    PLANNING:      t('tasks.workTypes.PLANNING'),
+    DOCUMENTATION: t('tasks.workTypes.DOCUMENTATION'),
+    DEPLOYMENT:    t('tasks.workTypes.DEPLOYMENT'),
+    MEETING:       t('tasks.workTypes.MEETING'),
+    OTHER:         t('tasks.workTypes.OTHER'),
+  };
+
+  const workTypeOptions = (Object.keys(workTypeLabels) as WorkType[]).map((w) => ({
+    label: workTypeLabels[w],
+    value: w,
+  }));
+
   const loadTasks = (page = currentPage, size = pageSize) =>
     getTasks({ page: page - 1, size })
       .then((data) => {
@@ -112,13 +114,13 @@ export function TasksPage() {
       .catch((err) => {
         const status  = err?.response?.status;
         const message = err?.response?.data?.message ?? err?.message ?? 'Unknown error';
-        setError(`Failed to load tasks [${status}]: ${message}`);
+        setError(`${t('tasks.failedLoad')} [${status}]: ${message}`);
       })
       .finally(() => setLoading(false));
 
   const refreshDropdowns = () => {
-    getProjects().then(setProjects).catch(() => setError('Failed to load projects.'));
-    getUsers().then((data) => setUsers(data.content)).catch(() => setError('Failed to load users.'));
+    getProjects().then(setProjects).catch(() => setError(t('projects.failedLoad')));
+    getUsers().then((data) => setUsers(data.content)).catch(() => setError(t('users.failedLoad')));
   };
 
   useEffect(() => {
@@ -152,7 +154,7 @@ export function TasksPage() {
         setTasks(mapped);
         setTotalTasks(mapped.length);
       })
-      .catch(() => setError('Search failed.'))
+      .catch(() => setError(t('tasks.searchFailed')))
       .finally(() => {
         setLoading(false);
         searchInputRef.current?.focus();
@@ -188,7 +190,7 @@ export function TasksPage() {
         if (fetchedProjects.length === 1) form.setFieldValue('projectId',      fetchedProjects[0].id);
         if (fetchedUsers.length    === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
       })
-      .catch(() => setError('Failed to load options.'));
+      .catch(() => setError(t('tasks.failedOptions')));
     setModalOpen(true);
   };
 
@@ -225,9 +227,9 @@ export function TasksPage() {
           loadTasks();
         })
         .catch((err) => {
-          const action  = editingTask ? 'update' : 'create';
-          const message = err?.response?.data?.message ?? err?.message ?? `Failed to ${action} task.`;
-          setError(`Failed to ${action} task: ${message}`);
+          const label   = editingTask ? t('tasks.failedUpdate') : t('tasks.failedCreate');
+          const message = err?.response?.data?.message ?? err?.message ?? label;
+          setError(`${label}: ${message}`);
         })
         .finally(() => setSubmitting(false));
     });
@@ -246,11 +248,11 @@ export function TasksPage() {
     resetWorkLogForm();
     getTaskComments(task.id)
       .then(setComments)
-      .catch(() => setError('Failed to load comments.'))
+      .catch(() => setError(t('tasks.failedLoadComments')))
       .finally(() => setCommentsLoading(false));
     getWorkLogs(task.id)
       .then(setWorkLogs)
-      .catch(() => setError('Failed to load work logs.'))
+      .catch(() => setError(t('tasks.failedLoadWorkLogs')))
       .finally(() => setWorkLogsLoading(false));
   };
 
@@ -285,7 +287,7 @@ export function TasksPage() {
         );
         resetWorkLogForm();
       })
-      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to save work log.'))
+      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedSaveWorkLog')))
       .finally(() => setSavingWorkLog(false));
   };
 
@@ -295,7 +297,7 @@ export function TasksPage() {
     setDeletingWorkLogId(workLogId);
     deleteWorkLog(detailTask.id, workLogId)
       .then(() => setWorkLogs((prev) => prev.filter((l) => l.id !== workLogId)))
-      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to delete work log.'))
+      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedDeleteWorkLog')))
       .finally(() => setDeletingWorkLogId(null));
   };
 
@@ -308,7 +310,7 @@ export function TasksPage() {
         setDrawerParticipants((prev) => [...prev, created]);
         setNewParticipantUserId(null);
       })
-      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to add participant.'))
+      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedAddParticipant')))
       .finally(() => setAddingParticipant(false));
   };
 
@@ -317,7 +319,7 @@ export function TasksPage() {
     setRemovingPId(participantId);
     removeParticipant(taskId, participantId)
       .then(() => setDrawerParticipants((prev) => prev.filter((p) => p.id !== participantId)))
-      .catch((err) => setError(err?.response?.data?.message ?? 'Failed to remove participant.'))
+      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedRemoveParticipant')))
       .finally(() => setRemovingPId(null));
   };
 
@@ -327,8 +329,8 @@ export function TasksPage() {
     deleteTask(id)
       .then(() => loadTasks())
       .catch((err) => {
-        const message = err?.response?.data?.message ?? err?.message ?? 'Failed to delete task.';
-        setError(`Failed to delete task: ${message}`);
+        const message = err?.response?.data?.message ?? err?.message ?? t('tasks.failedDelete');
+        setError(`${t('tasks.failedDelete')}: ${message}`);
       })
       .finally(() => setDeletingId(null));
   };
@@ -343,45 +345,45 @@ export function TasksPage() {
         setComment('');
       })
       .catch((err) => {
-        const message = err?.response?.data?.message ?? err?.message ?? 'Failed to add comment.';
-        setError(`Failed to add comment: ${message}`);
+        const message = err?.response?.data?.message ?? err?.message ?? t('tasks.failedAddComment');
+        setError(`${t('tasks.failedAddComment')}: ${message}`);
       })
       .finally(() => setAddingComment(false));
   };
 
   const columns: ColumnsType<TaskResponse> = [
-    { title: 'Title',       dataIndex: 'title',                  key: 'title' },
-    { title: 'Project',     dataIndex: ['project', 'name'],      key: 'project' },
-    { title: 'Assigned to', key: 'user',
+    { title: t('tasks.title_field'), dataIndex: 'title',             key: 'title' },
+    { title: t('common.project'),    dataIndex: ['project', 'name'], key: 'project' },
+    { title: t('tasks.assignedTo'),  key: 'user',
       render: (_: unknown, record: TaskResponse) => {
         const assignee = record.participants?.find((p) => p.role === 'ASSIGNEE');
         return assignee?.userName ?? '—';
       },
     },
-    { title: 'Type', dataIndex: 'type', key: 'type',
+    { title: t('tasks.type'), dataIndex: 'type', key: 'type',
       render: (type: TaskType | null) => type
-        ? <Tag color={TYPE_COLORS[type]}>{TYPE_LABELS[type]}</Tag>
+        ? <Tag color={TYPE_COLORS[type]}>{typeLabels[type]}</Tag>
         : '—' },
-    { title: 'Status', dataIndex: 'status', key: 'status',
-      render: (status: TaskStatus) => <Tag color={STATUS_COLORS[status]}>{status}</Tag> },
-    { title: 'Progress', dataIndex: 'progress', key: 'progress', width: 140,
+    { title: t('common.status'), dataIndex: 'status', key: 'status',
+      render: (status: TaskStatus) => <Tag color={STATUS_COLORS[status]}>{t(`tasks.statuses.${status}`)}</Tag> },
+    { title: t('tasks.progress'), dataIndex: 'progress', key: 'progress', width: 140,
       render: (progress: number) => (
         <Progress percent={progress} size="small" strokeColor={progress === 100 ? '#52c41a' : undefined} />
       ) },
     {
-      title: 'Actions', key: 'actions',
+      title: t('common.actions'), key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => openDetailDrawer(record)}>View</Button>
-          <Button size="small" onClick={() => openEditModal(record)}>Edit</Button>
+          <Button size="small" onClick={() => openDetailDrawer(record)}>{t('tasks.view')}</Button>
+          <Button size="small" onClick={() => openEditModal(record)}>{t('common.edit')}</Button>
           <Popconfirm
-            title="Delete task?"
-            description="This action cannot be undone."
+            title={t('tasks.deleteConfirm')}
+            description={t('tasks.deleteDescription')}
             onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
+            okText={t('common.delete')}
             okButtonProps={{ danger: true }}
           >
-            <Button danger size="small" loading={deletingId === record.id}>Delete</Button>
+            <Button danger size="small" loading={deletingId === record.id}>{t('common.delete')}</Button>
           </Popconfirm>
         </Space>
       ),
@@ -394,11 +396,11 @@ export function TasksPage() {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>Tasks</Typography.Title>
+        <Typography.Title level={3} style={{ margin: 0 }}>{t('tasks.title')}</Typography.Title>
         <Space>
           <Input
             ref={searchInputRef}
-            placeholder="Search tasks…"
+            placeholder={t('tasks.searchPlaceholder')}
             prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -407,7 +409,7 @@ export function TasksPage() {
             autoFocus
             style={{ width: 240 }}
           />
-          <Button type="primary" onClick={openCreateModal}>New Task</Button>
+          <Button type="primary" onClick={openCreateModal}>{t('tasks.newTask')}</Button>
         </Space>
       </div>
 
@@ -423,39 +425,39 @@ export function TasksPage() {
 
       {/* Create / Edit Modal */}
       <Modal
-        title={editingTask ? 'Edit Task' : 'Create Task'}
+        title={editingTask ? t('tasks.editTask') : t('tasks.createTask')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => { setModalOpen(false); setEditingTask(null); }}
-        okText={editingTask ? 'Save' : 'Create'}
+        okText={editingTask ? t('common.save') : t('common.create')}
         confirmLoading={submitting}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="title" label="Title" rules={[{ required: true, message: 'Title is required' }]}>
+          <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="description" label="Description">
+          <Form.Item name="description" label={t('common.description')}>
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item name="status" label="Status" initialValue="TODO" rules={[{ required: true }]}>
-            <Select options={STATUS_OPTIONS} />
+          <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
+            <Select options={statusOptions} />
           </Form.Item>
-          <Form.Item name="type" label="Type">
-            <Select options={TYPE_OPTIONS} placeholder="Select type (optional)" allowClear />
+          <Form.Item name="type" label={t('tasks.type')}>
+            <Select options={typeOptions} placeholder={t('tasks.selectType')} allowClear />
           </Form.Item>
-          <Form.Item name="progress" label="Progress (%)" initialValue={0}>
+          <Form.Item name="progress" label={t('tasks.progressPct')} initialValue={0}>
             <InputNumber min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
           </Form.Item>
-          <Form.Item name="projectId" label="Project" rules={[{ required: true, message: 'Project is required' }]}>
+          <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
             <Select
               options={projects.map((p) => ({ label: p.name, value: p.id }))}
-              placeholder="Select a project"
+              placeholder={t('tasks.selectProject')}
             />
           </Form.Item>
-          <Form.Item name="assignedUserId" label="Assign to" rules={[{ required: true, message: 'User is required' }]}>
+          <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
             <Select
               options={users.map((u) => ({ label: u.name, value: u.id }))}
-              placeholder="Select a user"
+              placeholder={t('tasks.selectUser')}
             />
           </Form.Item>
         </Form>
@@ -470,44 +472,44 @@ export function TasksPage() {
       >
         {detailTask && (
           <Space direction="vertical" style={{ width: '100%' }}>
-            <div><strong>Description:</strong> {detailTask.description || '—'}</div>
+            <div><strong>{t('common.description')}:</strong> {detailTask.description || '—'}</div>
             <div>
-              <strong>Status:</strong>{' '}
-              <Tag color={STATUS_COLORS[detailTask.status]}>{detailTask.status}</Tag>
+              <strong>{t('common.status')}:</strong>{' '}
+              <Tag color={STATUS_COLORS[detailTask.status]}>{t(`tasks.statuses.${detailTask.status}`)}</Tag>
             </div>
             {detailTask.type && (
               <div>
-                <strong>Type:</strong>{' '}
-                <Tag color={TYPE_COLORS[detailTask.type]}>{TYPE_LABELS[detailTask.type]}</Tag>
+                <strong>{t('tasks.type')}:</strong>{' '}
+                <Tag color={TYPE_COLORS[detailTask.type]}>{typeLabels[detailTask.type]}</Tag>
               </div>
             )}
             <div>
-              <strong>Progress:</strong>
+              <strong>{t('tasks.progress')}:</strong>
               <Progress
                 percent={detailTask.progress}
                 strokeColor={detailTask.progress === 100 ? '#52c41a' : undefined}
                 style={{ marginTop: 4 }}
               />
             </div>
-            <div><strong>Project:</strong> {detailTask.project.name}</div>
+            <div><strong>{t('common.project')}:</strong> {detailTask.project.name}</div>
 
-            <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>Participants</Divider>
+            <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>{t('tasks.participants')}</Divider>
             <List
               size="small"
               dataSource={drawerParticipants}
-              locale={{ emptyText: 'No participants yet.' }}
+              locale={{ emptyText: t('tasks.noParticipants') }}
               renderItem={(p) => (
                 <List.Item
                   key={p.id}
                   actions={[
                     <Popconfirm
                       key="remove"
-                      title="Remove participant?"
+                      title={t('tasks.removeParticipant')}
                       onConfirm={() => handleRemoveParticipant(detailTask.id, p.id)}
-                      okText="Remove"
+                      okText={t('common.remove')}
                       okButtonProps={{ danger: true }}
                     >
-                      <Button danger size="small" loading={removingPId === p.id}>Remove</Button>
+                      <Button danger size="small" loading={removingPId === p.id}>{t('common.remove')}</Button>
                     </Popconfirm>,
                   ]}
                 >
@@ -521,7 +523,7 @@ export function TasksPage() {
             <Space.Compact style={{ width: '100%' }}>
               <Select
                 style={{ flex: 1 }}
-                placeholder="Select user"
+                placeholder={t('tasks.selectUser')}
                 value={newParticipantUserId}
                 onChange={setNewParticipantUserId}
                 options={users.map((u) => ({ label: u.name, value: u.id }))}
@@ -538,11 +540,11 @@ export function TasksPage() {
                 disabled={!newParticipantUserId}
                 onClick={handleAddParticipant}
               >
-                Add
+                {t('common.add')}
               </Button>
             </Space.Compact>
 
-            <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>Work Logs</Divider>
+            <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>{t('tasks.workLogs')}</Divider>
             {workLogsLoading ? (
               <Spin size="small" />
             ) : (
@@ -550,32 +552,32 @@ export function TasksPage() {
                 <List
                   size="small"
                   dataSource={workLogs}
-                  locale={{ emptyText: 'No work logs yet.' }}
+                  locale={{ emptyText: t('tasks.noWorkLogs') }}
                   renderItem={(log) => (
                     <List.Item
                       key={log.id}
                       actions={[
-                        <Button key="edit" size="small" onClick={() => startEditWorkLog(log)}>Edit</Button>,
+                        <Button key="edit" size="small" onClick={() => startEditWorkLog(log)}>{t('common.edit')}</Button>,
                         <Popconfirm
                           key="del"
-                          title="Delete work log?"
+                          title={t('tasks.deleteWorkLog')}
                           onConfirm={() => handleDeleteWorkLog(log.id)}
-                          okText="Delete"
+                          okText={t('common.delete')}
                           okButtonProps={{ danger: true }}
                         >
-                          <Button danger size="small" loading={deletingWorkLogId === log.id}>Delete</Button>
+                          <Button danger size="small" loading={deletingWorkLogId === log.id}>{t('common.delete')}</Button>
                         </Popconfirm>,
                       ]}
                     >
                       <Space direction="vertical" size={0}>
                         <Space>
-                          <Tag color="blue">{WORK_TYPE_LABELS[log.workType]}</Tag>
+                          <Tag color="blue">{workTypeLabels[log.workType]}</Tag>
                           <Typography.Text strong>{log.userName ?? log.userId}</Typography.Text>
                         </Space>
                         <Typography.Text type="secondary">
-                          Planned: <strong>{log.plannedHours}h</strong>
+                          {t('tasks.planned')}: <strong>{log.plannedHours}h</strong>
                           {' · '}
-                          Booked: <strong>{log.bookedHours}h</strong>
+                          {t('tasks.booked')}: <strong>{log.bookedHours}h</strong>
                         </Typography.Text>
                       </Space>
                     </List.Item>
@@ -583,12 +585,12 @@ export function TasksPage() {
                 />
                 <div style={{ marginTop: 8, padding: '8px 0', borderTop: '1px solid #f0f0f0' }}>
                   <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
-                    {editingWorkLog ? 'Edit Work Log' : 'Add Work Log'}
+                    {editingWorkLog ? t('tasks.editWorkLog') : t('tasks.addWorkLog')}
                   </Typography.Text>
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Select
                       style={{ width: '100%' }}
-                      placeholder="User"
+                      placeholder={t('tasks.selectUser')}
                       value={workLogUserId}
                       onChange={setWorkLogUserId}
                       options={users.map((u) => ({ label: u.name, value: u.id }))}
@@ -597,7 +599,7 @@ export function TasksPage() {
                       style={{ width: '100%' }}
                       value={workLogType}
                       onChange={setWorkLogType}
-                      options={WORK_TYPE_OPTIONS}
+                      options={workTypeOptions}
                     />
                     <Space style={{ width: '100%' }}>
                       {!editingWorkLog && (
@@ -607,7 +609,7 @@ export function TasksPage() {
                           precision={0}
                           value={workLogPlanned}
                           onChange={(v) => setWorkLogPlanned(v ?? 0)}
-                          addonBefore="Planned"
+                          addonBefore={t('tasks.planned')}
                           addonAfter="h"
                           style={{ flex: 1 }}
                         />
@@ -618,7 +620,7 @@ export function TasksPage() {
                         precision={0}
                         value={workLogBooked}
                         onChange={(v) => setWorkLogBooked(v ?? 0)}
-                        addonBefore="Booked"
+                        addonBefore={t('tasks.booked')}
                         addonAfter="h"
                         style={{ flex: 1 }}
                       />
@@ -630,10 +632,10 @@ export function TasksPage() {
                         disabled={!workLogUserId}
                         onClick={handleSaveWorkLog}
                       >
-                        {editingWorkLog ? 'Save' : 'Add'}
+                        {editingWorkLog ? t('common.save') : t('common.add')}
                       </Button>
                       {editingWorkLog && (
-                        <Button onClick={resetWorkLogForm}>Cancel</Button>
+                        <Button onClick={resetWorkLogForm}>{t('common.cancel')}</Button>
                       )}
                     </Space>
                   </Space>
@@ -641,12 +643,12 @@ export function TasksPage() {
               </>
             )}
 
-            <Typography.Title level={5} style={{ marginTop: 16, marginBottom: 0 }}>Comments</Typography.Title>
+            <Typography.Title level={5} style={{ marginTop: 16, marginBottom: 0 }}>{t('tasks.comments')}</Typography.Title>
 
             {commentsLoading ? (
               <Spin size="small" />
             ) : comments.length === 0 ? (
-              <Typography.Text type="secondary">No comments yet.</Typography.Text>
+              <Typography.Text type="secondary">{t('tasks.noComments')}</Typography.Text>
             ) : (
               <List
                 dataSource={comments}
@@ -665,7 +667,7 @@ export function TasksPage() {
               rows={3}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder={t('tasks.addCommentPlaceholder')}
               aria-label="New comment"
             />
             <Button
@@ -674,7 +676,7 @@ export function TasksPage() {
               onClick={() => handleAddComment(detailTask)}
               disabled={!comment.trim()}
             >
-              Add Comment
+              {t('tasks.addComment')}
             </Button>
           </Space>
         )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Input, Tabs, Table, Tag, Typography, Space, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { SearchOutlined } from '@ant-design/icons';
@@ -14,93 +15,94 @@ const STATUS_COLORS: Record<string, string> = {
   DONE:        'success',
 };
 
-const TASK_COLUMNS: ColumnsType<TaskDocument> = [
-  {
-    title: 'Title',
-    dataIndex: 'title',
-    key: 'title',
-    render: (title: string) => <Text strong>{title}</Text>,
-  },
-  {
-    title: 'Description',
-    dataIndex: 'description',
-    key: 'description',
-    render: (desc: string | null) =>
-      desc ? (
-        <Text type="secondary" ellipsis style={{ maxWidth: 320, display: 'block' }}>
-          {desc}
-        </Text>
-      ) : (
-        <Text type="secondary">—</Text>
-      ),
-  },
-  {
-    title: 'Status',
-    dataIndex: 'status',
-    key: 'status',
-    width: 130,
-    render: (status: string | null) =>
-      status ? (
-        <Tag color={STATUS_COLORS[status] ?? 'default'}>
-          {status.replace('_', ' ')}
-        </Tag>
-      ) : null,
-  },
-  {
-    title: 'Project',
-    dataIndex: 'projectName',
-    key: 'projectName',
-    render: (name: string | null) => name ?? <Text type="secondary">—</Text>,
-  },
-  {
-    title: 'Assigned to',
-    dataIndex: 'assignedUserName',
-    key: 'assignedUserName',
-    render: (name: string | null) => name ?? <Text type="secondary">—</Text>,
-  },
-];
-
-const USER_COLUMNS: ColumnsType<UserDocument> = [
-  {
-    title: 'Name',
-    dataIndex: 'name',
-    key: 'name',
-    render: (name: string) => <Text strong>{name}</Text>,
-  },
-  {
-    title: 'Email',
-    dataIndex: 'email',
-    key: 'email',
-  },
-  {
-    title: 'Username',
-    dataIndex: 'username',
-    key: 'username',
-    render: (username: string) => <Text code>{username}</Text>,
-  },
-  {
-    title: 'Status',
-    dataIndex: 'active',
-    key: 'active',
-    width: 90,
-    render: (active: boolean) => (
-      <Tag color={active ? 'success' : 'default'}>{active ? 'Active' : 'Inactive'}</Tag>
-    ),
-  },
-];
-
 /** Full-text search page backed by Elasticsearch via search-service. */
 export function SearchPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialQuery = searchParams.get('q') ?? '';
-  const [query,     setQuery]     = useState(initialQuery);
-  const [tasks,     setTasks]     = useState<TaskDocument[]>([]);
-  const [users,     setUsers]     = useState<UserDocument[]>([]);
-  const [loading,   setLoading]   = useState(false);
-  const [searched,  setSearched]  = useState(initialQuery.length > 0);
+  const [query,    setQuery]    = useState(initialQuery);
+  const [tasks,    setTasks]    = useState<TaskDocument[]>([]);
+  const [users,    setUsers]    = useState<UserDocument[]>([]);
+  const [loading,  setLoading]  = useState(false);
+  const [searched, setSearched] = useState(initialQuery.length > 0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const taskColumns: ColumnsType<TaskDocument> = [
+    {
+      title: t('search.title_col'),
+      dataIndex: 'title',
+      key: 'title',
+      render: (title: string) => <Text strong>{title}</Text>,
+    },
+    {
+      title: t('search.description'),
+      dataIndex: 'description',
+      key: 'description',
+      render: (desc: string | null) =>
+        desc ? (
+          <Text type="secondary" ellipsis style={{ maxWidth: 320, display: 'block' }}>
+            {desc}
+          </Text>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
+    },
+    {
+      title: t('common.status'),
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (status: string | null) =>
+        status ? (
+          <Tag color={STATUS_COLORS[status] ?? 'default'}>
+            {status.replace('_', ' ')}
+          </Tag>
+        ) : null,
+    },
+    {
+      title: t('search.projectName'),
+      dataIndex: 'projectName',
+      key: 'projectName',
+      render: (name: string | null) => name ?? <Text type="secondary">—</Text>,
+    },
+    {
+      title: t('search.assignedTo'),
+      dataIndex: 'assignedUserName',
+      key: 'assignedUserName',
+      render: (name: string | null) => name ?? <Text type="secondary">—</Text>,
+    },
+  ];
+
+  const userColumns: ColumnsType<UserDocument> = [
+    {
+      title: t('common.name'),
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string) => <Text strong>{name}</Text>,
+    },
+    {
+      title: t('common.email'),
+      dataIndex: 'email',
+      key: 'email',
+    },
+    {
+      title: t('common.username'),
+      dataIndex: 'username',
+      key: 'username',
+      render: (username: string) => <Text code>{username}</Text>,
+    },
+    {
+      title: t('common.status'),
+      dataIndex: 'active',
+      key: 'active',
+      width: 90,
+      render: (active: boolean) => (
+        <Tag color={active ? 'success' : 'default'}>{active ? t('common.active') : t('common.inactive')}</Tag>
+      ),
+    },
+  ];
 
   // Run search whenever query changes, debounced 350ms
   useEffect(() => {
@@ -120,7 +122,7 @@ export function SearchPage() {
       setSearched(true);
       setSearchParams({ q: trimmed }, { replace: true });
       Promise.all([searchTasks(trimmed), searchUsers(trimmed)])
-        .then(([t, u]) => { setTasks(t); setUsers(u); })
+        .then(([ts, us]) => { setTasks(ts); setUsers(us); })
         .catch(() => { setTasks([]); setUsers([]); })
         .finally(() => setLoading(false));
     }, 350);
@@ -134,7 +136,7 @@ export function SearchPage() {
       setLoading(true);
       setSearched(true);
       Promise.all([searchTasks(initialQuery), searchUsers(initialQuery)])
-        .then(([t, u]) => { setTasks(t); setUsers(u); })
+        .then(([ts, us]) => { setTasks(ts); setUsers(us); })
         .catch(() => {})
         .finally(() => setLoading(false));
     }
@@ -143,14 +145,14 @@ export function SearchPage() {
   const tabItems = [
     {
       key: 'tasks',
-      label: `Tasks${searched ? ` (${tasks.length})` : ''}`,
+      label: `${t('nav.tasks')}${searched ? ` (${tasks.length})` : ''}`,
       children: (
         <Table<TaskDocument>
-          columns={TASK_COLUMNS}
+          columns={taskColumns}
           dataSource={tasks}
           rowKey="id"
           loading={loading}
-          locale={{ emptyText: searched ? <Empty description="No tasks found" /> : <Empty description="Enter a search query" /> }}
+          locale={{ emptyText: searched ? <Empty description={t('search.noTasksFound')} /> : <Empty description={t('search.enterQuery')} /> }}
           onRow={(record) => ({
             onClick: () => navigate(`/tasks?highlight=${record.id}`),
             style: { cursor: 'pointer' },
@@ -162,14 +164,14 @@ export function SearchPage() {
     },
     {
       key: 'users',
-      label: `Users${searched ? ` (${users.length})` : ''}`,
+      label: `${t('nav.users')}${searched ? ` (${users.length})` : ''}`,
       children: (
         <Table<UserDocument>
-          columns={USER_COLUMNS}
+          columns={userColumns}
           dataSource={users}
           rowKey="id"
           loading={loading}
-          locale={{ emptyText: searched ? <Empty description="No users found" /> : <Empty description="Enter a search query" /> }}
+          locale={{ emptyText: searched ? <Empty description={t('search.noUsersFound')} /> : <Empty description={t('search.enterQuery')} /> }}
           onRow={(record) => ({
             onClick: () => navigate(`/users?highlight=${record.id}`),
             style: { cursor: 'pointer' },
@@ -183,11 +185,11 @@ export function SearchPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Title level={3} style={{ marginBottom: 0 }}>Search</Title>
+      <Title level={3} style={{ marginBottom: 0 }}>{t('search.title')}</Title>
 
       <Input
         size="large"
-        placeholder="Search tasks and users…"
+        placeholder={t('search.placeholder')}
         prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
