@@ -94,8 +94,13 @@ start_service() {
   local name="$1"
   case "$name" in
     eureka-server|api-gateway|user-service|task-service|audit-service|file-service|search-service|notification-service)
+      local extra_args=""
+      if [[ "$SKIP_ELK" == false ]]; then
+        # Activate logstash profile and point TCP appender to localhost (Docker exposes port 5000)
+        extra_args="-Dspring-boot.run.jvmArguments='-Dspring.profiles.active=logstash -Dlogback.destination=localhost:5000'"
+      fi
       open_terminal_window "$name" \
-        "cd '$PROJECT_ROOT' && mvn spring-boot:run -pl $name; exec \$SHELL"
+        "cd '$PROJECT_ROOT' && mvn spring-boot:run -pl $name $extra_args; exec \$SHELL"
       ;;
     web-client)
       open_terminal_window "web-client" \
