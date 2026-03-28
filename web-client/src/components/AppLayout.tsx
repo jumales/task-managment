@@ -10,6 +10,7 @@ import {
   UserOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -18,10 +19,11 @@ import { getUsers } from '../api/userApi';
 const { Sider, Header, Content } = Layout;
 
 const NAV_ITEMS = [
-  { key: '/dashboard', label: 'Dashboard', icon: <DashboardOutlined /> },
-  { key: '/tasks',     label: 'Tasks',     icon: <CheckSquareOutlined /> },
-  { key: '/projects',  label: 'Projects',  icon: <ProjectOutlined /> },
-  { key: '/users',     label: 'Users',     icon: <TeamOutlined /> },
+  { key: '/dashboard',     label: 'Dashboard',     icon: <DashboardOutlined /> },
+  { key: '/tasks',         label: 'Tasks',         icon: <CheckSquareOutlined /> },
+  { key: '/projects',      label: 'Projects',      icon: <ProjectOutlined /> },
+  { key: '/users',         label: 'Users',         icon: <TeamOutlined /> },
+  { key: '/configuration', label: 'Configuration', icon: <SettingOutlined /> },
 ];
 
 /** Main application shell with a collapsible sidebar and top header. */
