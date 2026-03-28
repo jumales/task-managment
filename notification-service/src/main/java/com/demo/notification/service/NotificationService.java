@@ -10,6 +10,7 @@ import com.demo.notification.model.NotificationRecord;
 import com.demo.notification.repository.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -33,14 +34,19 @@ public class NotificationService {
     private final EmailService emailService;
     private final TaskServiceClient taskServiceClient;
 
+    /** Base URL of the frontend application, used to build the {taskUrl} placeholder value. */
+    private final String frontendUrl;
+
     public NotificationService(NotificationRepository repository,
                                 UserClient userClient,
                                 EmailService emailService,
-                                TaskServiceClient taskServiceClient) {
+                                TaskServiceClient taskServiceClient,
+                                @Value("${app.frontend-url}") String frontendUrl) {
         this.repository = repository;
         this.userClient = userClient;
         this.emailService = emailService;
         this.taskServiceClient = taskServiceClient;
+        this.frontendUrl = frontendUrl;
     }
 
     /**
@@ -63,7 +69,7 @@ public class NotificationService {
             return;
         }
 
-        String[] content = buildEmailContent(event);
+        String[] content = buildEmailContent(event, user.getName());
         String subject = content[0];
         String body    = content[1];
 
@@ -99,11 +105,12 @@ public class NotificationService {
      * Returns the email [subject, body] for the event.
      * Applies a project-level template if one is configured; otherwise falls back to built-in defaults.
      *
+     * @param userName full name of the notification recipient, used for the {userName} placeholder
      * @return two-element array: [subject, body]
      */
-    private String[] buildEmailContent(TaskChangedEvent event) {
+    private String[] buildEmailContent(TaskChangedEvent event, String userName) {
         if (event.getProjectId() != null) {
-            String[] templated = applyProjectTemplate(event);
+            String[] templated = applyProjectTemplate(event, userName);
             if (templated != null) return templated;
         }
         return buildDefaultContent(event);
@@ -113,11 +120,11 @@ public class NotificationService {
      * Tries to fetch and render the project-level template for this event type.
      * Returns null if no template is configured or the call fails.
      */
-    private String[] applyProjectTemplate(TaskChangedEvent event) {
+    private String[] applyProjectTemplate(TaskChangedEvent event, String userName) {
         try {
             ProjectNotificationTemplateResponse template =
                     taskServiceClient.getTemplate(event.getProjectId(), event.getChangeType());
-            Map<String, String> vars = buildTemplateVars(event);
+            Map<String, String> vars = buildTemplateVars(event, userName);
             return new String[]{
                 renderTemplate(template.getSubjectTemplate(), vars),
                 renderTemplate(template.getBodyTemplate(), vars)
@@ -139,18 +146,25 @@ public class NotificationService {
         return result;
     }
 
-    /** Builds the variable map available for template placeholder substitution. */
-    private Map<String, String> buildTemplateVars(TaskChangedEvent event) {
+    /**
+     * Builds the variable map for placeholder substitution.
+     * Contains all tokens defined in {@link com.demo.common.dto.TemplatePlaceholder}.
+     *
+     * @param userName full name of the notification recipient
+     */
+    private Map<String, String> buildTemplateVars(TaskChangedEvent event, String userName) {
         return Map.ofEntries(
-                Map.entry("taskId",      safeStr(event.getTaskId())),
-                Map.entry("taskTitle",   safeStr(event.getTaskTitle())),
-                Map.entry("projectId",   safeStr(event.getProjectId())),
-                Map.entry("fromStatus",  safeStr(event.getFromStatus())),
-                Map.entry("toStatus",    safeStr(event.getToStatus())),
-                Map.entry("comment",     safeStr(event.getCommentContent())),
-                Map.entry("fromPhase",   safeStr(event.getFromPhaseName())),
-                Map.entry("toPhase",     safeStr(event.getToPhaseName())),
-                Map.entry("workType",    safeStr(event.getWorkType())),
+                Map.entry("taskId",       safeStr(event.getTaskId())),
+                Map.entry("taskTitle",    safeStr(event.getTaskTitle())),
+                Map.entry("taskUrl",      frontendUrl + "/tasks/" + safeStr(event.getTaskId())),
+                Map.entry("projectId",    safeStr(event.getProjectId())),
+                Map.entry("userName",     safeStr(userName)),
+                Map.entry("fromStatus",   safeStr(event.getFromStatus())),
+                Map.entry("toStatus",     safeStr(event.getToStatus())),
+                Map.entry("comment",      safeStr(event.getCommentContent())),
+                Map.entry("fromPhase",    safeStr(event.getFromPhaseName())),
+                Map.entry("toPhase",      safeStr(event.getToPhaseName())),
+                Map.entry("workType",     safeStr(event.getWorkType())),
                 Map.entry("plannedHours", safeStr(event.getPlannedHours())),
                 Map.entry("bookedHours",  safeStr(event.getBookedHours()))
         );

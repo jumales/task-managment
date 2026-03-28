@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse } from './types';
+import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse, ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest, TemplatePlaceholder, TaskChangeType } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
@@ -92,4 +92,24 @@ export function updateProject(id: string, request: TaskProjectRequest) {
 /** Soft-deletes a project. */
 export function deleteProject(id: string) {
   return apiClient.delete(`${PROJECTS_URL}/${id}`);
+}
+
+/** Fetches all active notification templates for a project. */
+export function getNotificationTemplates(projectId: string) {
+  return apiClient.get<ProjectNotificationTemplateResponse[]>(`${PROJECTS_URL}/${projectId}/notification-templates`).then((r) => r.data);
+}
+
+/** Fetches the full placeholder catalogue (same for every project). */
+export function getTemplatePlaceholders(projectId: string) {
+  return apiClient.get<TemplatePlaceholder[]>(`${PROJECTS_URL}/${projectId}/notification-templates/placeholders`).then((r) => r.data);
+}
+
+/** Creates or replaces the notification template for a project + event type. */
+export function upsertNotificationTemplate(projectId: string, eventType: TaskChangeType, request: ProjectNotificationTemplateRequest) {
+  return apiClient.put<ProjectNotificationTemplateResponse>(`${PROJECTS_URL}/${projectId}/notification-templates/${eventType}`, request).then((r) => r.data);
+}
+
+/** Soft-deletes the notification template for a project + event type. */
+export function deleteNotificationTemplate(projectId: string, eventType: TaskChangeType) {
+  return apiClient.delete(`${PROJECTS_URL}/${projectId}/notification-templates/${eventType}`);
 }

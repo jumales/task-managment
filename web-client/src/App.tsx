@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { TasksPage } from './pages/TasksPage';
 import { UsersPage } from './pages/UsersPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ConfigurationPage } from './pages/ConfigurationPage';
 
 /** Root router — all routes are protected by AuthProvider in main.tsx. */
 export default function App() {
@@ -11,11 +12,12 @@ export default function App() {
     <BrowserRouter>
       <AppLayout>
         <Routes>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/tasks"     element={<TasksPage />} />
-          <Route path="/projects"  element={<ProjectsPage />} />
-          <Route path="/users"     element={<UsersPage />} />
-          <Route path="*"          element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard"     element={<DashboardPage />} />
+          <Route path="/tasks"         element={<TasksPage />} />
+          <Route path="/projects"      element={<ProjectsPage />} />
+          <Route path="/users"         element={<UsersPage />} />
+          <Route path="/configuration" element={<ConfigurationPage />} />
+          <Route path="*"              element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AppLayout>
     </BrowserRouter>

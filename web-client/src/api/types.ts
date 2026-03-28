@@ -172,3 +172,34 @@ export interface AuditRecord {
   oldStatus: TaskStatus;
   newStatus: TaskStatus;
 }
+
+/** Mirrors com.demo.common.event.TaskChangeType */
+export type TaskChangeType =
+  | 'TASK_CREATED'
+  | 'STATUS_CHANGED'
+  | 'COMMENT_ADDED'
+  | 'PHASE_CHANGED'
+  | 'WORK_LOG_CREATED'
+  | 'WORK_LOG_UPDATED'
+  | 'WORK_LOG_DELETED';
+
+/** Mirrors com.demo.common.dto.TemplatePlaceholder */
+export interface TemplatePlaceholder {
+  key: string;
+  description: string;
+}
+
+/** Mirrors com.demo.common.dto.ProjectNotificationTemplateResponse */
+export interface ProjectNotificationTemplateResponse {
+  id: string;
+  projectId: string;
+  eventType: TaskChangeType;
+  subjectTemplate: string;
+  bodyTemplate: string;
+}
+
+/** Mirrors com.demo.common.dto.ProjectNotificationTemplateRequest */
+export interface ProjectNotificationTemplateRequest {
+  subjectTemplate: string;
+  bodyTemplate: string;
+}
