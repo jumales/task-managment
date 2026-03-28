@@ -1,6 +1,7 @@
 package com.demo.common.event;
 
 public enum TaskChangeType {
+    TASK_CREATED,
     STATUS_CHANGED,
     COMMENT_ADDED,
     PHASE_CHANGED,

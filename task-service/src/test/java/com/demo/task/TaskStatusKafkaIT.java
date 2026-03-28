@@ -98,6 +98,8 @@ class TaskStatusKafkaIT {
     @Test
     void updateStatus_createsOutboxEvent() {
         TaskResponse created = createTask(TaskStatus.TODO);
+        // Task creation writes a TASK_CREATED outbox event; clear it to test only status-change events
+        outboxRepository.deleteAll();
 
         updateTask(created.getId(), TaskStatus.IN_PROGRESS);
 
@@ -113,6 +115,8 @@ class TaskStatusKafkaIT {
     @Test
     void updateWithoutStatusChange_doesNotCreateOutboxEvent() {
         TaskResponse created = createTask(TaskStatus.TODO);
+        // Task creation writes a TASK_CREATED outbox event; clear it to test only status-change events
+        outboxRepository.deleteAll();
 
         updateTask(created.getId(), TaskStatus.TODO);
 
@@ -123,6 +127,8 @@ class TaskStatusKafkaIT {
     @Test
     void multipleStatusChanges_createSeparateOutboxEvents() {
         TaskResponse created = createTask(TaskStatus.TODO);
+        // Task creation writes a TASK_CREATED outbox event; clear it to test only status-change events
+        outboxRepository.deleteAll();
 
         updateTask(created.getId(), TaskStatus.IN_PROGRESS);
         updateTask(created.getId(), TaskStatus.DONE);

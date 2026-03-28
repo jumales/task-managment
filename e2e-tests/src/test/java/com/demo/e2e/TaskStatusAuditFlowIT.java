@@ -29,7 +29,7 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
     @Test
     void statusChangedEvent_persistsAuditRecord() {
         TaskChangedEvent event = TaskChangedEvent.statusChanged(
-                taskId, userId, TaskStatus.TODO, TaskStatus.IN_PROGRESS);
+                taskId, userId, null, null, TaskStatus.TODO, TaskStatus.IN_PROGRESS);
 
         publish(event);
 
@@ -47,8 +47,10 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
 
     @Test
     void multipleStatusChanges_persistedInOrder() {
-        publish(TaskChangedEvent.statusChanged(taskId, userId, TaskStatus.TODO, TaskStatus.IN_PROGRESS));
-        publish(TaskChangedEvent.statusChanged(taskId, userId, TaskStatus.IN_PROGRESS, TaskStatus.DONE));
+        publish(TaskChangedEvent.statusChanged(taskId, userId, null, null,
+                TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+        publish(TaskChangedEvent.statusChanged(taskId, userId, null, null,
+                TaskStatus.IN_PROGRESS, TaskStatus.DONE));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(2));
@@ -60,7 +62,8 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
 
     @Test
     void statusHistory_endpoint_returnsPersistedRecords() {
-        publish(TaskChangedEvent.statusChanged(taskId, userId, TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+        publish(TaskChangedEvent.statusChanged(taskId, userId, null, null,
+                TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1));

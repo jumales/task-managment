@@ -30,7 +30,7 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
     void commentAddedEvent_persistsCommentAuditRecord() {
         UUID commentId = UUID.randomUUID();
         TaskChangedEvent event = TaskChangedEvent.commentAdded(
-                taskId, userId, commentId, "First comment");
+                taskId, userId, null, null, commentId, "First comment");
 
         publish(event);
 
@@ -48,9 +48,9 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
 
     @Test
     void multipleComments_allPersistedInOrder() {
-        publish(TaskChangedEvent.commentAdded(taskId, userId, UUID.randomUUID(), "First"));
-        publish(TaskChangedEvent.commentAdded(taskId, userId, UUID.randomUUID(), "Second"));
-        publish(TaskChangedEvent.commentAdded(taskId, userId, UUID.randomUUID(), "Third"));
+        publish(TaskChangedEvent.commentAdded(taskId, userId, null, null, UUID.randomUUID(), "First"));
+        publish(TaskChangedEvent.commentAdded(taskId, userId, null, null, UUID.randomUUID(), "Second"));
+        publish(TaskChangedEvent.commentAdded(taskId, userId, null, null, UUID.randomUUID(), "Third"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(3));
@@ -63,7 +63,7 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
     @Test
     void commentHistory_endpoint_returnsPersistedRecords() {
         UUID commentId = UUID.randomUUID();
-        publish(TaskChangedEvent.commentAdded(taskId, userId, commentId, "Persisted comment"));
+        publish(TaskChangedEvent.commentAdded(taskId, userId, null, null, commentId, "Persisted comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(1));

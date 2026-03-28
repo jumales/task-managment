@@ -12,6 +12,7 @@ import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.TaskWorkLog;
 import com.demo.task.outbox.OutboxPublisher;
 import com.demo.task.repository.OutboxRepository;
+import com.demo.task.model.Task;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskWorkLogRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -55,7 +56,7 @@ public class TaskWorkLogService {
 
     /** Returns all work log entries for the given task, enriched with user display names. */
     public List<TaskWorkLogResponse> findByTaskId(UUID taskId) {
-        assertTaskExists(taskId);
+        getTaskOrThrow(taskId);
         List<TaskWorkLog> logs = repository.findByTaskIdOrderByCreatedAtAsc(taskId);
         return toResponseList(logs);
     }
@@ -67,7 +68,7 @@ public class TaskWorkLogService {
      */
     @Transactional
     public TaskWorkLogResponse create(UUID taskId, TaskWorkLogRequest request) {
-        assertTaskExists(taskId);
+        Task task = getTaskOrThrow(taskId);
         UserDto user = userClient.getUserById(request.getUserId());
         TaskWorkLog saved = repository.save(TaskWorkLog.builder()
                 .taskId(taskId)
@@ -77,8 +78,9 @@ public class TaskWorkLogService {
                 .bookedHours(request.getBookedHours()  != null ? request.getBookedHours().intValue()  : 0)
                 .createdAt(Instant.now())
                 .build());
-        writeToOutbox(TaskChangedEvent.workLogCreated(taskId, saved.getId(), saved.getUserId(),
-                saved.getWorkType(), BigInteger.valueOf(saved.getPlannedHours()), BigInteger.valueOf(saved.getBookedHours())));
+        writeToOutbox(TaskChangedEvent.workLogCreated(taskId, task.getProjectId(), task.getTitle(),
+                saved.getId(), saved.getUserId(), saved.getWorkType(),
+                BigInteger.valueOf(saved.getPlannedHours()), BigInteger.valueOf(saved.getBookedHours())));
         return toResponse(saved, user.getName());
     }
 
@@ -89,7 +91,7 @@ public class TaskWorkLogService {
      */
     @Transactional
     public TaskWorkLogResponse update(UUID taskId, UUID workLogId, TaskWorkLogRequest request) {
-        assertTaskExists(taskId);
+        Task task = getTaskOrThrow(taskId);
         TaskWorkLog log = getOrThrow(workLogId);
         UserDto user = userClient.getUserById(request.getUserId());
         log.setUserId(request.getUserId());
@@ -97,8 +99,9 @@ public class TaskWorkLogService {
         log.setBookedHours(request.getBookedHours() != null ? request.getBookedHours().intValue() : 0);
         // plannedHours is immutable: intentionally not updated
         TaskWorkLog saved = repository.save(log);
-        writeToOutbox(TaskChangedEvent.workLogUpdated(taskId, saved.getId(), saved.getUserId(),
-                saved.getWorkType(), BigInteger.valueOf(saved.getPlannedHours()), BigInteger.valueOf(saved.getBookedHours())));
+        writeToOutbox(TaskChangedEvent.workLogUpdated(taskId, task.getProjectId(), task.getTitle(),
+                saved.getId(), saved.getUserId(), saved.getWorkType(),
+                BigInteger.valueOf(saved.getPlannedHours()), BigInteger.valueOf(saved.getBookedHours())));
         return toResponse(saved, user.getName());
     }
 
@@ -108,18 +111,17 @@ public class TaskWorkLogService {
      */
     @Transactional
     public void delete(UUID taskId, UUID workLogId) {
-        assertTaskExists(taskId);
+        Task task = getTaskOrThrow(taskId);
         if (!repository.existsById(workLogId)) {
             throw new ResourceNotFoundException("TaskWorkLog", workLogId);
         }
         repository.deleteById(workLogId);
-        writeToOutbox(TaskChangedEvent.workLogDeleted(taskId, workLogId));
+        writeToOutbox(TaskChangedEvent.workLogDeleted(taskId, task.getProjectId(), task.getTitle(), workLogId));
     }
 
-    private void assertTaskExists(UUID taskId) {
-        if (!taskRepository.existsById(taskId)) {
-            throw new ResourceNotFoundException("Task", taskId);
-        }
+    private Task getTaskOrThrow(UUID taskId) {
+        return taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
     }
 
     private TaskWorkLog getOrThrow(UUID id) {

@@ -77,7 +77,8 @@ class AuditConsumerIT {
         UUID taskId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), null, null,
+                        TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
@@ -93,9 +94,11 @@ class AuditConsumerIT {
         UUID taskId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), TaskStatus.TODO, TaskStatus.IN_PROGRESS));
+                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), null, null,
+                        TaskStatus.TODO, TaskStatus.IN_PROGRESS));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), TaskStatus.IN_PROGRESS, TaskStatus.DONE));
+                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), null, null,
+                        TaskStatus.IN_PROGRESS, TaskStatus.DONE));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
@@ -109,11 +112,12 @@ class AuditConsumerIT {
 
     @Test
     void consumeCommentEvent_persistsCommentAuditRecord() {
-        UUID taskId   = UUID.randomUUID();
+        UUID taskId    = UUID.randomUUID();
         UUID commentId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), commentId, "First comment"));
+                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), null, null,
+                        commentId, "First comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId);
@@ -130,9 +134,11 @@ class AuditConsumerIT {
         UUID taskId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), UUID.randomUUID(), "First comment"));
+                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), null, null,
+                        UUID.randomUUID(), "First comment"));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), UUID.randomUUID(), "Second comment"));
+                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), null, null,
+                        UUID.randomUUID(), "Second comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId);
@@ -149,9 +155,11 @@ class AuditConsumerIT {
         UUID taskId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), TaskStatus.TODO, TaskStatus.DONE));
+                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), null, null,
+                        TaskStatus.TODO, TaskStatus.DONE));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), UUID.randomUUID(), "A comment"));
+                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), null, null,
+                        UUID.randomUUID(), "A comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
@@ -168,7 +176,7 @@ class AuditConsumerIT {
         UUID toPhase   = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(),
+                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), null, null,
                         fromPhase, "Backlog", toPhase, "In Review"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
@@ -185,15 +193,17 @@ class AuditConsumerIT {
 
     @Test
     void consumeMultiplePhaseEvents_persistsAllInChronologicalOrder() {
-        UUID taskId   = UUID.randomUUID();
-        UUID phaseA   = UUID.randomUUID();
-        UUID phaseB   = UUID.randomUUID();
-        UUID phaseC   = UUID.randomUUID();
+        UUID taskId = UUID.randomUUID();
+        UUID phaseA = UUID.randomUUID();
+        UUID phaseB = UUID.randomUUID();
+        UUID phaseC = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), phaseA, "Backlog",    phaseB, "In Review"));
+                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), null, null,
+                        phaseA, "Backlog", phaseB, "In Review"));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), phaseB, "In Review", phaseC, "Released"));
+                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), null, null,
+                        phaseB, "In Review", phaseC, "Released"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
@@ -208,11 +218,14 @@ class AuditConsumerIT {
         UUID taskId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), TaskStatus.TODO, TaskStatus.DONE));
+                TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), null, null,
+                        TaskStatus.TODO, TaskStatus.DONE));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), UUID.randomUUID(), "A comment"));
+                TaskChangedEvent.commentAdded(taskId, UUID.randomUUID(), null, null,
+                        UUID.randomUUID(), "A comment"));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), UUID.randomUUID(), "Backlog", UUID.randomUUID(), "Done"));
+                TaskChangedEvent.phaseChanged(taskId, UUID.randomUUID(), null, null,
+                        UUID.randomUUID(), "Backlog", UUID.randomUUID(), "Done"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
@@ -230,7 +243,7 @@ class AuditConsumerIT {
         UUID userId    = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogCreated(taskId, workLogId, userId,
+                TaskChangedEvent.workLogCreated(taskId, null, null, workLogId, userId,
                         WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(3)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
@@ -252,7 +265,7 @@ class AuditConsumerIT {
         UUID workLogId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogUpdated(taskId, workLogId, UUID.randomUUID(),
+                TaskChangedEvent.workLogUpdated(taskId, null, null, workLogId, UUID.randomUUID(),
                         WorkType.TESTING, BigInteger.valueOf(4), BigInteger.valueOf(4)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
@@ -269,7 +282,7 @@ class AuditConsumerIT {
         UUID workLogId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogDeleted(taskId, workLogId));
+                TaskChangedEvent.workLogDeleted(taskId, null, null, workLogId));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
@@ -287,13 +300,13 @@ class AuditConsumerIT {
         UUID workLogId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogCreated(taskId, workLogId, UUID.randomUUID(),
+                TaskChangedEvent.workLogCreated(taskId, null, null, workLogId, UUID.randomUUID(),
                         WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(0)));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogUpdated(taskId, workLogId, UUID.randomUUID(),
+                TaskChangedEvent.workLogUpdated(taskId, null, null, workLogId, UUID.randomUUID(),
                         WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(5)));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogDeleted(taskId, workLogId));
+                TaskChangedEvent.workLogDeleted(taskId, null, null, workLogId));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);

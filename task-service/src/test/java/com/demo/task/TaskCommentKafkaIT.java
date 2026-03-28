@@ -98,6 +98,8 @@ class TaskCommentKafkaIT {
     @Test
     void addComment_persistsCommentAndCreatesOutboxEvent() {
         TaskResponse task = createTask();
+        // Task creation writes a TASK_CREATED outbox event; clear it to test only comment events
+        outboxRepository.deleteAll();
 
         TaskCommentResponse comment = addComment(task.getId(), "First comment");
 
@@ -115,6 +117,8 @@ class TaskCommentKafkaIT {
     @Test
     void addMultipleComments_allPersistedInOrder() {
         TaskResponse task = createTask();
+        // Task creation writes a TASK_CREATED outbox event; clear it to test only comment events
+        outboxRepository.deleteAll();
 
         addComment(task.getId(), "First comment");
         addComment(task.getId(), "Second comment");

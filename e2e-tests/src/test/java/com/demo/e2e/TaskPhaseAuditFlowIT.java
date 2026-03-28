@@ -29,11 +29,10 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
     @Test
     void phaseChangedEvent_persistsPhaseAuditRecord() {
         UUID fromPhaseId = UUID.randomUUID();
-        UUID toPhaseId = UUID.randomUUID();
+        UUID toPhaseId   = UUID.randomUUID();
         TaskChangedEvent event = TaskChangedEvent.phaseChanged(
-                taskId, userId,
-                fromPhaseId, "Backlog",
-                toPhaseId, "In Review");
+                taskId, userId, null, null,
+                fromPhaseId, "Backlog", toPhaseId, "In Review");
 
         publish(event);
 
@@ -57,8 +56,10 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
         UUID phaseB = UUID.randomUUID();
         UUID phaseC = UUID.randomUUID();
 
-        publish(TaskChangedEvent.phaseChanged(taskId, userId, phaseA, "Backlog", phaseB, "In Progress"));
-        publish(TaskChangedEvent.phaseChanged(taskId, userId, phaseB, "In Progress", phaseC, "Done"));
+        publish(TaskChangedEvent.phaseChanged(taskId, userId, null, null,
+                phaseA, "Backlog", phaseB, "In Progress"));
+        publish(TaskChangedEvent.phaseChanged(taskId, userId, null, null,
+                phaseB, "In Progress", phaseC, "Done"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(2));
@@ -71,8 +72,9 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
     @Test
     void phaseHistory_endpoint_returnsPersistedRecords() {
         UUID fromPhaseId = UUID.randomUUID();
-        UUID toPhaseId = UUID.randomUUID();
-        publish(TaskChangedEvent.phaseChanged(taskId, userId, fromPhaseId, "Todo", toPhaseId, "Done"));
+        UUID toPhaseId   = UUID.randomUUID();
+        publish(TaskChangedEvent.phaseChanged(taskId, userId, null, null,
+                fromPhaseId, "Todo", toPhaseId, "Done"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1));

@@ -137,6 +137,8 @@ public class TaskService {
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_CREATED,
                 project.getName(), phaseId, user.getName());
+        writeToOutbox(TaskChangedEvent.taskCreated(saved.getId(), saved.getAssignedUserId(),
+                saved.getProjectId(), saved.getTitle()));
         return toResponse(saved);
     }
 
@@ -181,13 +183,14 @@ public class TaskService {
     private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus newStatus,
                                      UUID oldPhaseId, UUID newPhaseId) {
         if (newStatus != null && !newStatus.equals(oldStatus)) {
-            writeToOutbox(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(), oldStatus, newStatus));
+            writeToOutbox(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
+                    saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
         }
         if (!Objects.equals(oldPhaseId, newPhaseId)) {
             String oldName = oldPhaseId != null ? phaseService.getOrThrow(oldPhaseId).getName() : null;
             String newName = newPhaseId != null ? phaseService.getOrThrow(newPhaseId).getName() : null;
             writeToOutbox(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
-                    oldPhaseId, oldName, newPhaseId, newName));
+                    saved.getProjectId(), saved.getTitle(), oldPhaseId, oldName, newPhaseId, newName));
         }
     }
 
@@ -210,7 +213,8 @@ public class TaskService {
                 .createdAt(Instant.now())
                 .build());
 
-        writeToOutbox(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(), saved.getId(), saved.getContent()));
+        writeToOutbox(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(),
+                task.getProjectId(), task.getTitle(), saved.getId(), saved.getContent()));
 
         return new TaskCommentResponse(saved.getId(), saved.getContent(), saved.getCreatedAt());
     }
