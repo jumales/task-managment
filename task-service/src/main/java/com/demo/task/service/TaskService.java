@@ -9,6 +9,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
@@ -82,10 +83,10 @@ public class TaskService {
         this.objectMapper = objectMapper;
     }
 
-    /** Returns a paginated page of all tasks. */
-    public PageResponse<TaskResponse> findAll(Pageable pageable) {
+    /** Returns a paginated summary page of all tasks. */
+    public PageResponse<TaskSummaryResponse> findAll(Pageable pageable) {
         Page<Task> page = repository.findAll(pageable);
-        return toPageResponse(page);
+        return toSummaryPageResponse(page);
     }
 
     /** Returns the task with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
@@ -93,27 +94,27 @@ public class TaskService {
         return toResponse(getOrThrow(id));
     }
 
-    /** Returns a paginated page of tasks assigned to the specified user. */
-    public PageResponse<TaskResponse> findByUser(UUID userId, Pageable pageable) {
+    /** Returns a paginated summary page of tasks assigned to the specified user. */
+    public PageResponse<TaskSummaryResponse> findByUser(UUID userId, Pageable pageable) {
         Page<Task> page = repository.findByAssignedUserId(userId, pageable);
-        return toPageResponse(page);
+        return toSummaryPageResponse(page);
     }
 
     /**
-     * Returns a paginated page of tasks whose status matches the given value (case-insensitive).
+     * Returns a paginated summary page of tasks whose status matches the given value (case-insensitive).
      *
      * @param status string representation of {@link TaskStatus}
      */
-    public PageResponse<TaskResponse> findByStatus(String status, Pageable pageable) {
+    public PageResponse<TaskSummaryResponse> findByStatus(String status, Pageable pageable) {
         Page<Task> page = repository.findByStatus(TaskStatus.valueOf(status.toUpperCase()), pageable);
-        return toPageResponse(page);
+        return toSummaryPageResponse(page);
     }
 
-    /** Returns a paginated page of tasks belonging to the specified project. */
-    public PageResponse<TaskResponse> findByProject(UUID projectId, Pageable pageable) {
+    /** Returns a paginated summary page of tasks belonging to the specified project. */
+    public PageResponse<TaskSummaryResponse> findByProject(UUID projectId, Pageable pageable) {
         projectService.getOrThrow(projectId);
         Page<Task> page = repository.findByProjectId(projectId, pageable);
-        return toPageResponse(page);
+        return toSummaryPageResponse(page);
     }
 
     /**
@@ -345,6 +346,57 @@ public class TaskService {
     private PageResponse<TaskResponse> toPageResponse(Page<Task> page) {
         return new PageResponse<>(
                 toResponseList(page.getContent()),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast());
+    }
+
+    /**
+     * Converts a list of tasks to lightweight summary DTOs using batch queries for projects,
+     * phases, and user names — no per-task participant loading.
+     */
+    private List<TaskSummaryResponse> toSummaryResponseList(List<Task> tasks) {
+        if (tasks.isEmpty()) return List.of();
+
+        Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
+        Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<UUID> userIds    = tasks.stream().map(Task::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<UUID, TaskProject> projectsById = projectService.findAllByIds(projectIds).stream()
+                .collect(Collectors.toMap(TaskProject::getId, p -> p));
+
+        Map<UUID, TaskPhase> phasesById = phaseIds.isEmpty() ? Map.of() :
+                phaseService.findAllByIds(phaseIds).stream()
+                        .collect(Collectors.toMap(TaskPhase::getId, p -> p));
+
+        Map<UUID, String> userNamesById = userIds.isEmpty() ? Map.of() :
+                userClientHelper.fetchUserNames(userIds);
+
+        return tasks.stream().map(task -> {
+            TaskProject project = projectsById.get(task.getProjectId());
+            TaskPhase phase = task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null;
+            return new TaskSummaryResponse(
+                    task.getId(),
+                    task.getTitle(),
+                    task.getDescription(),
+                    task.getStatus(),
+                    task.getType(),
+                    task.getProgress(),
+                    task.getAssignedUserId(),
+                    userNamesById.get(task.getAssignedUserId()),
+                    project != null ? project.getId() : null,
+                    project != null ? project.getName() : null,
+                    phase != null ? phase.getId() : null,
+                    phase != null ? phase.getName() : null);
+        }).toList();
+    }
+
+    /** Converts a {@link Page} of tasks to a {@link PageResponse} of summary DTOs. */
+    private PageResponse<TaskSummaryResponse> toSummaryPageResponse(Page<Task> page) {
+        return new PageResponse<>(
+                toSummaryResponseList(page.getContent()),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),

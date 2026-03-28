@@ -67,6 +67,7 @@ public class UserService {
     }
 
     /** Creates and persists a new user; throws {@link DuplicateResourceException} if the username is already taken. */
+    @Transactional
     public UserDto create(UserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new DuplicateResourceException("Username already taken: " + request.getUsername());
@@ -84,6 +85,7 @@ public class UserService {
     }
 
     /** Updates name, email and active flag. Username is immutable after creation and is ignored here. */
+    @Transactional
     public UserDto update(UUID id, UserRequest request) {
         User user = getOrThrow(id);
         user.setName(request.getName());
@@ -117,6 +119,7 @@ public class UserService {
     }
 
     /** Soft-deletes the user; throws if the user still has active role assignments. */
+    @Transactional
     public void delete(UUID id) {
         User user = getOrThrow(id);
         if (userRoleRepository.existsByUser(user)) {

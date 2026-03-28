@@ -1,46 +1,32 @@
 package com.demo.user.event;
 
-import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.UserEvent;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.Async;
+import com.demo.user.outbox.UserOutboxWriter;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 /**
- * Publishes user lifecycle events to the {@code user-events} Kafka topic.
+ * Writes user lifecycle events to the transactional outbox for reliable, at-least-once
+ * delivery to Kafka. The outbox write is atomic with the business operation — either both
+ * commit or both roll back, eliminating the risk of lost events.
  * Consumed by search-service to keep the Elasticsearch user index current.
  */
 @Component
 public class UserEventPublisher {
 
-    private static final Logger log = LoggerFactory.getLogger(UserEventPublisher.class);
+    private final UserOutboxWriter outboxWriter;
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
-
-    public UserEventPublisher(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
+    public UserEventPublisher(UserOutboxWriter outboxWriter) {
+        this.outboxWriter = outboxWriter;
     }
 
-    /** Publishes the given event to the {@code user-events} topic asynchronously. Logs and swallows on failure to avoid rolling back the DB transaction. */
-    @Async
+    /**
+     * Persists the event to the outbox within the current transaction.
+     * Must be called from a {@code @Transactional} method.
+     */
     public void publish(UserEvent event) {
-        try {
-            String payload = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(KafkaTopics.USER_EVENTS, event.getUserId().toString(), payload);
-            log.info("Published {} event for user {}", event.getEventType(), event.getUserId());
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize UserEvent for user {}: {}", event.getUserId(), e.getMessage());
-        } catch (Exception e) {
-            log.error("Failed to publish UserEvent for user {}: {}", event.getUserId(), e.getMessage());
-        }
+        outboxWriter.write(event);
     }
 
     /** Convenience factory — publishes a CREATED event. */

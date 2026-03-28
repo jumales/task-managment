@@ -1,12 +1,12 @@
 import apiClient from './client';
-import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse, ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest, TemplatePlaceholder, TaskChangeType } from './types';
+import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskSummaryResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse, ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest, TemplatePlaceholder, TaskChangeType } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
 
-/** Fetches a paginated list of tasks, with optional filters. */
+/** Fetches a paginated list of tasks (summary view), with optional filters. */
 export function getTasks(params?: { userId?: string; projectId?: string; status?: string; page?: number; size?: number }) {
-  return apiClient.get<PageResponse<TaskResponse>>(TASKS_URL, { params: { size: 20, ...params } }).then((r) => r.data);
+  return apiClient.get<PageResponse<TaskSummaryResponse>>(TASKS_URL, { params: { size: 20, ...params } }).then((r) => r.data);
 }
 
 /** Fetches a single task by ID. */
