@@ -1,6 +1,9 @@
 /** Mirrors com.demo.common.dto.TaskStatus */
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 
+/** Mirrors com.demo.common.dto.TaskType */
+export type TaskType = 'FEATURE' | 'BUG_FIXING' | 'TESTING' | 'PLANNING' | 'TECHNICAL_DEBT' | 'DOCUMENTATION' | 'OTHER';
+
 /** Mirrors com.demo.common.dto.PageResponse */
 export interface PageResponse<T> {
   content: T[];
@@ -60,6 +63,8 @@ export interface TaskResponse {
   title: string;
   description: string;
   status: TaskStatus;
+  type: TaskType | null;
+  progress: number;
   participants: TaskParticipantResponse[];
   project: TaskProjectResponse;
   phase: TaskPhaseResponse | null;
@@ -69,6 +74,8 @@ export interface TaskRequest {
   title: string;
   description: string;
   status: TaskStatus;
+  type: TaskType | null;
+  progress: number;
   assignedUserId: string;
   projectId: string;
   phaseId: string | null;

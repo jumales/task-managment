@@ -126,6 +126,8 @@ public class TaskService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .status(request.getStatus())
+                .type(request.getType())
+                .progress(request.getProgress())
                 .assignedUserId(request.getAssignedUserId())
                 .projectId(request.getProjectId())
                 .phaseId(phaseId)
@@ -156,6 +158,8 @@ public class TaskService {
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
+        task.setType(request.getType());
+        task.setProgress(request.getProgress());
         task.setAssignedUserId(request.getAssignedUserId());
         task.setProjectId(request.getProjectId());
         task.setPhaseId(request.getPhaseId());
@@ -316,7 +320,7 @@ public class TaskService {
                 ? phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()))
                 : null;
         return new TaskResponse(task.getId(), task.getTitle(), task.getDescription(),
-                task.getStatus(), participants, project, phase);
+                task.getStatus(), task.getType(), task.getProgress(), participants, project, phase);
     }
 
     /**
@@ -345,6 +349,7 @@ public class TaskService {
 
         return tasks.stream().map(task -> new TaskResponse(
                 task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
+                task.getType(), task.getProgress(),
                 participantsByTaskId.getOrDefault(task.getId(), List.of()),
                 projectsById.get(task.getProjectId()),
                 task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null))

@@ -9,6 +9,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskParticipantRepository;
@@ -192,6 +193,38 @@ class TaskControllerIT {
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getTitle()).isEqualTo("New feature");
         assertThat(repository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void createTask_withTypeAndProgress_persistsBothFields() {
+        TaskRequest req = request("Bug fix task", "Fix NPE", TaskStatus.TODO, ALICE_ID);
+        req.setType(TaskType.BUG_FIXING);
+        req.setProgress(25);
+
+        ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getType()).isEqualTo(TaskType.BUG_FIXING);
+        assertThat(response.getBody().getProgress()).isEqualTo(25);
+    }
+
+    @Test
+    void updateTask_updatesTypeAndProgress() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", request("Task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        TaskRequest update = request("Task", "desc", TaskStatus.IN_PROGRESS, ALICE_ID);
+        update.setType(TaskType.FEATURE);
+        update.setProgress(80);
+
+        ResponseEntity<TaskResponse> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(update),
+                TaskResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getType()).isEqualTo(TaskType.FEATURE);
+        assertThat(response.getBody().getProgress()).isEqualTo(80);
     }
 
     @Test
