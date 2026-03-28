@@ -3,11 +3,18 @@ package com.demo.task.service;
 import com.demo.common.dto.TaskWorkLogRequest;
 import com.demo.common.dto.TaskWorkLogResponse;
 import com.demo.common.dto.UserDto;
+import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
+import com.demo.task.model.OutboxEvent;
+import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.TaskWorkLog;
+import com.demo.task.outbox.OutboxPublisher;
+import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskWorkLogRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,20 +27,29 @@ import java.util.stream.Collectors;
 
 /**
  * Manages work log entries for tasks, tracking planned and booked hours per user and work type.
+ * Publishes audit events to the outbox for every create, update, and delete operation.
  */
 @Service
 public class TaskWorkLogService {
 
+    private static final String AGGREGATE_TYPE = "Task";
+
     private final TaskWorkLogRepository repository;
     private final TaskRepository taskRepository;
+    private final OutboxRepository outboxRepository;
     private final UserClient userClient;
+    private final ObjectMapper objectMapper;
 
     public TaskWorkLogService(TaskWorkLogRepository repository,
                               TaskRepository taskRepository,
-                              UserClient userClient) {
+                              OutboxRepository outboxRepository,
+                              UserClient userClient,
+                              ObjectMapper objectMapper) {
         this.repository = repository;
         this.taskRepository = taskRepository;
+        this.outboxRepository = outboxRepository;
         this.userClient = userClient;
+        this.objectMapper = objectMapper;
     }
 
     /** Returns all work log entries for the given task, enriched with user display names. */
@@ -46,6 +62,7 @@ public class TaskWorkLogService {
     /**
      * Creates a new work log entry on the task.
      * Validates that both the task and the user exist before persisting.
+     * Publishes a WORK_LOG_CREATED audit event.
      */
     @Transactional
     public TaskWorkLogResponse create(UUID taskId, TaskWorkLogRequest request) {
@@ -59,12 +76,15 @@ public class TaskWorkLogService {
                 .bookedHours(request.getBookedHours())
                 .createdAt(Instant.now())
                 .build());
+        writeToOutbox(TaskChangedEvent.workLogCreated(taskId, saved.getId(), saved.getUserId(),
+                saved.getWorkType(), saved.getPlannedHours(), saved.getBookedHours()));
         return toResponse(saved, user.getName());
     }
 
     /**
      * Updates the userId, workType, and bookedHours of an existing work log entry.
      * plannedHours is immutable once set and is intentionally not updated here.
+     * Publishes a WORK_LOG_UPDATED audit event.
      */
     @Transactional
     public TaskWorkLogResponse update(UUID taskId, UUID workLogId, TaskWorkLogRequest request) {
@@ -75,10 +95,16 @@ public class TaskWorkLogService {
         log.setWorkType(request.getWorkType());
         log.setBookedHours(request.getBookedHours());
         // plannedHours is immutable: intentionally not updated
-        return toResponse(repository.save(log), user.getName());
+        TaskWorkLog saved = repository.save(log);
+        writeToOutbox(TaskChangedEvent.workLogUpdated(taskId, saved.getId(), saved.getUserId(),
+                saved.getWorkType(), saved.getPlannedHours(), saved.getBookedHours()));
+        return toResponse(saved, user.getName());
     }
 
-    /** Soft-deletes a work log entry; throws if not found. */
+    /**
+     * Soft-deletes a work log entry; throws if not found.
+     * Publishes a WORK_LOG_DELETED audit event.
+     */
     @Transactional
     public void delete(UUID taskId, UUID workLogId) {
         assertTaskExists(taskId);
@@ -86,6 +112,7 @@ public class TaskWorkLogService {
             throw new ResourceNotFoundException("TaskWorkLog", workLogId);
         }
         repository.deleteById(workLogId);
+        writeToOutbox(TaskChangedEvent.workLogDeleted(taskId, workLogId));
     }
 
     private void assertTaskExists(UUID taskId) {
@@ -127,6 +154,23 @@ public class TaskWorkLogService {
                     .collect(Collectors.toMap(UserDto::getId, UserDto::getName));
         } catch (Exception e) {
             return Map.of();
+        }
+    }
+
+    /** Serializes the event to JSON and saves it to the outbox table within the current transaction. */
+    private void writeToOutbox(TaskChangedEvent event) {
+        try {
+            outboxRepository.save(OutboxEvent.builder()
+                    .aggregateType(AGGREGATE_TYPE)
+                    .aggregateId(event.getTaskId())
+                    .eventType(OutboxEventType.TASK_CHANGED)
+                    .topic(OutboxPublisher.TOPIC)
+                    .payload(objectMapper.writeValueAsString(event))
+                    .published(false)
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize work log outbox event", e);
         }
     }
 }

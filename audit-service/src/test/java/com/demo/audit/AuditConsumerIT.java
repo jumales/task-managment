@@ -3,10 +3,14 @@ package com.demo.audit;
 import com.demo.audit.model.AuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
+import com.demo.audit.model.WorkLogAuditRecord;
 import com.demo.audit.repository.AuditRepository;
 import com.demo.audit.repository.CommentAuditRepository;
 import com.demo.audit.repository.PhaseAuditRepository;
+import com.demo.audit.repository.WorkLogAuditRepository;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.WorkType;
+import com.demo.common.event.TaskChangeType;
 import com.demo.common.event.TaskChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,6 +54,9 @@ class AuditConsumerIT {
     AuditRepository auditRepository;
 
     @Autowired
+    WorkLogAuditRepository workLogAuditRepository;
+
+    @Autowired
     CommentAuditRepository commentAuditRepository;
 
     @Autowired
@@ -59,6 +67,7 @@ class AuditConsumerIT {
         auditRepository.deleteAll();
         commentAuditRepository.deleteAll();
         phaseAuditRepository.deleteAll();
+        workLogAuditRepository.deleteAll();
     }
 
     // ── Status events ─────────────────────────────────────────────
@@ -209,6 +218,89 @@ class AuditConsumerIT {
             assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
             assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(1);
             assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
+        });
+    }
+
+    // ── Work log events ───────────────────────────────────────────
+
+    @Test
+    void consumeWorkLogCreatedEvent_persistsAuditRecord() {
+        UUID taskId    = UUID.randomUUID();
+        UUID workLogId = UUID.randomUUID();
+        UUID userId    = UUID.randomUUID();
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.workLogCreated(taskId, workLogId, userId,
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(3)));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getWorkLogId()).isEqualTo(workLogId);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
+            assertThat(records.get(0).getWorkLogUserId()).isEqualTo(userId);
+            assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
+            assertThat(records.get(0).getPlannedHours()).isEqualTo(BigInteger.valueOf(8));
+            assertThat(records.get(0).getBookedHours()).isEqualTo(BigInteger.valueOf(3));
+            assertThat(records.get(0).getRecordedAt()).isNotNull();
+        });
+    }
+
+    @Test
+    void consumeWorkLogUpdatedEvent_persistsAuditRecord() {
+        UUID taskId    = UUID.randomUUID();
+        UUID workLogId = UUID.randomUUID();
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.workLogUpdated(taskId, workLogId, UUID.randomUUID(),
+                        WorkType.TESTING, BigInteger.valueOf(4), BigInteger.valueOf(4)));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_UPDATED);
+            assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.TESTING);
+        });
+    }
+
+    @Test
+    void consumeWorkLogDeletedEvent_persistsAuditRecord() {
+        UUID taskId    = UUID.randomUUID();
+        UUID workLogId = UUID.randomUUID();
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.workLogDeleted(taskId, workLogId));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_DELETED);
+            assertThat(records.get(0).getWorkLogId()).isEqualTo(workLogId);
+            assertThat(records.get(0).getPlannedHours()).isNull();
+            assertThat(records.get(0).getBookedHours()).isNull();
+        });
+    }
+
+    @Test
+    void multipleWorkLogEvents_allPersistedInOrder() {
+        UUID taskId    = UUID.randomUUID();
+        UUID workLogId = UUID.randomUUID();
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.workLogCreated(taskId, workLogId, UUID.randomUUID(),
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(0)));
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.workLogUpdated(taskId, workLogId, UUID.randomUUID(),
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(5)));
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.workLogDeleted(taskId, workLogId));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            assertThat(records).hasSize(3);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
+            assertThat(records.get(1).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_UPDATED);
+            assertThat(records.get(2).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_DELETED);
         });
     }
 }

@@ -3,9 +3,11 @@ package com.demo.audit.controller;
 import com.demo.audit.model.AuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
+import com.demo.audit.model.WorkLogAuditRecord;
 import com.demo.audit.repository.AuditRepository;
 import com.demo.audit.repository.CommentAuditRepository;
 import com.demo.audit.repository.PhaseAuditRepository;
+import com.demo.audit.repository.WorkLogAuditRepository;
 import com.demo.common.web.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,13 +25,16 @@ public class AuditController {
     private final AuditRepository auditRepository;
     private final CommentAuditRepository commentAuditRepository;
     private final PhaseAuditRepository phaseAuditRepository;
+    private final WorkLogAuditRepository workLogAuditRepository;
 
     public AuditController(AuditRepository auditRepository,
                            CommentAuditRepository commentAuditRepository,
-                           PhaseAuditRepository phaseAuditRepository) {
+                           PhaseAuditRepository phaseAuditRepository,
+                           WorkLogAuditRepository workLogAuditRepository) {
         this.auditRepository = auditRepository;
         this.commentAuditRepository = commentAuditRepository;
         this.phaseAuditRepository = phaseAuditRepository;
+        this.workLogAuditRepository = workLogAuditRepository;
     }
 
     /** Returns all recorded status transitions for the given task, ordered chronologically. */
@@ -57,5 +62,14 @@ public class AuditController {
     public List<PhaseAuditRecord> getPhaseHistory(
             @Parameter(description = "Task UUID") @PathVariable UUID taskId) {
         return phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+    }
+
+    /** Returns all recorded work log changes (create/update/delete) for the given task, ordered chronologically. */
+    @Operation(summary = "Get work log change history for a task",
+               description = "Returns all work log creates, updates, and deletes for the given task, ordered chronologically.")
+    @GetMapping("/tasks/{taskId}/work-logs")
+    public List<WorkLogAuditRecord> getWorkLogHistory(
+            @Parameter(description = "Task UUID") @PathVariable UUID taskId) {
+        return workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
     }
 }
