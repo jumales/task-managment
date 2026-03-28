@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest } from './types';
+import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
@@ -52,6 +52,26 @@ export function addParticipant(taskId: string, request: TaskParticipantRequest) 
 /** Removes a participant from a task. */
 export function removeParticipant(taskId: string, participantId: string) {
   return apiClient.delete(`${TASKS_URL}/${taskId}/participants/${participantId}`);
+}
+
+/** Fetches all work log entries for a task. */
+export function getWorkLogs(taskId: string) {
+  return apiClient.get<TaskWorkLogResponse[]>(`${TASKS_URL}/${taskId}/work-logs`).then((r) => r.data);
+}
+
+/** Adds a work log entry to a task. */
+export function createWorkLog(taskId: string, request: TaskWorkLogRequest) {
+  return apiClient.post<TaskWorkLogResponse>(`${TASKS_URL}/${taskId}/work-logs`, request).then((r) => r.data);
+}
+
+/** Updates an existing work log entry. */
+export function updateWorkLog(taskId: string, workLogId: string, request: TaskWorkLogRequest) {
+  return apiClient.put<TaskWorkLogResponse>(`${TASKS_URL}/${taskId}/work-logs/${workLogId}`, request).then((r) => r.data);
+}
+
+/** Soft-deletes a work log entry. */
+export function deleteWorkLog(taskId: string, workLogId: string) {
+  return apiClient.delete(`${TASKS_URL}/${taskId}/work-logs/${workLogId}`);
 }
 
 /** Fetches all projects. */
