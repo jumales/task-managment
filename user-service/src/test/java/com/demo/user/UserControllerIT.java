@@ -36,7 +36,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "eureka.client.enabled=false"
+        properties = {
+                "eureka.client.enabled=false",
+                // No Kafka in CI for user-service — make the producer fail fast instead of
+                // blocking for the default max.block.ms=60000 ms on every send() call.
+                "spring.kafka.bootstrap-servers=localhost:1",
+                "spring.kafka.producer.properties.max.block.ms=500"
+        }
 )
 class UserControllerIT {
 
