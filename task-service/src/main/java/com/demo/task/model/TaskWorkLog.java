@@ -6,7 +6,6 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
-import java.math.BigInteger;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -40,11 +39,11 @@ public class TaskWorkLog {
 
     /** Estimated hours planned for this work entry. */
     @Column(name = "planned_hours", nullable = false)
-    private BigInteger plannedHours;
+    private Integer plannedHours;
 
     /** Actual hours worked and booked against this entry. */
     @Column(name = "booked_hours", nullable = false)
-    private BigInteger bookedHours;
+    private Integer bookedHours;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

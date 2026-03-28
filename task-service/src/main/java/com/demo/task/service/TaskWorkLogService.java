@@ -1,5 +1,6 @@
 package com.demo.task.service;
 
+import java.math.BigInteger;
 import com.demo.common.dto.TaskWorkLogRequest;
 import com.demo.common.dto.TaskWorkLogResponse;
 import com.demo.common.dto.UserDto;
@@ -72,12 +73,12 @@ public class TaskWorkLogService {
                 .taskId(taskId)
                 .userId(request.getUserId())
                 .workType(request.getWorkType())
-                .plannedHours(request.getPlannedHours())
-                .bookedHours(request.getBookedHours())
+                .plannedHours(request.getPlannedHours() != null ? request.getPlannedHours().intValue() : 0)
+                .bookedHours(request.getBookedHours()  != null ? request.getBookedHours().intValue()  : 0)
                 .createdAt(Instant.now())
                 .build());
         writeToOutbox(TaskChangedEvent.workLogCreated(taskId, saved.getId(), saved.getUserId(),
-                saved.getWorkType(), saved.getPlannedHours(), saved.getBookedHours()));
+                saved.getWorkType(), BigInteger.valueOf(saved.getPlannedHours()), BigInteger.valueOf(saved.getBookedHours())));
         return toResponse(saved, user.getName());
     }
 
@@ -93,11 +94,11 @@ public class TaskWorkLogService {
         UserDto user = userClient.getUserById(request.getUserId());
         log.setUserId(request.getUserId());
         log.setWorkType(request.getWorkType());
-        log.setBookedHours(request.getBookedHours());
+        log.setBookedHours(request.getBookedHours() != null ? request.getBookedHours().intValue() : 0);
         // plannedHours is immutable: intentionally not updated
         TaskWorkLog saved = repository.save(log);
         writeToOutbox(TaskChangedEvent.workLogUpdated(taskId, saved.getId(), saved.getUserId(),
-                saved.getWorkType(), saved.getPlannedHours(), saved.getBookedHours()));
+                saved.getWorkType(), BigInteger.valueOf(saved.getPlannedHours()), BigInteger.valueOf(saved.getBookedHours())));
         return toResponse(saved, user.getName());
     }
 
@@ -142,8 +143,8 @@ public class TaskWorkLogService {
                 log.getUserId(),
                 userName,
                 log.getWorkType(),
-                log.getPlannedHours(),
-                log.getBookedHours(),
+                BigInteger.valueOf(log.getPlannedHours()),
+                BigInteger.valueOf(log.getBookedHours()),
                 log.getCreatedAt());
     }
 

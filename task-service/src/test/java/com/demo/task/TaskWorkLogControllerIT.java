@@ -187,7 +187,7 @@ class TaskWorkLogControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getUserId()).isEqualTo(BOB_ID);
         assertThat(response.getBody().getWorkType()).isEqualTo(WorkType.CODE_REVIEW);
-        assertThat(response.getBody().getPlannedHours()).isEqualTo(BigInteger.valueOf(2));
+        assertThat(response.getBody().getPlannedHours()).isEqualTo(BigInteger.valueOf(4)); // immutable: stays at original 4
         assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(2));
     }
 
