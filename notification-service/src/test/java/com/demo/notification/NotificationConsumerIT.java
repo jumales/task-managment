@@ -255,12 +255,13 @@ class NotificationConsumerIT {
         UUID assignee  = UUID.randomUUID();
         UUID projectId = UUID.randomUUID();
 
-        // Configure mock to return a project-level template for STATUS_CHANGED
-        when(taskServiceClient.getTemplate(projectId, TaskChangeType.STATUS_CHANGED))
-                .thenReturn(new ProjectNotificationTemplateResponse(
+        // Configure mock to return a project-level template for STATUS_CHANGED.
+        // Use doReturn to avoid invoking the already-stubbed thenThrow on this mock.
+        org.mockito.Mockito.doReturn(new ProjectNotificationTemplateResponse(
                         UUID.randomUUID(), projectId, TaskChangeType.STATUS_CHANGED,
                         "Custom: task {taskTitle} changed to {toStatus}",
-                        "Body for {taskTitle} in project {projectId}"));
+                        "Body for {taskTitle} in project {projectId}"))
+                .when(taskServiceClient).getTemplate(projectId, TaskChangeType.STATUS_CHANGED);
 
         kafkaTemplate.send("task-changed", taskId.toString(),
                 TaskChangedEvent.statusChanged(taskId, assignee, projectId, "Template Task",

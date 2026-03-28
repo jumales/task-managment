@@ -56,9 +56,13 @@ public class ProjectNotificationTemplateService {
     public ProjectNotificationTemplateResponse upsert(UUID projectId, TaskChangeType eventType,
                                                        ProjectNotificationTemplateRequest request) {
         projectService.getOrThrow(projectId);
-        // Soft-delete any existing template for the same project + event type
+        // Soft-delete any existing template for the same project + event type.
+        // Flush immediately so the partial unique index sees the deleted row before the INSERT.
         repository.findByProjectIdAndEventType(projectId, eventType)
-                .ifPresent(existing -> repository.deleteById(existing.getId()));
+                .ifPresent(existing -> {
+                    repository.deleteById(existing.getId());
+                    repository.flush();
+                });
 
         ProjectNotificationTemplate saved = repository.save(ProjectNotificationTemplate.builder()
                 .projectId(projectId)
