@@ -48,6 +48,16 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: http://localhost:8180/realms/demo
+      client:
+        registration:
+          keycloak:
+            client-id: notification-service
+            client-secret: notification-secret
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            token-uri: http://localhost:8180/realms/demo/protocol/openid-connect/token
 
 app:
   # Base URL of the frontend — used to build {taskUrl} in notification templates
