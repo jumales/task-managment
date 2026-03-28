@@ -98,8 +98,8 @@ public class TaskEventConsumer {
                 .changeType(event.getChangeType())
                 .workLogUserId(event.getWorkLogUserId())
                 .workType(event.getWorkType())
-                .plannedHours(event.getPlannedHours())
-                .bookedHours(event.getBookedHours())
+                .plannedHours(event.getPlannedHours() != null ? event.getPlannedHours().intValue() : null)
+                .bookedHours(event.getBookedHours()  != null ? event.getBookedHours().intValue()  : null)
                 .changedAt(event.getChangedAt())
                 .recordedAt(Instant.now())
                 .build());

@@ -8,6 +8,7 @@ import com.demo.notification.model.NotificationRecord;
 import com.demo.notification.repository.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -37,9 +38,11 @@ public class NotificationService {
     }
 
     /**
-     * Processes a task change event: resolves the recipient, sends an email,
+     * Processes a task change event asynchronously: resolves the recipient, sends an email,
      * and stores the notification record. Skips silently if no recipient is set.
+     * Runs in a separate thread so the Kafka consumer is not blocked by the email send.
      */
+    @Async
     public void notify(TaskChangedEvent event) {
         UUID recipientId = resolveRecipientId(event);
         if (recipientId == null) {

@@ -240,8 +240,8 @@ class AuditConsumerIT {
             assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
             assertThat(records.get(0).getWorkLogUserId()).isEqualTo(userId);
             assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
-            assertThat(records.get(0).getPlannedHours()).isEqualTo(BigInteger.valueOf(8));
-            assertThat(records.get(0).getBookedHours()).isEqualTo(BigInteger.valueOf(3));
+            assertThat(records.get(0).getPlannedHours()).isEqualTo(8);
+            assertThat(records.get(0).getBookedHours()).isEqualTo(3);
             assertThat(records.get(0).getRecordedAt()).isNotNull();
         });
     }

@@ -5,7 +5,6 @@ import com.demo.common.event.TaskChangeType;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigInteger;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -39,10 +38,10 @@ public class WorkLogAuditRecord {
     private WorkType workType;
 
     /** Null for DELETED events. */
-    private BigInteger plannedHours;
+    private Integer plannedHours;
 
     /** Null for DELETED events. */
-    private BigInteger bookedHours;
+    private Integer bookedHours;
 
     private Instant changedAt;   // when the change happened in task-service
     private Instant recordedAt;  // when audit-service stored this record
