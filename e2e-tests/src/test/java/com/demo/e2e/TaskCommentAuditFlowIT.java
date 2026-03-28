@@ -8,6 +8,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -35,9 +37,9 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
         publish(event);
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(1));
+                assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
-        CommentAuditRecord record = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId).get(0);
+        CommentAuditRecord record = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
         assertThat(record.getTaskId()).isEqualTo(taskId);
         assertThat(record.getAssignedUserId()).isEqualTo(userId);
         assertThat(record.getCommentId()).isEqualTo(commentId);
@@ -53,9 +55,9 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
         publish(TaskChangedEvent.commentAdded(taskId, userId, null, null, UUID.randomUUID(), "Third"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(3));
+                assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(3));
 
-        List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId);
+        List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent();
         assertThat(records).extracting(CommentAuditRecord::getContent)
                 .containsExactly("First", "Second", "Third");
     }
@@ -66,7 +68,7 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
         publish(TaskChangedEvent.commentAdded(taskId, userId, null, null, commentId, "Persisted comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(1));
+                assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
         ResponseEntity<List<CommentAuditRecord>> response = restTemplate.exchange(
                 url("/api/v1/audit/tasks/" + taskId + "/comments"),

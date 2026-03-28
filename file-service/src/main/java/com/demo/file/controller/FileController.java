@@ -47,6 +47,7 @@ public class FileController {
     @ApiResponse(responseCode = ResponseCode.CREATED, description = "File uploaded")
     @PostMapping(value = "/avatars", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
     public FileUploadResponse uploadAvatar(
             @Parameter(description = "Image file (JPEG, PNG, GIF, WebP)")
             @RequestPart("file") MultipartFile file,
@@ -61,6 +62,7 @@ public class FileController {
     @ApiResponse(responseCode = ResponseCode.CREATED, description = "File uploaded")
     @PostMapping(value = "/attachments", consumes = "multipart/form-data")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
     public FileUploadResponse uploadAttachment(
             @Parameter(description = "Attachment file")
             @RequestPart("file") MultipartFile file,

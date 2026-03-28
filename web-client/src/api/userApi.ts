@@ -9,6 +9,11 @@ export function getUsers(params?: { page?: number; size?: number }) {
   return apiClient.get<PageResponse<UserResponse>>(USERS_URL, { params: { size: 20, ...params } }).then((r) => r.data);
 }
 
+/** Fetches the profile of the currently authenticated user. */
+export function getMe() {
+  return apiClient.get<UserResponse>(`${USERS_URL}/me`).then((r) => r.data);
+}
+
 /** Fetches a single user by ID. */
 export function getUser(id: string) {
   return apiClient.get<UserResponse>(`${USERS_URL}/${id}`).then((r) => r.data);

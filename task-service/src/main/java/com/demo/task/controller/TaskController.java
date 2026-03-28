@@ -46,6 +46,7 @@ public class TaskController {
                description = "Returns a page of tasks. Optionally filter by `userId`, `projectId`, or `status`. "
                            + "Use `page`, `size`, and `sort` query parameters to control pagination.")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public PageResponse<TaskResponse> getAll(
             @Parameter(description = "Filter by assigned user UUID") @RequestParam(required = false) UUID userId,
             @Parameter(description = "Filter by project UUID") @RequestParam(required = false) UUID projectId,
@@ -64,6 +65,7 @@ public class TaskController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public TaskResponse getById(@Parameter(description = "Task UUID") @PathVariable UUID id) {
         return service.findById(id);
     }
@@ -112,6 +114,7 @@ public class TaskController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task not found")
     })
     @GetMapping("/{id}/comments")
+    @PreAuthorize("isAuthenticated()")
     public List<TaskCommentResponse> getComments(@Parameter(description = "Task UUID") @PathVariable UUID id) {
         return service.getComments(id);
     }

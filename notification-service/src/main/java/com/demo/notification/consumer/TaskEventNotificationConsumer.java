@@ -24,7 +24,7 @@ public class TaskEventNotificationConsumer {
     }
 
     /** Receives a task change event from Kafka and triggers an email notification. */
-    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "notification-group")
+    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "notification-group", concurrency = "3")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
         notificationService.notify(event);

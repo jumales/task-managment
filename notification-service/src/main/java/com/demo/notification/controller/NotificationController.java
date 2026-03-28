@@ -1,13 +1,17 @@
 package com.demo.notification.controller;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.notification.dto.NotificationResponse;
 import com.demo.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -24,12 +28,14 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    /** Returns all email notifications sent for the given task, in chronological order. */
+    /** Returns a paginated page of email notifications sent for the given task, in chronological order. */
     @Operation(summary = "Get notification history for a task",
-               description = "Returns all email notifications sent for the given task, ordered chronologically.")
+               description = "Returns a paginated page of email notifications sent for the given task, ordered chronologically.")
     @GetMapping("/tasks/{taskId}")
-    public List<NotificationResponse> getByTaskId(
-            @Parameter(description = "Task UUID") @PathVariable UUID taskId) {
-        return notificationService.getByTaskId(taskId);
+    @PreAuthorize("isAuthenticated()")
+    public PageResponse<NotificationResponse> getByTaskId(
+            @Parameter(description = "Task UUID") @PathVariable UUID taskId,
+            @PageableDefault(size = 20, sort = "sentAt", direction = Sort.Direction.ASC) Pageable pageable) {
+        return notificationService.getByTaskId(taskId, pageable);
     }
 }

@@ -25,7 +25,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: notification-group
       auto-offset-reset: earliest
@@ -47,17 +47,17 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/demo
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/demo}
       client:
         registration:
           keycloak:
             client-id: notification-service
-            client-secret: notification-secret
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:notification-secret}
             authorization-grant-type: client_credentials
             scope: openid
         provider:
           keycloak:
-            token-uri: http://localhost:8180/realms/demo/protocol/openid-connect/token
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/demo/protocol/openid-connect/token}
 
 app:
   # Base URL of the frontend — used to build {taskUrl} in notification templates
@@ -66,6 +66,13 @@ app:
 notification:
   mail:
     from: noreply@demo.local
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 2000   # 2 s — fail fast on connection refused
+        read-timeout: 5000      # 5 s — prevent thread starvation on slow responses
 
 eureka:
   client:

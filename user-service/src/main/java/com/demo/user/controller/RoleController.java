@@ -30,6 +30,7 @@ public class RoleController {
     /** Returns all roles. */
     @Operation(summary = "List all roles")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<RoleDto> getAll() {
         return service.findAll();
     }
@@ -41,6 +42,7 @@ public class RoleController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Role not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public RoleDto getById(@Parameter(description = "Role UUID") @PathVariable UUID id) {
         return service.findById(id);
     }

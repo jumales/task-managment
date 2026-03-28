@@ -11,6 +11,7 @@ import com.demo.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -157,7 +158,7 @@ class NotificationConsumerIT {
                         TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             List<Map<String, Object>> messages = getMailhogMessages();
             assertThat(messages).hasSize(1);
             assertThat(subjectOf(messages.get(0))).contains("IN_PROGRESS");
@@ -175,7 +176,7 @@ class NotificationConsumerIT {
                         UUID.randomUUID(), "Great progress!"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             List<Map<String, Object>> messages = getMailhogMessages();
             assertThat(messages).hasSize(1);
             assertThat(subjectOf(messages.get(0))).contains("comment");
@@ -192,7 +193,7 @@ class NotificationConsumerIT {
                         UUID.randomUUID(), "Backlog", UUID.randomUUID(), "In Review"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             List<Map<String, Object>> messages = getMailhogMessages();
             assertThat(messages).hasSize(1);
             assertThat(subjectOf(messages.get(0))).contains("In Review");
@@ -211,7 +212,7 @@ class NotificationConsumerIT {
                         java.math.BigInteger.valueOf(8), java.math.BigInteger.ZERO));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             assertThat(getMailhogMessages()).hasSize(1);
         });
     }
@@ -227,7 +228,7 @@ class NotificationConsumerIT {
 
         // Wait a bit to confirm nothing arrives
         await().atMost(5, SECONDS).untilAsserted(() ->
-                assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).isEmpty()
+                assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).isEmpty()
         );
         assertThat(getMailhogMessages()).isEmpty();
     }
@@ -242,7 +243,7 @@ class NotificationConsumerIT {
                 TaskChangedEvent.taskCreated(taskId, assignee, projectId, "My New Task"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             List<Map<String, Object>> messages = getMailhogMessages();
             assertThat(messages).hasSize(1);
             assertThat(subjectOf(messages.get(0))).contains("My New Task");
@@ -268,7 +269,7 @@ class NotificationConsumerIT {
                         TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(1);
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             List<Map<String, Object>> messages = getMailhogMessages();
             assertThat(messages).hasSize(1);
             // Subject should use the custom template with placeholders rendered
@@ -292,14 +293,14 @@ class NotificationConsumerIT {
                         UUID.randomUUID(), "A comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId)).hasSize(2)
+                assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(2)
         );
 
-        ResponseEntity<Object[]> response = restTemplate.getForEntity(
-                "/api/v1/notifications/tasks/" + taskId, Object[].class);
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                "/api/v1/notifications/tasks/" + taskId, Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
+        assertThat((List<?>) response.getBody().get("content")).hasSize(2);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
