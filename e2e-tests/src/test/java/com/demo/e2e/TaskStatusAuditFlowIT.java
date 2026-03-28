@@ -9,6 +9,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -34,9 +36,9 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
         publish(event);
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1));
+                assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
-        AuditRecord record = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId).get(0);
+        AuditRecord record = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
         assertThat(record.getTaskId()).isEqualTo(taskId);
         assertThat(record.getAssignedUserId()).isEqualTo(userId);
         assertThat(record.getFromStatus()).isEqualTo(TaskStatus.TODO);
@@ -53,9 +55,9 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
                 TaskStatus.IN_PROGRESS, TaskStatus.DONE));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(2));
+                assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(2));
 
-        List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+        List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
         assertThat(records.get(0).getToStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
         assertThat(records.get(1).getToStatus()).isEqualTo(TaskStatus.DONE);
     }
@@ -66,7 +68,7 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
                 TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1));
+                assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
         ResponseEntity<List<AuditRecord>> response = restTemplate.exchange(
                 url("/api/v1/audit/tasks/" + taskId + "/statuses"),

@@ -16,6 +16,7 @@ import com.demo.common.event.TaskEvent;
 import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
+import com.demo.task.client.UserClientHelper;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.Task;
@@ -23,6 +24,7 @@ import com.demo.task.model.TaskComment;
 import com.demo.task.model.TaskPhase;
 import com.demo.task.model.TaskProject;
 import com.demo.task.outbox.OutboxPublisher;
+import com.demo.task.outbox.OutboxWriter;
 import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
@@ -51,26 +53,32 @@ public class TaskService {
     private final TaskCommentRepository commentRepository;
     private final OutboxRepository outboxRepository;
     private final UserClient userClient;
+    private final UserClientHelper userClientHelper;
     private final TaskProjectService projectService;
     private final TaskPhaseService phaseService;
     private final TaskParticipantService participantService;
+    private final OutboxWriter outboxWriter;
     private final ObjectMapper objectMapper;
 
     public TaskService(TaskRepository repository,
                        TaskCommentRepository commentRepository,
                        OutboxRepository outboxRepository,
                        UserClient userClient,
+                       UserClientHelper userClientHelper,
                        TaskProjectService projectService,
                        TaskPhaseService phaseService,
                        TaskParticipantService participantService,
+                       OutboxWriter outboxWriter,
                        ObjectMapper objectMapper) {
         this.repository = repository;
         this.commentRepository = commentRepository;
         this.outboxRepository = outboxRepository;
         this.userClient = userClient;
+        this.userClientHelper = userClientHelper;
         this.projectService = projectService;
         this.phaseService = phaseService;
         this.participantService = participantService;
+        this.outboxWriter = outboxWriter;
         this.objectMapper = objectMapper;
     }
 
@@ -137,7 +145,7 @@ public class TaskService {
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_CREATED,
                 project.getName(), phaseId, user.getName());
-        writeToOutbox(TaskChangedEvent.taskCreated(saved.getId(), saved.getAssignedUserId(),
+        outboxWriter.write(TaskChangedEvent.taskCreated(saved.getId(), saved.getAssignedUserId(),
                 saved.getProjectId(), saved.getTitle()));
         return toResponse(saved);
     }
@@ -172,7 +180,7 @@ public class TaskService {
 
         // Publish lifecycle event to task-events topic so search-service keeps its index current.
         TaskProject project = projectService.getOrThrow(saved.getProjectId());
-        String userName = resolveUserName(saved.getAssignedUserId());
+        String userName = userClientHelper.resolveUserName(saved.getAssignedUserId());
         writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_UPDATED,
                 project.getName(), saved.getPhaseId(), userName);
 
@@ -183,13 +191,13 @@ public class TaskService {
     private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus newStatus,
                                      UUID oldPhaseId, UUID newPhaseId) {
         if (newStatus != null && !newStatus.equals(oldStatus)) {
-            writeToOutbox(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
+            outboxWriter.write(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
                     saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
         }
         if (!Objects.equals(oldPhaseId, newPhaseId)) {
             String oldName = oldPhaseId != null ? phaseService.getOrThrow(oldPhaseId).getName() : null;
             String newName = newPhaseId != null ? phaseService.getOrThrow(newPhaseId).getName() : null;
-            writeToOutbox(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
+            outboxWriter.write(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
                     saved.getProjectId(), saved.getTitle(), oldPhaseId, oldName, newPhaseId, newName));
         }
     }
@@ -213,7 +221,7 @@ public class TaskService {
                 .createdAt(Instant.now())
                 .build());
 
-        writeToOutbox(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(),
+        outboxWriter.write(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(),
                 task.getProjectId(), task.getTitle(), saved.getId(), saved.getContent()));
 
         return new TaskCommentResponse(saved.getId(), saved.getContent(), saved.getCreatedAt());
@@ -229,23 +237,6 @@ public class TaskService {
         // Write the lifecycle event before the soft-delete so the task ID is still in context.
         writeTaskDeletedOutboxEvent(id);
         repository.deleteById(id);
-    }
-
-    // Serializes the event to JSON and saves it to the outbox table within the current transaction.
-    private void writeToOutbox(TaskChangedEvent event) {
-        try {
-            outboxRepository.save(OutboxEvent.builder()
-                    .aggregateType(AGGREGATE_TYPE)
-                    .aggregateId(event.getTaskId())
-                    .eventType(OutboxEventType.TASK_CHANGED)
-                    .topic(OutboxPublisher.TOPIC)
-                    .payload(objectMapper.writeValueAsString(event))
-                    .published(false)
-                    .createdAt(Instant.now())
-                    .build());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize outbox event", e);
-        }
     }
 
     /**
@@ -270,16 +261,6 @@ public class TaskService {
     /** Writes a TASK_DELETED lifecycle event to the outbox so search-service can remove the document. */
     private void writeTaskDeletedOutboxEvent(UUID taskId) {
         writeLifecycleToOutbox(taskId, OutboxEventType.TASK_DELETED, TaskEvent.deleted(taskId));
-    }
-
-    /** Resolves the assigned user's display name; returns null if user-service is unavailable. */
-    private String resolveUserName(UUID assignedUserId) {
-        if (assignedUserId == null) return null;
-        try {
-            return userClient.getUserById(assignedUserId).getName();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     /** Serializes a lifecycle event to JSON and saves it to the outbox for the {@code task-events} topic. */

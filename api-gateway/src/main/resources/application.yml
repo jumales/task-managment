@@ -23,6 +23,21 @@ spring:
         request-rate-limiter:
           deny-empty-key: false
       routes:
+        # Rate-limited: GET /api/v1/users/** — 60 req/min per user to prevent enumeration
+        # replenishRate 1/s, requestedTokens 1 → 60/min, burst up to 10
+        - id: user-service-users-read
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@principalKeyResolver}"
+
         - id: user-service-users
           uri: lb://user-service
           predicates:
@@ -74,6 +89,21 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        # Rate-limited: GET /api/v1/search/** — 30 req/min per user to prevent scraping
+        # replenishRate 1/2s, requestedTokens 2 → 30/min, burst up to 5
+        - id: search-service-search-read
+          uri: lb://search-service
+          predicates:
+            - Path=/api/v1/search/**
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 2
+                key-resolver: "#{@principalKeyResolver}"
+
         - id: search-service-search
           uri: lb://search-service
           predicates:
@@ -119,7 +149,7 @@ spring:
         jwt:
           # Keycloak issues tokens for the 'demo' realm; Spring fetches JWKS on startup
           # and validates signatures locally — no round-trip to Keycloak per request.
-          issuer-uri: http://localhost:8180/realms/demo
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/demo}
 
 eureka:
   client:

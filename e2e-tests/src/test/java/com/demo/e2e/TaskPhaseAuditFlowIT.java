@@ -8,6 +8,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -37,9 +39,9 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
         publish(event);
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1));
+                assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
-        PhaseAuditRecord record = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId).get(0);
+        PhaseAuditRecord record = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
         assertThat(record.getTaskId()).isEqualTo(taskId);
         assertThat(record.getAssignedUserId()).isEqualTo(userId);
         assertThat(record.getFromPhaseId()).isEqualTo(fromPhaseId);
@@ -62,9 +64,9 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
                 phaseB, "In Progress", phaseC, "Done"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(2));
+                assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(2));
 
-        List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+        List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
         assertThat(records.get(0).getToPhaseName()).isEqualTo("In Progress");
         assertThat(records.get(1).getToPhaseName()).isEqualTo("Done");
     }
@@ -77,7 +79,7 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
                 fromPhaseId, "Todo", toPhaseId, "Done"));
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1));
+                assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
         ResponseEntity<List<PhaseAuditRecord>> response = restTemplate.exchange(
                 url("/api/v1/audit/tasks/" + taskId + "/phases"),

@@ -7,13 +7,13 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.exception.DuplicateResourceException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
+import com.demo.task.client.UserClientHelper;
 import com.demo.task.model.TaskParticipant;
 import com.demo.task.repository.TaskParticipantRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,10 +28,14 @@ public class TaskParticipantService {
 
     private final TaskParticipantRepository repository;
     private final UserClient userClient;
+    private final UserClientHelper userClientHelper;
 
-    public TaskParticipantService(TaskParticipantRepository repository, UserClient userClient) {
+    public TaskParticipantService(TaskParticipantRepository repository,
+                                  UserClient userClient,
+                                  UserClientHelper userClientHelper) {
         this.repository = repository;
         this.userClient = userClient;
+        this.userClientHelper = userClientHelper;
     }
 
     /**
@@ -131,7 +135,7 @@ public class TaskParticipantService {
     private List<TaskParticipantResponse> enrich(List<TaskParticipant> participants) {
         if (participants.isEmpty()) return List.of();
         Set<UUID> userIds = participants.stream().map(TaskParticipant::getUserId).collect(Collectors.toSet());
-        Map<UUID, UserDto> usersById = fetchUsers(userIds);
+        Map<UUID, UserDto> usersById = userClientHelper.fetchUsers(userIds);
         return participants.stream()
                 .map(p -> {
                     UserDto u = usersById.get(p.getUserId());
@@ -149,12 +153,4 @@ public class TaskParticipantService {
                 p.getRole());
     }
 
-    private Map<UUID, UserDto> fetchUsers(Set<UUID> userIds) {
-        try {
-            return userClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-                    .collect(Collectors.toMap(UserDto::getId, u -> u));
-        } catch (Exception e) {
-            return Map.of();
-        }
-    }
 }

@@ -30,6 +30,7 @@ public class RightController {
     /** Returns all rights. */
     @Operation(summary = "List all rights")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<RightDto> getAll() {
         return service.findAll();
     }
@@ -41,6 +42,7 @@ public class RightController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Right not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public RightDto getById(@Parameter(description = "Right UUID") @PathVariable UUID id) {
         return service.findById(id);
     }

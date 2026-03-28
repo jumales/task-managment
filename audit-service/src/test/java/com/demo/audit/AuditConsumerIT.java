@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -81,7 +82,7 @@ class AuditConsumerIT {
                         TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getFromStatus()).isEqualTo(TaskStatus.TODO);
             assertThat(records.get(0).getToStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
@@ -101,7 +102,7 @@ class AuditConsumerIT {
                         TaskStatus.IN_PROGRESS, TaskStatus.DONE));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(2);
             assertThat(records.get(0).getToStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
             assertThat(records.get(1).getToStatus()).isEqualTo(TaskStatus.DONE);
@@ -120,7 +121,7 @@ class AuditConsumerIT {
                         commentId, "First comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId);
+            List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getCommentId()).isEqualTo(commentId);
             assertThat(records.get(0).getContent()).isEqualTo("First comment");
@@ -141,7 +142,7 @@ class AuditConsumerIT {
                         UUID.randomUUID(), "Second comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId);
+            List<CommentAuditRecord> records = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(2);
             assertThat(records).extracting("content")
                     .containsExactlyInAnyOrder("First comment", "Second comment");
@@ -162,8 +163,8 @@ class AuditConsumerIT {
                         UUID.randomUUID(), "A comment"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
-            assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(1);
+            assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
+            assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
         });
     }
 
@@ -180,7 +181,7 @@ class AuditConsumerIT {
                         fromPhase, "Backlog", toPhase, "In Review"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getFromPhaseId()).isEqualTo(fromPhase);
             assertThat(records.get(0).getFromPhaseName()).isEqualTo("Backlog");
@@ -206,7 +207,7 @@ class AuditConsumerIT {
                         phaseB, "In Review", phaseC, "Released"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<PhaseAuditRecord> records = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(2);
             assertThat(records.get(0).getToPhaseName()).isEqualTo("In Review");
             assertThat(records.get(1).getToPhaseName()).isEqualTo("Released");
@@ -228,9 +229,9 @@ class AuditConsumerIT {
                         UUID.randomUUID(), "Backlog", UUID.randomUUID(), "Done"));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
-            assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId)).hasSize(1);
-            assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId)).hasSize(1);
+            assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
+            assertThat(commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
+            assertThat(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged())).hasSize(1);
         });
     }
 
@@ -247,7 +248,7 @@ class AuditConsumerIT {
                         WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(3)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getWorkLogId()).isEqualTo(workLogId);
             assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
@@ -269,7 +270,7 @@ class AuditConsumerIT {
                         WorkType.TESTING, BigInteger.valueOf(4), BigInteger.valueOf(4)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_UPDATED);
             assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.TESTING);
@@ -285,7 +286,7 @@ class AuditConsumerIT {
                 TaskChangedEvent.workLogDeleted(taskId, null, null, workLogId));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_DELETED);
             assertThat(records.get(0).getWorkLogId()).isEqualTo(workLogId);
@@ -309,7 +310,7 @@ class AuditConsumerIT {
                 TaskChangedEvent.workLogDeleted(taskId, null, null, workLogId));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId);
+            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(3);
             assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
             assertThat(records.get(1).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_UPDATED);

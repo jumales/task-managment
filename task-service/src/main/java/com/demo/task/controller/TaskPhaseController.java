@@ -31,6 +31,7 @@ public class TaskPhaseController {
     @Operation(summary = "List phases for a project")
     @ApiResponse(responseCode = ResponseCode.OK, description = "Phases returned")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<TaskPhaseResponse> getByProject(
             @Parameter(description = "Project UUID", required = true) @RequestParam UUID projectId) {
         return service.findByProject(projectId);
@@ -43,6 +44,7 @@ public class TaskPhaseController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Phase not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public TaskPhaseResponse getById(@Parameter(description = "Phase UUID") @PathVariable UUID id) {
         return service.findById(id);
     }

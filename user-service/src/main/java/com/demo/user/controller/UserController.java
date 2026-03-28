@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,13 +36,27 @@ public class UserController {
     /** Returns a paginated list of all users. */
     @Operation(summary = "List all users")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public PageResponse<UserDto> getAll(@PageableDefault(size = 20) Pageable pageable) {
         return service.findAll(pageable);
+    }
+
+    /** Returns the profile of the currently authenticated user, resolved from the JWT subject. */
+    @Operation(summary = "Get the current user's profile")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Current user found"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
+    })
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public UserDto getMe(Authentication authentication) {
+        return service.findById(UUID.fromString(authentication.getName()));
     }
 
     /** Returns users whose IDs match the provided list; used for batch lookups by other services. */
     @Operation(summary = "Batch-fetch users by IDs")
     @GetMapping("/batch")
+    @PreAuthorize("isAuthenticated()")
     public List<UserDto> getByIds(@RequestParam("ids") List<UUID> ids) {
         return service.findByIds(ids);
     }
@@ -53,6 +68,7 @@ public class UserController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public UserDto getById(@Parameter(description = "User UUID") @PathVariable UUID id) {
         return service.findById(id);
     }
@@ -96,7 +112,7 @@ public class UserController {
     /**
      * Updates the user's preferred UI language.
      * The request body must contain {@code "language"} (ISO 639-1 code, e.g. "en" or "hr").
-     * Any authenticated user may call this endpoint — no admin role required.
+     * Only admins may change the language preference of any user.
      */
     @Operation(summary = "Set preferred UI language for a user")
     @ApiResponses({
@@ -104,6 +120,7 @@ public class UserController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
     })
     @PatchMapping("/{id}/language")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDto updateLanguage(
             @Parameter(description = "User UUID") @PathVariable UUID id,
             @RequestBody Map<String, String> body) {

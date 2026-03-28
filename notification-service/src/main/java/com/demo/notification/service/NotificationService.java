@@ -5,17 +5,19 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.notification.client.TaskServiceClient;
 import com.demo.notification.client.UserClient;
+import com.demo.common.dto.PageResponse;
 import com.demo.notification.dto.NotificationResponse;
 import com.demo.notification.model.NotificationRecord;
 import com.demo.notification.repository.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -86,11 +88,16 @@ public class NotificationService {
                 .build());
     }
 
-    /** Returns all sent notifications for a given task, ordered by send time. */
-    public List<NotificationResponse> getByTaskId(UUID taskId) {
-        return repository.findByTaskIdOrderBySentAtAsc(taskId).stream()
-                .map(this::toResponse)
-                .toList();
+    /** Returns a paginated page of sent notifications for a given task, ordered by send time. */
+    public PageResponse<NotificationResponse> getByTaskId(UUID taskId, Pageable pageable) {
+        Page<NotificationRecord> page = repository.findByTaskIdOrderBySentAtAsc(taskId, pageable);
+        return new PageResponse<>(
+                page.getContent().stream().map(this::toResponse).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast());
     }
 
     /** Work-log events notify the work-log's user; all other events notify the task's assignee. */

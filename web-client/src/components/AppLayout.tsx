@@ -16,7 +16,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { getUsers, updateUserLanguage } from '../api/userApi';
+import { getMe, updateUserLanguage } from '../api/userApi';
 import i18n from '../i18n';
 
 const { Sider, Header, Content } = Layout;
@@ -31,7 +31,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { name, username, logout } = useAuth();
+  const { name, logout } = useAuth();
 
   const [collapsed,    setCollapsed]    = useState(false);
   const [avatarFileId, setAvatarFileId] = useState<string | null>(null);
@@ -41,10 +41,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Look up the current user's profile (avatar + language) from the user-service
   useEffect(() => {
-    getUsers({ size: 100 })
-      .then((page) => {
-        const me = page.content.find((u) => u.username === username);
-        if (!me) return;
+    getMe()
+      .then((me) => {
         setAvatarFileId(me.avatarFileId ?? null);
         setCurrentUserId(me.id);
         // Apply the language stored in the backend, persisting it locally as well
@@ -54,7 +52,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         localStorage.setItem('language', lang);
       })
       .catch(() => {});
-  }, [username]);
+  }, []);
 
   /** Switches the UI language, persists to localStorage and to the backend. */
   function handleLanguageChange(lang: string) {

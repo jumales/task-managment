@@ -30,6 +30,7 @@ public class TaskProjectController {
     /** Returns all projects. */
     @Operation(summary = "List all projects")
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<TaskProjectResponse> getAll() {
         return service.findAll();
     }
@@ -41,6 +42,7 @@ public class TaskProjectController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Project not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public TaskProjectResponse getById(@Parameter(description = "Project UUID") @PathVariable UUID id) {
         return service.findById(id);
     }
