@@ -506,7 +506,16 @@
                   "  pm.expect(json).to.have.property('totalElements');",
                   "  pm.expect(json).to.have.property('totalPages');",
                   "  pm.expect(json.content).to.be.an('array');",
-                  "});"
+                  "});",
+                  "if (json.content.length > 0) {",
+                  "  pm.test('Summary items have flat fields', () => {",
+                  "    var item = json.content[0];",
+                  "    pm.expect(item).to.have.property('id');",
+                  "    pm.expect(item).to.have.property('projectName');",
+                  "    pm.expect(item).to.have.property('assignedUserName');",
+                  "    pm.expect(item).to.not.have.property('participants');",
+                  "  });",
+                  "}"
                 ],
                 "type": "text/javascript"
               }

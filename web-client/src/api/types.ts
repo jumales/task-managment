@@ -92,6 +92,22 @@ export interface TaskResponse {
   phase: TaskPhaseResponse | null;
 }
 
+/** Mirrors com.demo.common.dto.TaskSummaryResponse — lightweight list view without participants. */
+export interface TaskSummaryResponse {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  type: TaskType | null;
+  progress: number;
+  assignedUserId: string | null;
+  assignedUserName: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  phaseId: string | null;
+  phaseName: string | null;
+}
+
 export interface TaskRequest {
   title: string;
   description: string;

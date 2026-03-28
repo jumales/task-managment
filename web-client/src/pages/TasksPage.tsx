@@ -6,10 +6,10 @@ import {
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects, addParticipant, removeParticipant, getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog } from '../api/taskApi';
+import { getTasks, createTask, updateTask, deleteTask, addComment, getTaskComments, getProjects, addParticipant, removeParticipant, getParticipants, getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskParticipantResponse, TaskParticipantRole, TaskResponse, TaskCommentResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse, WorkType, TaskWorkLogResponse } from '../api/types';
+import type { TaskParticipantResponse, TaskParticipantRole, TaskSummaryResponse, TaskCommentResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse, WorkType, TaskWorkLogResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -31,7 +31,7 @@ const TYPE_COLORS: Record<TaskType, string> = {
 export function TasksPage() {
   const { t } = useTranslation();
 
-  const [tasks,         setTasks]         = useState<TaskResponse[]>([]);
+  const [tasks,         setTasks]         = useState<TaskSummaryResponse[]>([]);
   const [totalTasks,    setTotalTasks]    = useState(0);
   const [currentPage,   setCurrentPage]   = useState(1);
   const [pageSize,      setPageSize]      = useState(20);
@@ -43,10 +43,10 @@ export function TasksPage() {
   const [activeSearch,  setActiveSearch]  = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [modalOpen,     setModalOpen]     = useState(false);
-  const [editingTask,   setEditingTask]   = useState<TaskResponse | null>(null);
+  const [editingTask,   setEditingTask]   = useState<TaskSummaryResponse | null>(null);
   const [submitting,    setSubmitting]    = useState(false);
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
-  const [detailTask,         setDetailTask]         = useState<TaskResponse | null>(null);
+  const [detailTask,         setDetailTask]         = useState<TaskSummaryResponse | null>(null);
   const [comments,           setComments]           = useState<TaskCommentResponse[]>([]);
   const [commentsLoading,    setCommentsLoading]    = useState(false);
   const [comment,            setComment]            = useState('');
@@ -145,12 +145,15 @@ export function TasksPage() {
           title: d.title,
           description: d.description ?? '',
           status: d.status ?? 'TODO',
-          project: { id: d.projectId ?? '', name: d.projectName ?? '—', description: '' },
-          participants: d.assignedUserName
-            ? [{ id: d.assignedUserId ?? '', userId: d.assignedUserId ?? '', userName: d.assignedUserName, userEmail: null, role: 'ASSIGNEE' as TaskParticipantRole }]
-            : [],
-          phase: null,
-        } as TaskResponse));
+          type: null,
+          progress: 0,
+          assignedUserId: d.assignedUserId ?? null,
+          assignedUserName: d.assignedUserName ?? null,
+          projectId: d.projectId ?? null,
+          projectName: d.projectName ?? '—',
+          phaseId: d.phaseId ?? null,
+          phaseName: d.phaseName ?? null,
+        } as TaskSummaryResponse));
         setTasks(mapped);
         setTotalTasks(mapped.length);
       })
@@ -195,17 +198,16 @@ export function TasksPage() {
   };
 
   /** Opens the modal in edit mode, pre-filled with the given task's values. */
-  const openEditModal = (task: TaskResponse) => {
+  const openEditModal = (task: TaskSummaryResponse) => {
     setEditingTask(task);
-    const assignee = task.participants.find((p) => p.role === 'ASSIGNEE');
     form.setFieldsValue({
       title:          task.title,
       description:    task.description,
       status:         task.status,
       type:           task.type ?? null,
       progress:       task.progress,
-      projectId:      task.project.id,
-      assignedUserId: assignee?.userId ?? null,
+      projectId:      task.projectId,
+      assignedUserId: task.assignedUserId ?? null,
     });
     refreshDropdowns();
     setModalOpen(true);
@@ -235,10 +237,10 @@ export function TasksPage() {
     });
   };
 
-  /** Opens the detail drawer and asynchronously loads the task's comments and work logs. */
-  const openDetailDrawer = (task: TaskResponse) => {
+  /** Opens the detail drawer and asynchronously loads the task's participants, comments and work logs. */
+  const openDetailDrawer = (task: TaskSummaryResponse) => {
     setDetailTask(task);
-    setDrawerParticipants(task.participants ?? []);
+    setDrawerParticipants([]);
     setNewParticipantUserId(null);
     setNewParticipantRole('VIEWER');
     setComments([]);
@@ -246,6 +248,9 @@ export function TasksPage() {
     setWorkLogs([]);
     setWorkLogsLoading(true);
     resetWorkLogForm();
+    getParticipants(task.id)
+      .then(setDrawerParticipants)
+      .catch(() => setError(t('tasks.failedLoadParticipants')));
     getTaskComments(task.id)
       .then(setComments)
       .catch(() => setError(t('tasks.failedLoadComments')))
@@ -336,7 +341,7 @@ export function TasksPage() {
   };
 
   /** Posts a new comment and appends it to the local comments list. */
-  const handleAddComment = (task: TaskResponse) => {
+  const handleAddComment = (task: TaskSummaryResponse) => {
     if (!comment.trim()) return;
     setAddingComment(true);
     addComment(task.id, comment.trim())
@@ -351,14 +356,11 @@ export function TasksPage() {
       .finally(() => setAddingComment(false));
   };
 
-  const columns: ColumnsType<TaskResponse> = [
-    { title: t('tasks.title_field'), dataIndex: 'title',             key: 'title' },
-    { title: t('common.project'),    dataIndex: ['project', 'name'], key: 'project' },
+  const columns: ColumnsType<TaskSummaryResponse> = [
+    { title: t('tasks.title_field'), dataIndex: 'title',       key: 'title' },
+    { title: t('common.project'),    dataIndex: 'projectName', key: 'project' },
     { title: t('tasks.assignedTo'),  key: 'user',
-      render: (_: unknown, record: TaskResponse) => {
-        const assignee = record.participants?.find((p) => p.role === 'ASSIGNEE');
-        return assignee?.userName ?? '—';
-      },
+      render: (_: unknown, record: TaskSummaryResponse) => record.assignedUserName ?? '—',
     },
     { title: t('tasks.type'), dataIndex: 'type', key: 'type',
       render: (type: TaskType | null) => type
@@ -491,7 +493,7 @@ export function TasksPage() {
                 style={{ marginTop: 4 }}
               />
             </div>
-            <div><strong>{t('common.project')}:</strong> {detailTask.project.name}</div>
+            <div><strong>{t('common.project')}:</strong> {detailTask.projectName ?? '—'}</div>
 
             <Divider orientation="left" orientationMargin={0} style={{ marginBottom: 4 }}>{t('tasks.participants')}</Divider>
             <List

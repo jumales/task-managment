@@ -5,6 +5,7 @@ import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
+import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.task.service.TaskService;
 import com.demo.common.web.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,7 +48,7 @@ public class TaskController {
                            + "Use `page`, `size`, and `sort` query parameters to control pagination.")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public PageResponse<TaskResponse> getAll(
+    public PageResponse<TaskSummaryResponse> getAll(
             @Parameter(description = "Filter by assigned user UUID") @RequestParam(required = false) UUID userId,
             @Parameter(description = "Filter by project UUID") @RequestParam(required = false) UUID projectId,
             @Parameter(description = "Filter by status (case-insensitive): TODO, IN_PROGRESS, DONE") @RequestParam(required = false) String status,

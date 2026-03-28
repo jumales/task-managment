@@ -1,7 +1,7 @@
 package com.demo.search.service;
 
 import com.demo.common.dto.PageResponse;
-import com.demo.common.dto.TaskResponse;
+import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.search.client.TaskServiceClient;
 import com.demo.search.client.UserServiceClient;
@@ -59,7 +59,7 @@ public class ReindexService {
         var indexOps = esOps.indexOps(TaskDocument.class);
         indexOps.delete();
         indexOps.createWithMapping();
-        List<TaskResponse> all = fetchAllTasks();
+        List<TaskSummaryResponse> all = fetchAllTasks();
         taskIndexService.indexAll(all);
         log.info("Re-indexed {} tasks", all.size());
         return all.size();
@@ -76,10 +76,10 @@ public class ReindexService {
         return all;
     }
 
-    private List<TaskResponse> fetchAllTasks() {
-        List<TaskResponse> all = new ArrayList<>();
+    private List<TaskSummaryResponse> fetchAllTasks() {
+        List<TaskSummaryResponse> all = new ArrayList<>();
         int page = 0;
-        PageResponse<TaskResponse> response;
+        PageResponse<TaskSummaryResponse> response;
         do {
             response = taskClient.getAll(page++, PAGE_SIZE);
             all.addAll(response.getContent());

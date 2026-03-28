@@ -5,6 +5,7 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.notification.client.TaskServiceClient;
 import com.demo.notification.client.UserClient;
+import com.demo.notification.client.UserClientHelper;
 import com.demo.common.dto.PageResponse;
 import com.demo.notification.dto.NotificationResponse;
 import com.demo.notification.model.NotificationRecord;
@@ -33,6 +34,7 @@ public class NotificationService {
 
     private final NotificationRepository repository;
     private final UserClient userClient;
+    private final UserClientHelper userClientHelper;
     private final EmailService emailService;
     private final TaskServiceClient taskServiceClient;
 
@@ -41,11 +43,13 @@ public class NotificationService {
 
     public NotificationService(NotificationRepository repository,
                                 UserClient userClient,
+                                UserClientHelper userClientHelper,
                                 EmailService emailService,
                                 TaskServiceClient taskServiceClient,
                                 @Value("${app.frontend-url}") String frontendUrl) {
         this.repository = repository;
         this.userClient = userClient;
+        this.userClientHelper = userClientHelper;
         this.emailService = emailService;
         this.taskServiceClient = taskServiceClient;
         this.frontendUrl = frontendUrl;
@@ -65,7 +69,11 @@ public class NotificationService {
             return;
         }
 
-        UserDto user = userClient.getUserById(recipientId);
+        UserDto user = userClientHelper.getUserById(recipientId);
+        if (user == null) {
+            log.warn("Cannot resolve user {} (user-service unavailable) — skipping notification", recipientId);
+            return;
+        }
         if (user.getEmail() == null || user.getEmail().isBlank()) {
             log.warn("User {} has no email address — skipping notification", recipientId);
             return;
