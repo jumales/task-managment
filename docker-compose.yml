@@ -155,6 +155,15 @@ services:
     networks:
       - ms-network
 
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: ms-mailhog
+    ports:
+      - "1025:1025"   # SMTP — services send emails here
+      - "8025:8025"   # Web UI + REST API for inspecting captured emails
+    networks:
+      - ms-network
+
   minio-init:
     image: minio/mc:latest
     container_name: ms-minio-init

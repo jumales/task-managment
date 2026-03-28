@@ -22,3 +22,8 @@ GRANT ALL PRIVILEGES ON DATABASE audit_db TO audit_svc;
 CREATE USER file_svc WITH PASSWORD 'file_svc_pass';
 CREATE DATABASE file_db OWNER file_svc;
 GRANT ALL PRIVILEGES ON DATABASE file_db TO file_svc;
+
+-- ── Notification Service ───────────────────────────────────────
+CREATE USER notification_svc WITH PASSWORD 'notification_svc_pass';
+CREATE DATABASE notification_db OWNER notification_svc;
+GRANT ALL PRIVILEGES ON DATABASE notification_db TO notification_svc;

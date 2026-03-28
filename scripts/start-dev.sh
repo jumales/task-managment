@@ -93,7 +93,7 @@ wait_for_http() {
 start_service() {
   local name="$1"
   case "$name" in
-    eureka-server|api-gateway|user-service|task-service|audit-service|file-service|search-service)
+    eureka-server|api-gateway|user-service|task-service|audit-service|file-service|search-service|notification-service)
       open_terminal_window "$name" \
         "cd '$PROJECT_ROOT' && mvn spring-boot:run -pl $name; exec \$SHELL"
       ;;
@@ -149,7 +149,7 @@ log "All stopped. Starting fresh ..."
 
 # ── Step 1: Docker infrastructure ────────────────────────────────────────────
 
-INFRA_SERVICES="postgres zookeeper kafka keycloak minio minio-init redis"
+INFRA_SERVICES="postgres zookeeper kafka keycloak minio minio-init redis mailhog"
 if [[ "$SKIP_ELK" == false ]]; then
   INFRA_SERVICES="$INFRA_SERVICES elasticsearch logstash kibana"
   log "Starting Docker infrastructure (including ELK) ..."
@@ -205,6 +205,7 @@ if [[ "$DOCKER_ONLY" == true ]]; then
   │  Kibana    http://localhost:5601         │
   │  MinIO     http://localhost:9001         │
   │  Redis     localhost:6379               │
+  │  MailHog   http://localhost:8025         │
   └─────────────────────────────────────────┘
 
   Start services:  ./scripts/start-dev.sh
@@ -223,7 +224,7 @@ wait_for_http "Eureka" "http://localhost:8761/actuator/health" 120
 
 # ── Step 4: Other microservices (parallel, all register with Eureka) ──────────
 
-for service in api-gateway user-service task-service audit-service file-service search-service; do
+for service in api-gateway user-service task-service audit-service file-service search-service notification-service; do
   log "Starting $service ..."
   start_service "$service"
 done
@@ -248,6 +249,7 @@ cat <<'BANNER'
   │  MinIO        http://localhost:9001          │
   │  Elasticsearch http://localhost:9200         │
   │  Redis        localhost:6379                │
+  │  MailHog      http://localhost:8025          │
   └──────────────────────────────────────────────┘
 
   Each service has its own Terminal window.
