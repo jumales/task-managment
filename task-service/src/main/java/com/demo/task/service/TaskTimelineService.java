@@ -1,0 +1,125 @@
+package com.demo.task.service;
+
+import com.demo.common.dto.TaskTimelineRequest;
+import com.demo.common.dto.TaskTimelineResponse;
+import com.demo.common.dto.TimelineState;
+import com.demo.common.dto.UserDto;
+import com.demo.common.exception.ResourceNotFoundException;
+import com.demo.task.client.UserClient;
+import com.demo.task.client.UserClientHelper;
+import com.demo.task.model.Task;
+import com.demo.task.model.TaskTimeline;
+import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * Manages timeline entries for tasks, tracking planned and actual start/end dates per state.
+ * Setting a state is an upsert: if an active entry already exists for that state, it is updated.
+ */
+@Service
+public class TaskTimelineService {
+
+    private final TaskTimelineRepository repository;
+    private final TaskRepository taskRepository;
+    private final UserClient userClient;
+    private final UserClientHelper userClientHelper;
+
+    public TaskTimelineService(TaskTimelineRepository repository,
+                               TaskRepository taskRepository,
+                               UserClient userClient,
+                               UserClientHelper userClientHelper) {
+        this.repository = repository;
+        this.taskRepository = taskRepository;
+        this.userClient = userClient;
+        this.userClientHelper = userClientHelper;
+    }
+
+    /** Returns all active timeline entries for the given task, enriched with user display names. */
+    public List<TaskTimelineResponse> findByTaskId(UUID taskId) {
+        getTaskOrThrow(taskId);
+        List<TaskTimeline> entries = repository.findByTaskIdOrderByStateAsc(taskId);
+        return toResponseList(entries);
+    }
+
+    /**
+     * Sets a timeline state on the task (upsert).
+     * If an active entry already exists for this state, its timestamp and set-by user are updated.
+     * If not, a new entry is created.
+     * Validates that the task and the set-by user both exist.
+     */
+    @Transactional
+    public TaskTimelineResponse setState(UUID taskId, TimelineState state, TaskTimelineRequest request) {
+        getTaskOrThrow(taskId);
+        UserDto user = userClient.getUserById(request.getSetByUserId());
+
+        Optional<TaskTimeline> existing = repository.findByTaskIdAndState(taskId, state);
+        TaskTimeline entry = existing.map(e -> updateEntry(e, request))
+                .orElseGet(() -> createEntry(taskId, state, request));
+
+        TaskTimeline saved = repository.save(entry);
+        return toResponse(saved, user.getName());
+    }
+
+    /**
+     * Removes the active timeline entry for the given state on a task.
+     * Throws if no active entry exists for that state.
+     */
+    @Transactional
+    public void deleteState(UUID taskId, TimelineState state) {
+        getTaskOrThrow(taskId);
+        TaskTimeline entry = repository.findByTaskIdAndState(taskId, state)
+                .orElseThrow(() -> new ResourceNotFoundException("TaskTimeline state " + state + " on task", taskId));
+        repository.deleteById(entry.getId());
+    }
+
+    private Task getTaskOrThrow(UUID taskId) {
+        return taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
+    }
+
+    private TaskTimeline createEntry(UUID taskId, TimelineState state, TaskTimelineRequest request) {
+        return TaskTimeline.builder()
+                .taskId(taskId)
+                .state(state)
+                .timestamp(request.getTimestamp())
+                .setByUserId(request.getSetByUserId())
+                .createdAt(Instant.now())
+                .build();
+    }
+
+    private TaskTimeline updateEntry(TaskTimeline entry, TaskTimelineRequest request) {
+        entry.setTimestamp(request.getTimestamp());
+        entry.setSetByUserId(request.getSetByUserId());
+        return entry;
+    }
+
+    /** Enriches a list of timeline entries with user display names using a single batch call. */
+    private List<TaskTimelineResponse> toResponseList(List<TaskTimeline> entries) {
+        if (entries.isEmpty()) return List.of();
+        Set<UUID> userIds = entries.stream().map(TaskTimeline::getSetByUserId).collect(Collectors.toSet());
+        Map<UUID, String> nameById = userClientHelper.fetchUserNames(userIds);
+        return entries.stream()
+                .map(e -> toResponse(e, nameById.get(e.getSetByUserId())))
+                .toList();
+    }
+
+    private TaskTimelineResponse toResponse(TaskTimeline entry, String userName) {
+        return new TaskTimelineResponse(
+                entry.getId(),
+                entry.getState(),
+                entry.getTimestamp(),
+                entry.getSetByUserId(),
+                userName,
+                entry.getCreatedAt());
+    }
+}
