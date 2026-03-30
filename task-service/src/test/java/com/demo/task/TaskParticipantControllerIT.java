@@ -13,6 +13,7 @@ import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskParticipantRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -63,6 +65,9 @@ class TaskParticipantControllerIT {
     @Autowired
     TaskParticipantRepository participantRepository;
 
+    @Autowired
+    TaskTimelineRepository timelineRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private static final UUID BOB_ID   = UUID.randomUUID();
 
@@ -73,6 +78,7 @@ class TaskParticipantControllerIT {
     @BeforeEach
     void setUp() {
         participantRepository.deleteAll();
+        timelineRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
 
@@ -100,6 +106,8 @@ class TaskParticipantControllerIT {
         taskReq.setStatus(TaskStatus.TODO);
         taskReq.setAssignedUserId(ALICE_ID);
         taskReq.setProjectId(projectId);
+        taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
+        taskReq.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
                 .getBody().getId().toString();
     }

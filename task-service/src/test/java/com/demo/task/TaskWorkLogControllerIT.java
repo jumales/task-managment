@@ -12,6 +12,7 @@ import com.demo.common.dto.WorkType;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
 import com.demo.task.repository.TaskWorkLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -64,6 +66,9 @@ class TaskWorkLogControllerIT {
     @Autowired
     TaskWorkLogRepository workLogRepository;
 
+    @Autowired
+    TaskTimelineRepository timelineRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private static final UUID BOB_ID   = UUID.randomUUID();
 
@@ -72,6 +77,7 @@ class TaskWorkLogControllerIT {
     @BeforeEach
     void setUp() {
         workLogRepository.deleteAll();
+        timelineRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
 
@@ -97,6 +103,8 @@ class TaskWorkLogControllerIT {
         taskReq.setStatus(TaskStatus.TODO);
         taskReq.setAssignedUserId(ALICE_ID);
         taskReq.setProjectId(projectId);
+        taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
+        taskReq.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
                 .getBody().getId().toString();
     }

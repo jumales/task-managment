@@ -11,6 +11,7 @@ import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,10 +58,14 @@ class TaskProjectControllerIT {
     @Autowired
     TaskRepository taskRepository;
 
+    @Autowired
+    TaskTimelineRepository timelineRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
+        timelineRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
@@ -271,6 +276,8 @@ class TaskProjectControllerIT {
         req.setStatus(status);
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
+        req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
+        req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return req;
     }
 }

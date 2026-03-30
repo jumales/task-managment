@@ -25,9 +25,18 @@ import java.util.stream.Collectors;
 /**
  * Manages timeline entries for tasks, tracking planned and actual start/end dates per state.
  * Setting a state is an upsert: if an active entry already exists for that state, it is updated.
+ * Enforces that start timestamps are always strictly before their corresponding end timestamps.
  */
 @Service
 public class TaskTimelineService {
+
+    /** Maps each state to its ordering counterpart; used to enforce start &lt; end invariants. */
+    private static final Map<TimelineState, TimelineState> ORDERING_COUNTERPARTS = Map.of(
+            TimelineState.PLANNED_START, TimelineState.PLANNED_END,
+            TimelineState.PLANNED_END,   TimelineState.PLANNED_START,
+            TimelineState.REAL_START,    TimelineState.REAL_END,
+            TimelineState.REAL_END,      TimelineState.REAL_START
+    );
 
     private final TaskTimelineRepository repository;
     private final TaskRepository taskRepository;
@@ -55,12 +64,13 @@ public class TaskTimelineService {
      * Sets a timeline state on the task (upsert).
      * If an active entry already exists for this state, its timestamp and set-by user are updated.
      * If not, a new entry is created.
-     * Validates that the task and the set-by user both exist.
+     * Validates that the task and the set-by user both exist, and that start &lt; end ordering is preserved.
      */
     @Transactional
     public TaskTimelineResponse setState(UUID taskId, TimelineState state, TaskTimelineRequest request) {
         getTaskOrThrow(taskId);
         UserDto user = userClient.getUserById(request.getSetByUserId());
+        validateOrdering(taskId, state, request.getTimestamp());
 
         Optional<TaskTimeline> existing = repository.findByTaskIdAndState(taskId, state);
         TaskTimeline entry = existing.map(e -> updateEntry(e, request))
@@ -82,17 +92,51 @@ public class TaskTimelineService {
         repository.deleteById(entry.getId());
     }
 
+    /**
+     * Creates the mandatory PLANNED_START and PLANNED_END timeline entries for a newly created task.
+     * Called by {@link TaskService} immediately after the task is persisted.
+     * Does not re-validate the task existence since it is invoked within the task creation transaction.
+     */
+    @Transactional
+    void createInitialTimelines(UUID taskId, Instant plannedStart, Instant plannedEnd, UUID creatorId) {
+        repository.save(buildEntry(taskId, TimelineState.PLANNED_START, plannedStart, creatorId));
+        repository.save(buildEntry(taskId, TimelineState.PLANNED_END, plannedEnd, creatorId));
+    }
+
+    /**
+     * Validates that the new timestamp preserves the start &lt; end ordering invariant.
+     * Checks the counterpart state (e.g. PLANNED_END when setting PLANNED_START) if it already exists.
+     */
+    private void validateOrdering(UUID taskId, TimelineState state, Instant newTimestamp) {
+        TimelineState counterpart = ORDERING_COUNTERPARTS.get(state);
+        repository.findByTaskIdAndState(taskId, counterpart).ifPresent(existing -> {
+            boolean settingStart = state == TimelineState.PLANNED_START || state == TimelineState.REAL_START;
+            if (settingStart && !newTimestamp.isBefore(existing.getTimestamp())) {
+                throw new IllegalArgumentException(
+                        state + " must be before " + counterpart + " (" + existing.getTimestamp() + ")");
+            }
+            if (!settingStart && !existing.getTimestamp().isBefore(newTimestamp)) {
+                throw new IllegalArgumentException(
+                        counterpart + " must be before " + state + " (" + newTimestamp + ")");
+            }
+        });
+    }
+
     private Task getTaskOrThrow(UUID taskId) {
         return taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
     }
 
     private TaskTimeline createEntry(UUID taskId, TimelineState state, TaskTimelineRequest request) {
+        return buildEntry(taskId, state, request.getTimestamp(), request.getSetByUserId());
+    }
+
+    private TaskTimeline buildEntry(UUID taskId, TimelineState state, Instant timestamp, UUID setByUserId) {
         return TaskTimeline.builder()
                 .taskId(taskId)
                 .state(state)
-                .timestamp(request.getTimestamp())
-                .setByUserId(request.getSetByUserId())
+                .timestamp(timestamp)
+                .setByUserId(setByUserId)
                 .createdAt(Instant.now())
                 .build();
     }

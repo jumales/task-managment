@@ -17,6 +17,7 @@ import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,6 +77,9 @@ class TaskCommentKafkaIT {
     @Autowired
     OutboxRepository outboxRepository;
 
+    @Autowired
+    TaskTimelineRepository timelineRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private UUID projectId;
 
@@ -83,6 +87,7 @@ class TaskCommentKafkaIT {
     void setUp() {
         outboxRepository.deleteAll();
         commentRepository.deleteAll();
+        timelineRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
@@ -185,6 +190,8 @@ class TaskCommentKafkaIT {
         req.setStatus(TaskStatus.TODO);
         req.setAssignedUserId(ALICE_ID);
         req.setProjectId(projectId);
+        req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
+        req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class).getBody();
     }
 

@@ -58,6 +58,7 @@ public class TaskService {
     private final TaskProjectService projectService;
     private final TaskPhaseService phaseService;
     private final TaskParticipantService participantService;
+    private final TaskTimelineService timelineService;
     private final OutboxWriter outboxWriter;
     private final ObjectMapper objectMapper;
 
@@ -69,6 +70,7 @@ public class TaskService {
                        TaskProjectService projectService,
                        TaskPhaseService phaseService,
                        TaskParticipantService participantService,
+                       TaskTimelineService timelineService,
                        OutboxWriter outboxWriter,
                        ObjectMapper objectMapper) {
         this.repository = repository;
@@ -79,6 +81,7 @@ public class TaskService {
         this.projectService = projectService;
         this.phaseService = phaseService;
         this.participantService = participantService;
+        this.timelineService = timelineService;
         this.outboxWriter = outboxWriter;
         this.objectMapper = objectMapper;
     }
@@ -119,12 +122,14 @@ public class TaskService {
 
     /**
      * Creates a new task, resolving the phase, validating the assigned user and project,
-     * and recording both the CREATOR and ASSIGNEE participants.
+     * recording both the CREATOR and ASSIGNEE participants, and initializing the mandatory
+     * PLANNED_START and PLANNED_END timeline entries.
      *
-     * @param creatorId the authenticated user's ID — becomes the CREATOR participant
+     * @param creatorId the authenticated user's ID — becomes the CREATOR participant and timeline entry author
      */
     @Transactional
     public TaskResponse create(TaskRequest request, UUID creatorId) {
+        validatePlannedDates(request.getPlannedStart(), request.getPlannedEnd());
         UserDto user = userClient.getUserById(request.getAssignedUserId());
         TaskProject project = projectService.getOrThrow(request.getProjectId());
 
@@ -144,11 +149,27 @@ public class TaskService {
         Task saved = repository.save(task);
         participantService.setCreator(saved.getId(), creatorId);
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
+        timelineService.createInitialTimelines(saved.getId(), request.getPlannedStart(), request.getPlannedEnd(), creatorId);
         writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_CREATED,
                 project.getName(), phaseId, user.getName());
         outboxWriter.write(TaskChangedEvent.taskCreated(saved.getId(), saved.getAssignedUserId(),
                 saved.getProjectId(), saved.getTitle()));
         return toResponse(saved);
+    }
+
+    /**
+     * Validates that both planned dates are present and that plannedStart is strictly before plannedEnd.
+     */
+    private void validatePlannedDates(java.time.Instant plannedStart, java.time.Instant plannedEnd) {
+        if (plannedStart == null) {
+            throw new IllegalArgumentException("plannedStart is required");
+        }
+        if (plannedEnd == null) {
+            throw new IllegalArgumentException("plannedEnd is required");
+        }
+        if (!plannedStart.isBefore(plannedEnd)) {
+            throw new IllegalArgumentException("plannedStart must be before plannedEnd");
+        }
     }
 
     /** Updates the task fields and writes outbox events for any status or phase change. */

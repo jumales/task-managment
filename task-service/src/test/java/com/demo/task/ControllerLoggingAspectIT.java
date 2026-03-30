@@ -13,6 +13,7 @@ import com.demo.common.web.ControllerLoggingAspect;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,9 @@ class ControllerLoggingAspectIT {
     @Autowired
     TaskProjectRepository projectRepository;
 
+    @Autowired
+    TaskTimelineRepository timelineRepository;
+
     private ListAppender<ILoggingEvent> listAppender;
     private Logger aspectLogger;
 
@@ -64,6 +68,7 @@ class ControllerLoggingAspectIT {
 
     @BeforeEach
     void setUp() {
+        timelineRepository.deleteAll();
         repository.deleteAll();
         projectRepository.deleteAll();
 
@@ -127,6 +132,8 @@ class ControllerLoggingAspectIT {
         req.setStatus(TaskStatus.TODO);
         req.setAssignedUserId(USER_ID);
         req.setProjectId(projectId);
+        req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
+        req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
 
         restTemplate.postForEntity("/api/v1/tasks", req, Object.class);
 

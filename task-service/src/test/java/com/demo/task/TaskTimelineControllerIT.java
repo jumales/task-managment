@@ -94,6 +94,8 @@ class TaskTimelineControllerIT {
         taskReq.setStatus(TaskStatus.TODO);
         taskReq.setAssignedUserId(ALICE_ID);
         taskReq.setProjectId(projectId);
+        taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
+        taskReq.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
                 .getBody().getId().toString();
     }
@@ -101,13 +103,17 @@ class TaskTimelineControllerIT {
     // ── GET /api/v1/tasks/{taskId}/timelines ────────────────────────────────
 
     @Test
-    void getTimelines_whenNoneExist_returnsEmptyList() {
+    void getTimelines_afterCreate_returnsInitialPlannedTimelines() {
         ResponseEntity<TaskTimelineResponse[]> response = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/timelines",
                 TaskTimelineResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEmpty();
+        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()).anyMatch(e -> e.getState() == TimelineState.PLANNED_START
+                && e.getTimestamp().equals(Instant.parse("2026-04-01T08:00:00Z")));
+        assertThat(response.getBody()).anyMatch(e -> e.getState() == TimelineState.PLANNED_END
+                && e.getTimestamp().equals(Instant.parse("2026-04-30T17:00:00Z")));
     }
 
     @Test
@@ -141,7 +147,8 @@ class TaskTimelineControllerIT {
 
     @Test
     void setState_updatesExistingEntry() {
-        TaskTimelineRequest initial = timelineRequest(ALICE_ID, Instant.parse("2026-04-01T08:00:00Z"));
+        // PLANNED_START already exists at 2026-04-01T08:00:00Z; use a later timestamp for PLANNED_END
+        TaskTimelineRequest initial = timelineRequest(ALICE_ID, Instant.parse("2026-05-01T17:00:00Z"));
         restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
                 HttpMethod.PUT, new HttpEntity<>(initial), TaskTimelineResponse.class);
 
@@ -154,17 +161,23 @@ class TaskTimelineControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getTimestamp()).isEqualTo(Instant.parse("2026-04-15T17:00:00Z"));
-        // Only one active entry should exist for this state
-        assertThat(timelineRepository.findByTaskIdOrderByStateAsc(UUID.fromString(taskId))).hasSize(1);
+        // PLANNED_START + PLANNED_END (upserted) = 2 active entries
+        assertThat(timelineRepository.findByTaskIdOrderByStateAsc(UUID.fromString(taskId))).hasSize(2);
     }
 
     @Test
     void setState_allFourStates_areReturnedInList() {
-        Instant base = Instant.parse("2026-04-01T00:00:00Z");
-        for (TimelineState state : TimelineState.values()) {
-            restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/" + state,
-                    HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, base)), TaskTimelineResponse.class);
-        }
+        // Use timestamps that satisfy start < end invariants for both PLANNED and REAL pairs
+        Instant start = Instant.parse("2026-03-01T00:00:00Z");
+        Instant end   = Instant.parse("2026-06-01T00:00:00Z");
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_START",
+                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, start)), TaskTimelineResponse.class);
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
+                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, end)), TaskTimelineResponse.class);
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/REAL_START",
+                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, start)), TaskTimelineResponse.class);
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/REAL_END",
+                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, end)), TaskTimelineResponse.class);
 
         ResponseEntity<TaskTimelineResponse[]> response = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/timelines",
@@ -183,6 +196,30 @@ class TaskTimelineControllerIT {
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void setState_withStartAtOrAfterExistingEnd_returns400() {
+        // PLANNED_END already exists at 2026-04-30T17:00:00Z; setting PLANNED_START to after that should fail
+        TaskTimelineRequest req = timelineRequest(ALICE_ID, Instant.parse("2026-05-01T00:00:00Z"));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + taskId + "/timelines/PLANNED_START",
+                HttpMethod.PUT, new HttpEntity<>(req), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void setState_withEndBeforeExistingStart_returns400() {
+        // PLANNED_START already exists at 2026-04-01T08:00:00Z; setting PLANNED_END to before that should fail
+        TaskTimelineRequest req = timelineRequest(ALICE_ID, Instant.parse("2026-03-31T00:00:00Z"));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
+                HttpMethod.PUT, new HttpEntity<>(req), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     // ── DELETE /api/v1/tasks/{taskId}/timelines/{state} ──────────────────────
