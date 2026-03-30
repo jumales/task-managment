@@ -3,6 +3,7 @@ package com.demo.notification.model;
 import com.demo.common.event.TaskChangeType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -17,7 +18,7 @@ import java.util.UUID;
 public class NotificationRecord {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator(style = UuidGenerator.Style.TIME)
     private UUID id;
 
     /** Task that triggered this notification. */

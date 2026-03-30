@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -60,7 +61,7 @@ public class FileService {
         BucketProperties bucketConfig = resolveBucketConfig(bucket);
         validateFile(file, bucketConfig);
 
-        UUID fileId = UUID.randomUUID();
+        UUID fileId = generateUuidV7();
         String objectKey = fileId + "_" + file.getOriginalFilename();
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
@@ -201,6 +202,18 @@ public class FileService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to upload file to MinIO: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Generates a UUID v7 (time-ordered) for use as a file identifier.
+     * UUID v7 embeds the current millisecond timestamp in the most-significant bits,
+     * which keeps file records naturally sortable by creation time.
+     */
+    private static UUID generateUuidV7() {
+        long timestamp = Instant.now().toEpochMilli();
+        long msb = (timestamp << 16) | 0x7000L | (ThreadLocalRandom.current().nextLong(0x1000));
+        long lsb = 0x8000000000000000L | (ThreadLocalRandom.current().nextLong() & 0x3FFFFFFFFFFFFFFFL);
+        return new UUID(msb, lsb);
     }
 
     /** Generates a presigned GET URL valid for {@value PRESIGNED_URL_EXPIRY_HOURS} hour(s). */
