@@ -16,6 +16,7 @@ import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskParticipantRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import com.demo.task.repository.TaskTimelineRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.context.annotation.Import;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -65,6 +67,9 @@ class TaskControllerIT {
     @Autowired
     TaskParticipantRepository participantRepository;
 
+    @Autowired
+    TaskTimelineRepository timelineRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private static final UUID BOB_ID   = UUID.randomUUID();
 
@@ -75,6 +80,7 @@ class TaskControllerIT {
     @BeforeEach
     void setUp() {
         participantRepository.deleteAll();
+        timelineRepository.deleteAll();
         repository.deleteAll();
         projectRepository.deleteAll();
 
@@ -237,6 +243,59 @@ class TaskControllerIT {
         assertThat(repository.count()).isEqualTo(0);
     }
 
+    @Test
+    void createTask_withoutPlannedStart_returns400() {
+        TaskRequest req = request("Task", "desc", TaskStatus.TODO, ALICE_ID);
+        req.setPlannedStart(null);
+
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/tasks", req, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(repository.count()).isEqualTo(0);
+    }
+
+    @Test
+    void createTask_withoutPlannedEnd_returns400() {
+        TaskRequest req = request("Task", "desc", TaskStatus.TODO, ALICE_ID);
+        req.setPlannedEnd(null);
+
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/tasks", req, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(repository.count()).isEqualTo(0);
+    }
+
+    @Test
+    void createTask_withPlannedStartAfterPlannedEnd_returns400() {
+        TaskRequest req = request("Task", "desc", TaskStatus.TODO, ALICE_ID);
+        req.setPlannedStart(Instant.parse("2026-05-01T00:00:00Z"));
+        req.setPlannedEnd(Instant.parse("2026-04-01T00:00:00Z"));
+
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/tasks", req, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(repository.count()).isEqualTo(0);
+    }
+
+    @Test
+    void createTask_createsInitialPlannedTimelineEntries() {
+        TaskRequest req = request("Task with timeline", "desc", TaskStatus.TODO, ALICE_ID);
+        req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
+        req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class).getBody();
+
+        ResponseEntity<com.demo.common.dto.TaskTimelineResponse[]> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + created.getId() + "/timelines",
+                com.demo.common.dto.TaskTimelineResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()).anyMatch(e -> e.getState() == com.demo.common.dto.TimelineState.PLANNED_START
+                && e.getTimestamp().equals(Instant.parse("2026-04-01T08:00:00Z")));
+        assertThat(response.getBody()).anyMatch(e -> e.getState() == com.demo.common.dto.TimelineState.PLANNED_END
+                && e.getTimestamp().equals(Instant.parse("2026-04-30T17:00:00Z")));
+    }
+
     // ── PUT /api/v1/tasks/{id} ───────────────────────────────────────
 
     @Test
@@ -358,6 +417,8 @@ class TaskControllerIT {
         req.setStatus(status);
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
+        req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
+        req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         return req;
     }
 

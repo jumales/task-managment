@@ -698,7 +698,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"type\": \"FEATURE\",\n  \"progress\": 0,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
+              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"type\": \"FEATURE\",\n  \"progress\": 0,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null,\n  \"plannedStart\": \"2026-04-01T08:00:00Z\",\n  \"plannedEnd\": \"2026-04-30T17:00:00Z\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
