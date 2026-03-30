@@ -75,7 +75,7 @@
 # Adding new class
 - if needs to be used from two or more modules, put into common
 - comment
-- If is entity, use UUID for id
+- If is entity, use UUID v7 for id — annotate with `@UuidGenerator(style = UuidGenerator.Style.TIME)` (no `@GeneratedValue` needed); import `org.hibernate.annotations.UuidGenerator`
 - Use enumeration instead of hardcoded strings in code
 - write integration tests
 
