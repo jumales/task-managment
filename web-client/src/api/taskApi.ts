@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskSummaryResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse, ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest, TemplatePlaceholder, TaskChangeType } from './types';
+import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskSummaryResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse, TaskTimelineRequest, TaskTimelineResponse, TimelineState, ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest, TemplatePlaceholder, TaskChangeType } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
@@ -72,6 +72,21 @@ export function updateWorkLog(taskId: string, workLogId: string, request: TaskWo
 /** Soft-deletes a work log entry. */
 export function deleteWorkLog(taskId: string, workLogId: string) {
   return apiClient.delete(`${TASKS_URL}/${taskId}/work-logs/${workLogId}`);
+}
+
+/** Fetches all active timeline entries for a task. */
+export function getTimelines(taskId: string) {
+  return apiClient.get<TaskTimelineResponse[]>(`${TASKS_URL}/${taskId}/timelines`).then((r) => r.data);
+}
+
+/** Creates or updates the timeline entry for a specific state (upsert). */
+export function setTimeline(taskId: string, state: TimelineState, request: TaskTimelineRequest) {
+  return apiClient.put<TaskTimelineResponse>(`${TASKS_URL}/${taskId}/timelines/${state}`, request).then((r) => r.data);
+}
+
+/** Removes the timeline entry for a specific state. */
+export function deleteTimeline(taskId: string, state: TimelineState) {
+  return apiClient.delete(`${TASKS_URL}/${taskId}/timelines/${state}`);
 }
 
 /** Fetches all projects. */
