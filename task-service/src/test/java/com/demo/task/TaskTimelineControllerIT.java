@@ -92,6 +92,7 @@ class TaskTimelineControllerIT {
         TaskRequest taskReq = new TaskRequest();
         taskReq.setTitle("Sample Task");
         taskReq.setStatus(TaskStatus.TODO);
+        taskReq.setAssignedUserId(ALICE_ID);
         taskReq.setProjectId(projectId);
         taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
                 .getBody().getId().toString();
