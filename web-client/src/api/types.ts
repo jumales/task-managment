@@ -117,6 +117,10 @@ export interface TaskRequest {
   assignedUserId: string;
   projectId: string;
   phaseId: string | null;
+  /** Required on create; ignored on update. ISO 8601 instant string. */
+  plannedStart?: string;
+  /** Required on create; ignored on update. ISO 8601 instant string. */
+  plannedEnd?: string;
 }
 
 export interface TaskProjectRequest {
@@ -189,6 +193,27 @@ export interface AuditRecord {
   changedAt: string;
   oldStatus: TaskStatus;
   newStatus: TaskStatus;
+}
+
+/** Mirrors com.demo.common.dto.TimelineState */
+export type TimelineState = 'PLANNED_START' | 'PLANNED_END' | 'REAL_START' | 'REAL_END';
+
+/** Mirrors com.demo.common.dto.TaskTimelineResponse */
+export interface TaskTimelineResponse {
+  id: string;
+  taskId: string;
+  state: TimelineState;
+  timestamp: string;
+  setByUserId: string;
+  setByUserName: string | null;
+  createdAt: string;
+}
+
+/** Mirrors com.demo.common.dto.TaskTimelineRequest */
+export interface TaskTimelineRequest {
+  setByUserId: string;
+  /** ISO 8601 instant string. */
+  timestamp: string;
 }
 
 /** Mirrors com.demo.common.event.TaskChangeType */

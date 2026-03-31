@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { TasksPage } from './pages/TasksPage';
+import { TaskDetailPage } from './pages/TaskDetailPage';
 import { UsersPage } from './pages/UsersPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ConfigurationPage } from './pages/ConfigurationPage';
@@ -14,6 +15,7 @@ export default function App() {
         <Routes>
           <Route path="/dashboard"     element={<DashboardPage />} />
           <Route path="/tasks"         element={<TasksPage />} />
+          <Route path="/tasks/:id"     element={<TaskDetailPage />} />
           <Route path="/projects"      element={<ProjectsPage />} />
           <Route path="/users"         element={<UsersPage />} />
           <Route path="/configuration" element={<ConfigurationPage />} />
