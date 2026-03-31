@@ -108,10 +108,13 @@ public class NotificationService {
                 page.isLast());
     }
 
-    /** Work-log events notify the work-log's user; all other events notify the task's assignee. */
+    /** Planned/booked-work events notify the work entry's user; all other events notify the task's assignee. */
     private UUID resolveRecipientId(TaskChangedEvent event) {
         return switch (event.getChangeType()) {
-            case WORK_LOG_CREATED, WORK_LOG_UPDATED, WORK_LOG_DELETED -> event.getWorkLogUserId();
+            case PLANNED_WORK_CREATED,
+                 BOOKED_WORK_CREATED,
+                 BOOKED_WORK_UPDATED,
+                 BOOKED_WORK_DELETED -> event.getWorkLogUserId();
             default -> event.getAssignedUserId();
         };
     }
@@ -215,19 +218,24 @@ public class NotificationService {
                 "Task '" + title + "' has moved from phase '" + event.getFromPhaseName()
                     + "' to '" + event.getToPhaseName() + "'."
             };
-            case WORK_LOG_CREATED -> new String[]{
-                "Work log added to your task",
-                "A new work log of type " + event.getWorkType() + " was added to task '"
+            case PLANNED_WORK_CREATED -> new String[]{
+                "Planned work added to task",
+                "Planned work of type " + event.getWorkType() + " was added to task '"
                     + title + "' with " + event.getPlannedHours() + " planned hours."
             };
-            case WORK_LOG_UPDATED -> new String[]{
-                "Work log updated on your task",
-                "A work log of type " + event.getWorkType() + " on task '" + title
+            case BOOKED_WORK_CREATED -> new String[]{
+                "Booked work added to task",
+                "Booked work of type " + event.getWorkType() + " was added to task '"
+                    + title + "' with " + event.getBookedHours() + " booked hours."
+            };
+            case BOOKED_WORK_UPDATED -> new String[]{
+                "Booked work updated on task",
+                "Booked work of type " + event.getWorkType() + " on task '" + title
                     + "' was updated. Booked hours: " + event.getBookedHours() + "."
             };
-            case WORK_LOG_DELETED -> new String[]{
-                "Work log removed from your task",
-                "A work log was removed from task '" + title + "'."
+            case BOOKED_WORK_DELETED -> new String[]{
+                "Booked work removed from task",
+                "A booked-work entry was removed from task '" + title + "'."
             };
         };
     }

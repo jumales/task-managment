@@ -1,13 +1,15 @@
 package com.demo.audit.consumer;
 
 import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
-import com.demo.audit.model.WorkLogAuditRecord;
+import com.demo.audit.model.PlannedWorkAuditRecord;
 import com.demo.audit.repository.AuditRepository;
+import com.demo.audit.repository.BookedWorkAuditRepository;
 import com.demo.audit.repository.CommentAuditRepository;
 import com.demo.audit.repository.PhaseAuditRepository;
-import com.demo.audit.repository.WorkLogAuditRepository;
+import com.demo.audit.repository.PlannedWorkAuditRepository;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import org.slf4j.Logger;
@@ -29,16 +31,19 @@ public class TaskEventConsumer {
     private final AuditRepository auditRepository;
     private final CommentAuditRepository commentAuditRepository;
     private final PhaseAuditRepository phaseAuditRepository;
-    private final WorkLogAuditRepository workLogAuditRepository;
+    private final PlannedWorkAuditRepository plannedWorkAuditRepository;
+    private final BookedWorkAuditRepository bookedWorkAuditRepository;
 
     public TaskEventConsumer(AuditRepository auditRepository,
                              CommentAuditRepository commentAuditRepository,
                              PhaseAuditRepository phaseAuditRepository,
-                             WorkLogAuditRepository workLogAuditRepository) {
+                             PlannedWorkAuditRepository plannedWorkAuditRepository,
+                             BookedWorkAuditRepository bookedWorkAuditRepository) {
         this.auditRepository = auditRepository;
         this.commentAuditRepository = commentAuditRepository;
         this.phaseAuditRepository = phaseAuditRepository;
-        this.workLogAuditRepository = workLogAuditRepository;
+        this.plannedWorkAuditRepository = plannedWorkAuditRepository;
+        this.bookedWorkAuditRepository = bookedWorkAuditRepository;
     }
 
     /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
@@ -47,12 +52,13 @@ public class TaskEventConsumer {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
 
         switch (event.getChangeType()) {
-            case STATUS_CHANGED   -> persistStatusChange(event);
-            case COMMENT_ADDED    -> persistCommentChange(event);
-            case PHASE_CHANGED    -> persistPhaseChange(event);
-            case WORK_LOG_CREATED,
-                 WORK_LOG_UPDATED,
-                 WORK_LOG_DELETED -> persistWorkLogChange(event);
+            case STATUS_CHANGED      -> persistStatusChange(event);
+            case COMMENT_ADDED       -> persistCommentChange(event);
+            case PHASE_CHANGED       -> persistPhaseChange(event);
+            case PLANNED_WORK_CREATED -> persistPlannedWorkChange(event);
+            case BOOKED_WORK_CREATED,
+                 BOOKED_WORK_UPDATED,
+                 BOOKED_WORK_DELETED -> persistBookedWorkChange(event);
         }
     }
 
@@ -91,15 +97,27 @@ public class TaskEventConsumer {
                 .build());
     }
 
-    private void persistWorkLogChange(TaskChangedEvent event) {
-        workLogAuditRepository.save(WorkLogAuditRecord.builder()
+    private void persistPlannedWorkChange(TaskChangedEvent event) {
+        plannedWorkAuditRepository.save(PlannedWorkAuditRecord.builder()
                 .taskId(event.getTaskId())
-                .workLogId(event.getWorkLogId())
+                .plannedWorkId(event.getWorkLogId())
                 .changeType(event.getChangeType())
-                .workLogUserId(event.getWorkLogUserId())
+                .plannedWorkUserId(event.getWorkLogUserId())
                 .workType(event.getWorkType())
                 .plannedHours(event.getPlannedHours() != null ? event.getPlannedHours().intValue() : null)
-                .bookedHours(event.getBookedHours()  != null ? event.getBookedHours().intValue()  : null)
+                .changedAt(event.getChangedAt())
+                .recordedAt(Instant.now())
+                .build());
+    }
+
+    private void persistBookedWorkChange(TaskChangedEvent event) {
+        bookedWorkAuditRepository.save(BookedWorkAuditRecord.builder()
+                .taskId(event.getTaskId())
+                .bookedWorkId(event.getWorkLogId())
+                .changeType(event.getChangeType())
+                .bookedWorkUserId(event.getWorkLogUserId())
+                .workType(event.getWorkType())
+                .bookedHours(event.getBookedHours() != null ? event.getBookedHours().intValue() : null)
                 .changedAt(event.getChangedAt())
                 .recordedAt(Instant.now())
                 .build());

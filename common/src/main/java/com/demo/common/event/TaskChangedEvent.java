@@ -17,13 +17,14 @@ import java.util.UUID;
  * apply per-project notification templates without an extra service call.
  *
  * <ul>
- *   <li>{@link TaskChangeType#TASK_CREATED}    — task was just created.</li>
- *   <li>{@link TaskChangeType#STATUS_CHANGED}   — {@code fromStatus} / {@code toStatus} are set.</li>
- *   <li>{@link TaskChangeType#COMMENT_ADDED}    — {@code commentId} / {@code commentContent} are set.</li>
- *   <li>{@link TaskChangeType#PHASE_CHANGED}    — {@code fromPhaseId/Name} / {@code toPhaseId/Name} are set.</li>
- *   <li>{@link TaskChangeType#WORK_LOG_CREATED} — {@code workLogId}, {@code workLogUserId}, {@code workType}, {@code plannedHours}, {@code bookedHours} are set.</li>
- *   <li>{@link TaskChangeType#WORK_LOG_UPDATED} — same fields as CREATED; {@code plannedHours} reflects the immutable original value.</li>
- *   <li>{@link TaskChangeType#WORK_LOG_DELETED} — {@code workLogId} is set.</li>
+ *   <li>{@link TaskChangeType#TASK_CREATED}       — task was just created.</li>
+ *   <li>{@link TaskChangeType#STATUS_CHANGED}      — {@code fromStatus} / {@code toStatus} are set.</li>
+ *   <li>{@link TaskChangeType#COMMENT_ADDED}       — {@code commentId} / {@code commentContent} are set.</li>
+ *   <li>{@link TaskChangeType#PHASE_CHANGED}       — {@code fromPhaseId/Name} / {@code toPhaseId/Name} are set.</li>
+ *   <li>{@link TaskChangeType#PLANNED_WORK_CREATED} — {@code workLogId}, {@code workLogUserId}, {@code workType}, {@code plannedHours} are set.</li>
+ *   <li>{@link TaskChangeType#BOOKED_WORK_CREATED} — {@code workLogId}, {@code workLogUserId}, {@code workType}, {@code bookedHours} are set.</li>
+ *   <li>{@link TaskChangeType#BOOKED_WORK_UPDATED} — same fields as BOOKED_WORK_CREATED.</li>
+ *   <li>{@link TaskChangeType#BOOKED_WORK_DELETED} — {@code workLogId} is set.</li>
  * </ul>
  */
 @Data
@@ -123,52 +124,65 @@ public class TaskChangedEvent {
         return e;
     }
 
-    /** Factory for work log created events. */
-    public static TaskChangedEvent workLogCreated(UUID taskId, UUID projectId, String taskTitle,
-                                                  UUID workLogId, UUID workLogUserId,
-                                                  WorkType workType, BigInteger plannedHours,
-                                                  BigInteger bookedHours) {
-        return workLogEvent(TaskChangeType.WORK_LOG_CREATED, taskId, projectId, taskTitle,
-                workLogId, workLogUserId, workType, plannedHours, bookedHours);
-    }
-
-    /** Factory for work log updated events. {@code plannedHours} reflects the immutable original value. */
-    public static TaskChangedEvent workLogUpdated(UUID taskId, UUID projectId, String taskTitle,
-                                                  UUID workLogId, UUID workLogUserId,
-                                                  WorkType workType, BigInteger plannedHours,
-                                                  BigInteger bookedHours) {
-        return workLogEvent(TaskChangeType.WORK_LOG_UPDATED, taskId, projectId, taskTitle,
-                workLogId, workLogUserId, workType, plannedHours, bookedHours);
-    }
-
-    /** Factory for work log deleted events. */
-    public static TaskChangedEvent workLogDeleted(UUID taskId, UUID projectId, String taskTitle,
-                                                  UUID workLogId) {
+    /** Factory for planned-work created events. */
+    public static TaskChangedEvent plannedWorkCreated(UUID taskId, UUID projectId, String taskTitle,
+                                                      UUID plannedWorkId, UUID userId,
+                                                      WorkType workType, BigInteger plannedHours) {
         TaskChangedEvent e = new TaskChangedEvent();
         e.taskId = taskId;
         e.projectId = projectId;
         e.taskTitle = taskTitle;
-        e.changeType = TaskChangeType.WORK_LOG_DELETED;
+        e.changeType = TaskChangeType.PLANNED_WORK_CREATED;
         e.changedAt = Instant.now();
-        e.workLogId = workLogId;
+        e.workLogId = plannedWorkId;
+        e.workLogUserId = userId;
+        e.workType = workType;
+        e.plannedHours = plannedHours;
         return e;
     }
 
-    private static TaskChangedEvent workLogEvent(TaskChangeType changeType, UUID taskId,
-                                                 UUID projectId, String taskTitle,
-                                                 UUID workLogId, UUID workLogUserId,
-                                                 WorkType workType, BigInteger plannedHours,
-                                                 BigInteger bookedHours) {
+    /** Factory for booked-work created events. */
+    public static TaskChangedEvent bookedWorkCreated(UUID taskId, UUID projectId, String taskTitle,
+                                                     UUID bookedWorkId, UUID userId,
+                                                     WorkType workType, BigInteger bookedHours) {
+        return bookedWorkEvent(TaskChangeType.BOOKED_WORK_CREATED, taskId, projectId, taskTitle,
+                bookedWorkId, userId, workType, bookedHours);
+    }
+
+    /** Factory for booked-work updated events. */
+    public static TaskChangedEvent bookedWorkUpdated(UUID taskId, UUID projectId, String taskTitle,
+                                                     UUID bookedWorkId, UUID userId,
+                                                     WorkType workType, BigInteger bookedHours) {
+        return bookedWorkEvent(TaskChangeType.BOOKED_WORK_UPDATED, taskId, projectId, taskTitle,
+                bookedWorkId, userId, workType, bookedHours);
+    }
+
+    /** Factory for booked-work deleted events. */
+    public static TaskChangedEvent bookedWorkDeleted(UUID taskId, UUID projectId, String taskTitle,
+                                                     UUID bookedWorkId) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.projectId = projectId;
+        e.taskTitle = taskTitle;
+        e.changeType = TaskChangeType.BOOKED_WORK_DELETED;
+        e.changedAt = Instant.now();
+        e.workLogId = bookedWorkId;
+        return e;
+    }
+
+    private static TaskChangedEvent bookedWorkEvent(TaskChangeType changeType, UUID taskId,
+                                                    UUID projectId, String taskTitle,
+                                                    UUID bookedWorkId, UUID userId,
+                                                    WorkType workType, BigInteger bookedHours) {
         TaskChangedEvent e = new TaskChangedEvent();
         e.taskId = taskId;
         e.projectId = projectId;
         e.taskTitle = taskTitle;
         e.changeType = changeType;
         e.changedAt = Instant.now();
-        e.workLogId = workLogId;
-        e.workLogUserId = workLogUserId;
+        e.workLogId = bookedWorkId;
+        e.workLogUserId = userId;
         e.workType = workType;
-        e.plannedHours = plannedHours;
         e.bookedHours = bookedHours;
         return e;
     }

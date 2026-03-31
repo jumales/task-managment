@@ -11,18 +11,18 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Records planned and booked hours for a specific user and work type on a task.
- * A task may have multiple work log entries across different users and work types.
+ * Records actual booked hours for a specific user and work type on a task.
+ * A task may have multiple booked-work entries per work type.
  */
 @Entity
-@Table(name = "task_work_logs")
-@SQLDelete(sql = "UPDATE task_work_logs SET deleted_at = NOW() WHERE id = ?")
+@Table(name = "task_booked_works")
+@SQLDelete(sql = "UPDATE task_booked_works SET deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TaskWorkLog {
+public class TaskBookedWork {
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.TIME)
@@ -31,6 +31,7 @@ public class TaskWorkLog {
     @Column(name = "task_id", nullable = false)
     private UUID taskId;
 
+    /** User who booked the hours. */
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
@@ -38,11 +39,7 @@ public class TaskWorkLog {
     @Column(name = "work_type", nullable = false)
     private WorkType workType;
 
-    /** Estimated hours planned for this work entry. */
-    @Column(name = "planned_hours", nullable = false)
-    private Integer plannedHours;
-
-    /** Actual hours worked and booked against this entry. */
+    /** Actual hours booked for this entry; must be greater than zero. */
     @Column(name = "booked_hours", nullable = false)
     private Integer bookedHours;
 
