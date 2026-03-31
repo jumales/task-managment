@@ -25,5 +25,5 @@ SET next_task_number = COALESCE((
     WHERE t.project_id = p.id
 ), 1);
 
--- Unique index so no two active tasks in a project share the same code
-CREATE UNIQUE INDEX uq_tasks_task_code ON tasks (task_code) WHERE deleted_at IS NULL;
+-- Unique index so no two active tasks within the same project share the same code
+CREATE UNIQUE INDEX uq_tasks_task_code ON tasks (project_id, task_code) WHERE deleted_at IS NULL;
