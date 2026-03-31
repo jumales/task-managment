@@ -97,6 +97,28 @@
       "DOCUMENTATION": "Dokumentacija",
       "OTHER": "Ostalo"
     },
+    "plannedStart": "Planirani početak",
+    "plannedEnd": "Planirani završetak",
+    "plannedStartRequired": "Planirani početak je obavezan",
+    "plannedEndRequired": "Planirani završetak je obavezan",
+    "selectDate": "Odaberi datum",
+    "phase": "Faza",
+    "backToTasks": "Natrag na zadatke",
+    "timeline": "Vremenska crta",
+    "setDate": "Postavi datum",
+    "clearDate": "Obriši",
+    "clearTimelineConfirm": "Obrisati ovaj unos vremenske crte?",
+    "date": "Datum",
+    "setBy": "Postavio",
+    "notSet": "Nije postavljeno",
+    "failedSaveTimeline": "Neuspješno spremanje unosa vremenske crte.",
+    "failedDeleteTimeline": "Neuspješno brisanje unosa vremenske crte.",
+    "timelineStates": {
+      "PLANNED_START": "Planirani početak",
+      "PLANNED_END": "Planirani završetak",
+      "REAL_START": "Stvarni početak",
+      "REAL_END": "Stvarni završetak"
+    },
     "workTypes": {
       "DEVELOPMENT": "Razvoj",
       "TESTING": "Testiranje",

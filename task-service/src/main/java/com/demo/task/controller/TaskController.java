@@ -6,6 +6,7 @@ import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskSummaryResponse;
+import com.demo.task.client.UserClientHelper;
 import com.demo.task.service.TaskService;
 import com.demo.common.web.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +19,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,9 +31,11 @@ import java.util.UUID;
 public class TaskController {
 
     private final TaskService service;
+    private final UserClientHelper userClientHelper;
 
-    public TaskController(TaskService service) {
+    public TaskController(TaskService service, UserClientHelper userClientHelper) {
         this.service = service;
+        this.userClientHelper = userClientHelper;
     }
 
     /**
@@ -85,14 +89,14 @@ public class TaskController {
         return service.create(request, creatorId);
     }
 
-    /** Parses the authenticated user's ID from the authentication principal name (JWT subject). */
+    /**
+     * Resolves the caller's user-service UUID by looking up their JWT preferred_username in user-service.
+     * Falls back to null if user-service is unavailable or the username is not found.
+     */
     private UUID resolveUserId(Authentication authentication) {
-        if (authentication == null) return null;
-        try {
-            return UUID.fromString(authentication.getName());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) return null;
+        String username = jwtAuth.getToken().getClaimAsString("preferred_username");
+        return userClientHelper.resolveUserIdByUsername(username);
     }
 
     /** Updates the task identified by {@code id} with the values from the request body. */

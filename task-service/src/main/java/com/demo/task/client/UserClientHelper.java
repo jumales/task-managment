@@ -1,9 +1,11 @@
 package com.demo.task.client;
 
 import com.demo.common.dto.UserDto;
+import com.demo.task.config.CacheConfig;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -29,9 +31,27 @@ public class UserClientHelper {
     }
 
     /**
-     * Returns the display name of a single user, or {@code null} if the user is not found
-     * or user-service is unavailable.
+     * Resolves the user-service UUID for the given Keycloak preferred_username.
+     * Cached to avoid repeated remote calls on every task creation.
+     * Returns {@code null} if the username is not found or user-service is unavailable.
      */
+    @Cacheable(value = CacheConfig.USER_NAMES, key = "'username:' + #username", unless = "#result == null")
+    @CircuitBreaker(name = "userService", fallbackMethod = "resolveUserIdByUsernameFallback")
+    public UUID resolveUserIdByUsername(String username) {
+        if (username == null) return null;
+        return userClient.getUserByUsername(username).getId();
+    }
+
+    private UUID resolveUserIdByUsernameFallback(String username, Throwable t) {
+        log.warn("user-service circuit open — cannot resolve user ID for username {}: {}", username, t.getMessage());
+        return null;
+    }
+
+    /**
+     * Returns the display name of a single user, or {@code null} if the user is not found
+     * or user-service is unavailable. Result is cached to avoid repeated remote calls.
+     */
+    @Cacheable(value = CacheConfig.USER_NAMES, key = "#userId", unless = "#result == null")
     @CircuitBreaker(name = "userService", fallbackMethod = "resolveUserNameFallback")
     public String resolveUserName(UUID userId) {
         if (userId == null) return null;
