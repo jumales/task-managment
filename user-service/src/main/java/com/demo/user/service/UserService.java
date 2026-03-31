@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -58,6 +59,11 @@ public class UserService {
     /** Returns the user with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
     public UserDto findById(UUID id) {
         return toDto(getOrThrow(id));
+    }
+
+    /** Returns the active user with the given username, or empty if not found. */
+    public Optional<UserDto> findByUsername(String username) {
+        return userRepository.findByUsernameAndDeletedAtIsNull(username).map(this::toDto);
     }
 
     /** Returns users whose IDs are in the given collection; used by task-service batch fetch. */

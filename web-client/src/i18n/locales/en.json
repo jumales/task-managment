@@ -119,6 +119,28 @@
       "DOCUMENTATION": "Docs",
       "OTHER": "Other"
     },
+    "plannedStart": "Planned Start",
+    "plannedEnd": "Planned End",
+    "plannedStartRequired": "Planned start is required",
+    "plannedEndRequired": "Planned end is required",
+    "selectDate": "Select date",
+    "phase": "Phase",
+    "backToTasks": "Back to Tasks",
+    "timeline": "Timeline",
+    "setDate": "Set Date",
+    "clearDate": "Clear",
+    "clearTimelineConfirm": "Clear this timeline entry?",
+    "date": "Date",
+    "setBy": "Set by",
+    "notSet": "Not set",
+    "failedSaveTimeline": "Failed to save timeline entry.",
+    "failedDeleteTimeline": "Failed to delete timeline entry.",
+    "timelineStates": {
+      "PLANNED_START": "Planned Start",
+      "PLANNED_END": "Planned End",
+      "REAL_START": "Actual Start",
+      "REAL_END": "Actual End"
+    },
     "workTypes": {
       "DEVELOPMENT": "Development",
       "TESTING": "Testing",

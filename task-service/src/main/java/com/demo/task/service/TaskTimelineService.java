@@ -18,9 +18,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Manages timeline entries for tasks, tracking planned and actual start/end dates per state.
@@ -147,13 +145,10 @@ public class TaskTimelineService {
         return entry;
     }
 
-    /** Enriches a list of timeline entries with user display names using a single batch call. */
+    /** Enriches a list of timeline entries with user display names, resolved and cached per user ID. */
     private List<TaskTimelineResponse> toResponseList(List<TaskTimeline> entries) {
-        if (entries.isEmpty()) return List.of();
-        Set<UUID> userIds = entries.stream().map(TaskTimeline::getSetByUserId).collect(Collectors.toSet());
-        Map<UUID, String> nameById = userClientHelper.fetchUserNames(userIds);
         return entries.stream()
-                .map(e -> toResponse(e, nameById.get(e.getSetByUserId())))
+                .map(e -> toResponse(e, userClientHelper.resolveUserName(e.getSetByUserId())))
                 .toList();
     }
 

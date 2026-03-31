@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Tag(name = "Users", description = "Create and manage user accounts")
@@ -51,6 +52,19 @@ public class UserController {
     @PreAuthorize("isAuthenticated()")
     public UserDto getMe(Authentication authentication) {
         return service.findById(UUID.fromString(authentication.getName()));
+    }
+
+    /** Returns the active user with the given username; used by task-service to resolve the caller's user-service UUID from the JWT preferred_username claim. */
+    @Operation(summary = "Find a user by username")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "User found"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
+    })
+    @GetMapping("/by-username")
+    @PreAuthorize("isAuthenticated()")
+    public UserDto getByUsername(@RequestParam String username) {
+        return service.findByUsername(username)
+                .orElseThrow(() -> new com.demo.common.exception.ResourceNotFoundException("User with username", username));
     }
 
     /** Returns users whose IDs match the provided list; used for batch lookups by other services. */
