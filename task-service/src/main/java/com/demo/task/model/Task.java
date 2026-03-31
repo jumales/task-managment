@@ -41,5 +41,9 @@ public class Task {
     @Column(name = "phase_id")
     private UUID phaseId;
 
+    /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1"). */
+    @Column(name = "task_code")
+    private String taskCode;
+
     private Instant deletedAt;
 }

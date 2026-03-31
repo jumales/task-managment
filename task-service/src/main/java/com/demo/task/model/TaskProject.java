@@ -31,5 +31,13 @@ public class TaskProject {
 
     private String description;
 
+    /** Prefix used when auto-generating task codes for this project (e.g. "PROJ_"). Defaults to "TASK_". */
+    @Column(nullable = false)
+    private String taskCodePrefix;
+
+    /** Counter tracking the next sequential number to assign when a task is created in this project. */
+    @Column(nullable = false)
+    private int nextTaskNumber;
+
     private Instant deletedAt;
 }

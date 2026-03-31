@@ -14,6 +14,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class TaskSummaryResponse {
     private UUID id;
+    /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1"). */
+    private String taskCode;
     private String title;
     private String description;
     private TaskStatus status;

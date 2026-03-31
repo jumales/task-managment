@@ -90,13 +90,23 @@ public class TaskController {
     }
 
     /**
-     * Resolves the caller's user-service UUID by looking up their JWT preferred_username in user-service.
-     * Falls back to null if user-service is unavailable or the username is not found.
+     * Resolves the caller's user-service UUID.
+     * For JWT tokens, looks up the user by the {@code preferred_username} claim.
+     * For non-JWT authentication (e.g. integration tests), attempts to parse the principal
+     * name directly as a UUID.
+     * Falls back to null if resolution fails or user-service is unavailable.
      */
     private UUID resolveUserId(Authentication authentication) {
-        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) return null;
-        String username = jwtAuth.getToken().getClaimAsString("preferred_username");
-        return userClientHelper.resolveUserIdByUsername(username);
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+            String username = jwtAuth.getToken().getClaimAsString("preferred_username");
+            return userClientHelper.resolveUserIdByUsername(username);
+        }
+        // Non-JWT path: principal name is already a UUID string (used in integration tests)
+        try {
+            return UUID.fromString(authentication.getName());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return null;
+        }
     }
 
     /** Updates the task identified by {@code id} with the values from the request body. */

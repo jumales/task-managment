@@ -8,12 +8,15 @@ import com.demo.task.model.TaskProject;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class TaskProjectService {
+
+    static final String DEFAULT_TASK_CODE_PREFIX = "TASK_";
 
     private final TaskProjectRepository repository;
     private final TaskRepository taskRepository;
@@ -33,21 +36,42 @@ public class TaskProjectService {
         return toResponse(getOrThrow(id));
     }
 
-    /** Creates and persists a new project from the given request. */
+    /** Creates and persists a new project from the given request. Uses "TASK_" prefix when none is provided. */
     public TaskProjectResponse create(TaskProjectRequest request) {
+        String prefix = resolvePrefix(request.getTaskCodePrefix());
         TaskProject project = TaskProject.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .taskCodePrefix(prefix)
+                .nextTaskNumber(1)
                 .build();
         return toResponse(repository.save(project));
     }
 
-    /** Updates name and description of the project identified by {@code id}. */
+    /** Updates name, description, and task code prefix of the project identified by {@code id}. */
     public TaskProjectResponse update(UUID id, TaskProjectRequest request) {
         TaskProject project = getOrThrow(id);
         project.setName(request.getName());
         project.setDescription(request.getDescription());
+        if (request.getTaskCodePrefix() != null) {
+            project.setTaskCodePrefix(resolvePrefix(request.getTaskCodePrefix()));
+        }
         return toResponse(repository.save(project));
+    }
+
+    /**
+     * Atomically reserves the next sequential task code for the given project.
+     * Acquires a pessimistic write lock, increments the counter, and returns the new code
+     * (e.g. "PROJ_5"). Must be called within an active transaction.
+     */
+    @Transactional
+    String nextTaskCode(UUID projectId) {
+        TaskProject project = repository.findByIdForUpdate(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("TaskProject", projectId));
+        int number = project.getNextTaskNumber();
+        project.setNextTaskNumber(number + 1);
+        repository.save(project);
+        return project.getTaskCodePrefix() + number;
     }
 
     /** Soft-deletes the project; throws if any tasks still belong to it. */
@@ -70,8 +94,14 @@ public class TaskProjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("TaskProject", id));
     }
 
+    /** Returns "TASK_" when the given prefix is blank or null. */
+    private String resolvePrefix(String prefix) {
+        return (prefix != null && !prefix.isBlank()) ? prefix : DEFAULT_TASK_CODE_PREFIX;
+    }
+
     /** Converts a {@link com.demo.task.model.TaskProject} entity to its DTO representation. */
     TaskProjectResponse toResponse(TaskProject project) {
-        return new TaskProjectResponse(project.getId(), project.getName(), project.getDescription());
+        return new TaskProjectResponse(project.getId(), project.getName(), project.getDescription(),
+                project.getTaskCodePrefix());
     }
 }
