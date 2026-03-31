@@ -118,7 +118,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Backend Rewrite\",\n  \"description\": \"Full rewrite of the legacy backend\"\n}",
+              "raw": "{\n  \"name\": \"Backend Rewrite\",\n  \"description\": \"Full rewrite of the legacy backend\",\n  \"taskCodePrefix\": \"BR_\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -164,7 +164,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Backend Rewrite v2\",\n  \"description\": \"Updated description\"\n}",
+              "raw": "{\n  \"name\": \"Backend Rewrite v2\",\n  \"description\": \"Updated description\",\n  \"taskCodePrefix\": \"BR_\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -198,7 +198,19 @@ class TaskControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getTitle()).isEqualTo("New feature");
+        assertThat(response.getBody().getTaskCode()).isEqualTo("TASK_1");
         assertThat(repository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void createTask_taskCodesAreSequentialPerProject() {
+        TaskResponse first  = restTemplate.postForEntity("/api/v1/tasks", request("Task 1", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+        TaskResponse second = restTemplate.postForEntity("/api/v1/tasks", request("Task 2", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+        TaskResponse third  = restTemplate.postForEntity("/api/v1/tasks", request("Task 3", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        assertThat(first.getTaskCode()).isEqualTo("TASK_1");
+        assertThat(second.getTaskCode()).isEqualTo("TASK_2");
+        assertThat(third.getTaskCode()).isEqualTo("TASK_3");
     }
 
     @Test

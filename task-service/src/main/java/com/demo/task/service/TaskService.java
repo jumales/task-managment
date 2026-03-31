@@ -136,6 +136,8 @@ public class TaskService {
         // Use the explicitly requested phase, or fall back to the project's default phase.
         UUID phaseId = resolvePhaseId(request.getPhaseId(), request.getProjectId());
 
+        String taskCode = projectService.nextTaskCode(request.getProjectId());
+
         Task task = Task.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -145,6 +147,7 @@ public class TaskService {
                 .assignedUserId(request.getAssignedUserId())
                 .projectId(request.getProjectId())
                 .phaseId(phaseId)
+                .taskCode(taskCode)
                 .build();
         Task saved = repository.save(task);
         participantService.setCreator(saved.getId(), creatorId);
@@ -326,7 +329,7 @@ public class TaskService {
         TaskPhaseResponse phase = task.getPhaseId() != null
                 ? phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()))
                 : null;
-        return new TaskResponse(task.getId(), task.getTitle(), task.getDescription(),
+        return new TaskResponse(task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(), participants, project, phase);
     }
 
@@ -355,7 +358,7 @@ public class TaskService {
                 participantService.findByTaskIds(taskIds);
 
         return tasks.stream().map(task -> new TaskResponse(
-                task.getId(), task.getTitle(), task.getDescription(), task.getStatus(),
+                task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(), task.getStatus(),
                 task.getType(), task.getProgress(),
                 participantsByTaskId.getOrDefault(task.getId(), List.of()),
                 projectsById.get(task.getProjectId()),
@@ -400,6 +403,7 @@ public class TaskService {
             TaskPhase phase = task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null;
             return new TaskSummaryResponse(
                     task.getId(),
+                    task.getTaskCode(),
                     task.getTitle(),
                     task.getDescription(),
                     task.getStatus(),

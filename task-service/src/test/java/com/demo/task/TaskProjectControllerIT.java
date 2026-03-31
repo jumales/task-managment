@@ -130,7 +130,33 @@ class TaskProjectControllerIT {
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getName()).isEqualTo("Sprint 1");
         assertThat(response.getBody().getDescription()).isEqualTo("Q1 sprint");
+        assertThat(response.getBody().getTaskCodePrefix()).isEqualTo("TASK_");
         assertThat(projectRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void createProject_withCustomPrefix_usesProvidedPrefix() {
+        TaskProjectRequest req = projectRequest("My Project", null);
+        req.setTaskCodePrefix("MP_");
+
+        ResponseEntity<TaskProjectResponse> response =
+                restTemplate.postForEntity("/api/v1/projects", req, TaskProjectResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getTaskCodePrefix()).isEqualTo("MP_");
+    }
+
+    @Test
+    void createTask_taskCodeIsGeneratedWithProjectPrefix() {
+        TaskProjectRequest req = projectRequest("Coded Project", null);
+        req.setTaskCodePrefix("CP_");
+        TaskProjectResponse project = restTemplate.postForEntity("/api/v1/projects", req, TaskProjectResponse.class).getBody();
+
+        TaskResponse first  = createTask("Task A", TaskStatus.TODO, ALICE_ID, project.getId());
+        TaskResponse second = createTask("Task B", TaskStatus.TODO, ALICE_ID, project.getId());
+
+        assertThat(first.getTaskCode()).isEqualTo("CP_1");
+        assertThat(second.getTaskCode()).isEqualTo("CP_2");
     }
 
     // ── PUT /api/v1/projects/{id} ────────────────────────────────────
