@@ -1,8 +1,10 @@
 -- Rename work_log_audit_records to planned_work_audit_records (tracks PLANNED_WORK_CREATED events).
 -- Create booked_work_audit_records for BOOKED_WORK_CREATED/UPDATED/DELETED events.
 
--- 1. Rename and drop booked_hours column (not relevant for planned-work audit records)
+-- 1. Rename table, rename columns to match new entity, drop irrelevant column
 ALTER TABLE work_log_audit_records RENAME TO planned_work_audit_records;
+ALTER TABLE planned_work_audit_records RENAME COLUMN work_log_id      TO planned_work_id;
+ALTER TABLE planned_work_audit_records RENAME COLUMN work_log_user_id TO planned_work_user_id;
 ALTER TABLE planned_work_audit_records DROP COLUMN booked_hours;
 DROP INDEX IF EXISTS idx_work_log_audit_records_task_id;
 CREATE INDEX idx_planned_work_audit_records_task_id ON planned_work_audit_records (task_id);
