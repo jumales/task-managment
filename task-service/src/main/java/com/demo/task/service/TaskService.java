@@ -1,15 +1,19 @@
 package com.demo.task.service;
 
 import com.demo.common.dto.PageResponse;
+import com.demo.common.dto.TaskBookedWorkResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskParticipantResponse;
 import com.demo.common.dto.TaskPhaseResponse;
+import com.demo.common.dto.TaskPlannedWorkResponse;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.TaskSummaryResponse;
+import com.demo.common.dto.TaskTimelineResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
@@ -41,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Service
@@ -57,6 +62,8 @@ public class TaskService {
     private final TaskPhaseService phaseService;
     private final TaskParticipantService participantService;
     private final TaskTimelineService timelineService;
+    private final TaskPlannedWorkService plannedWorkService;
+    private final TaskBookedWorkService bookedWorkService;
     private final OutboxWriter outboxWriter;
     private final ObjectMapper objectMapper;
 
@@ -69,6 +76,8 @@ public class TaskService {
                        TaskPhaseService phaseService,
                        TaskParticipantService participantService,
                        TaskTimelineService timelineService,
+                       TaskPlannedWorkService plannedWorkService,
+                       TaskBookedWorkService bookedWorkService,
                        OutboxWriter outboxWriter,
                        ObjectMapper objectMapper) {
         this.repository = repository;
@@ -80,6 +89,8 @@ public class TaskService {
         this.phaseService = phaseService;
         this.participantService = participantService;
         this.timelineService = timelineService;
+        this.plannedWorkService = plannedWorkService;
+        this.bookedWorkService = bookedWorkService;
         this.outboxWriter = outboxWriter;
         this.objectMapper = objectMapper;
     }
@@ -93,6 +104,38 @@ public class TaskService {
     /** Returns the task with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
     public TaskResponse findById(UUID id) {
         return toResponse(getOrThrow(id));
+    }
+
+    /**
+     * Returns the full task view for the given ID, including timeline, planned work, and booked work.
+     * Timeline, planned work, and booked work are fetched concurrently to reduce overall latency.
+     * Throws {@link com.demo.common.exception.ResourceNotFoundException} when the task does not exist.
+     */
+    public TaskFullResponse findFullById(UUID id) {
+        Task task = getOrThrow(id);
+
+        // Fetch sub-collections concurrently; each call is independent and I/O-bound.
+        CompletableFuture<List<TaskTimelineResponse>> timelinesFuture =
+                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id));
+        CompletableFuture<List<TaskPlannedWorkResponse>> plannedWorkFuture =
+                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id));
+        CompletableFuture<List<TaskBookedWorkResponse>> bookedWorkFuture =
+                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id));
+
+        // Fetch synchronous data while the async calls are running.
+        List<TaskParticipantResponse> participants = participantService.findByTaskId(id);
+        TaskProjectResponse project = projectService.toResponse(projectService.getOrThrow(task.getProjectId()));
+        TaskPhaseResponse phase = phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()));
+        // Fetch full user profile; null when no user is assigned or user-service is unavailable.
+        UserDto assignedUser = task.getAssignedUserId() != null
+                ? userClient.getUserById(task.getAssignedUserId())
+                : null;
+
+        return new TaskFullResponse(
+                task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
+                task.getStatus(), task.getType(), task.getProgress(),
+                participants, project, phase, assignedUser,
+                timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join());
     }
 
     /** Returns a paginated summary page of tasks assigned to the specified user. */
@@ -229,21 +272,40 @@ public class TaskService {
         }
     }
 
-    /** Returns all comments for the given task, ordered by creation time ascending. */
+    /**
+     * Returns all comments for the given task, ordered by creation time ascending.
+     * Each comment is enriched with the author's display name via a single batch call.
+     */
     public List<TaskCommentResponse> getComments(UUID taskId) {
         getOrThrow(taskId);
-        return commentRepository.findByTaskIdOrderByCreatedAtAsc(taskId)
-                .stream()
-                .map(c -> new TaskCommentResponse(c.getId(), c.getContent(), c.getCreatedAt()))
+        List<TaskComment> comments = commentRepository.findByTaskIdOrderByCreatedAtAsc(taskId);
+        if (comments.isEmpty()) return List.of();
+
+        // Batch-resolve user names in one call; skips null user IDs (legacy comments).
+        Set<UUID> authorIds = comments.stream()
+                .map(TaskComment::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, String> nameById = authorIds.isEmpty() ? Map.of() : userClientHelper.fetchUserNames(authorIds);
+
+        return comments.stream()
+                .map(c -> new TaskCommentResponse(c.getId(), c.getUserId(),
+                        nameById.get(c.getUserId()), c.getContent(), c.getCreatedAt()))
                 .toList();
     }
 
-    /** Adds a comment to the task, publishes a {@code COMMENT_ADDED} outbox event, and returns the created comment. */
+    /**
+     * Adds a comment to the task authored by the given user,
+     * publishes a {@code COMMENT_ADDED} outbox event, and returns the created comment.
+     *
+     * @param authorId the authenticated user's UUID — stored on the comment for display purposes
+     */
     @Transactional
-    public TaskCommentResponse addComment(UUID taskId, TaskCommentRequest request) {
+    public TaskCommentResponse addComment(UUID taskId, TaskCommentRequest request, UUID authorId) {
         Task task = getOrThrow(taskId);
         TaskComment saved = commentRepository.save(TaskComment.builder()
                 .taskId(taskId)
+                .userId(authorId)
                 .content(request.getContent())
                 .createdAt(Instant.now())
                 .build());
@@ -251,7 +313,9 @@ public class TaskService {
         outboxWriter.write(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(),
                 task.getProjectId(), task.getTitle(), saved.getId(), saved.getContent()));
 
-        return new TaskCommentResponse(saved.getId(), saved.getContent(), saved.getCreatedAt());
+        String authorName = authorId != null ? userClientHelper.resolveUserName(authorId) : null;
+        return new TaskCommentResponse(saved.getId(), saved.getUserId(), authorName,
+                saved.getContent(), saved.getCreatedAt());
     }
 
     /** Soft-deletes the task; throws if the task has any associated comments. */

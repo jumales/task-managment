@@ -29,6 +29,9 @@ public class TaskComment {
 
     private UUID taskId;
 
+    /** User who wrote the comment; nullable for legacy rows created before this column existed. */
+    private UUID userId;
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
