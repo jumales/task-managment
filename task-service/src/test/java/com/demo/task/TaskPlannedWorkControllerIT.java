@@ -78,6 +78,7 @@ class TaskPlannedWorkControllerIT {
     private static final UUID BOB_ID   = UUID.randomUUID();
 
     private String taskId;
+    private UUID projectId;
 
     @BeforeEach
     void setUp() {
@@ -101,7 +102,7 @@ class TaskPlannedWorkControllerIT {
 
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");
-        UUID projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
+        projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
                 .getBody().getId();
 
         TaskRequest taskReq = new TaskRequest();
@@ -190,6 +191,7 @@ class TaskPlannedWorkControllerIT {
         updateReq.setTitle("Sample Task");
         updateReq.setStatus(TaskStatus.IN_PROGRESS);
         updateReq.setAssignedUserId(ALICE_ID);
+        updateReq.setProjectId(projectId);
         restTemplate.exchange("/api/v1/tasks/" + taskId, HttpMethod.PUT,
                 new HttpEntity<>(updateReq), TaskResponse.class);
 
