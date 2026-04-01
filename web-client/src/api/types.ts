@@ -44,16 +44,23 @@ export interface UserDto {
   active: boolean;
 }
 
+/** Mirrors com.demo.common.dto.TaskPhaseName */
+export type TaskPhaseName = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'TESTING' | 'DONE' | 'RELEASED';
+
 export interface TaskProjectResponse {
   id: string;
   name: string;
   description: string;
+  taskCodePrefix: string;
+  /** ID of the phase automatically assigned to new tasks. Null when no default is configured. */
+  defaultPhaseId: string | null;
 }
 
 export interface TaskPhaseResponse {
   id: string;
-  name: string;
-  isDefault: boolean;
+  name: TaskPhaseName;
+  description: string | null;
+  projectId: string;
 }
 
 export interface TaskCommentResponse {
@@ -89,7 +96,7 @@ export interface TaskResponse {
   progress: number;
   participants: TaskParticipantResponse[];
   project: TaskProjectResponse;
-  phase: TaskPhaseResponse | null;
+  phase: TaskPhaseResponse;
 }
 
 /** Mirrors com.demo.common.dto.TaskSummaryResponse — lightweight list view without participants. */
@@ -126,6 +133,15 @@ export interface TaskRequest {
 export interface TaskProjectRequest {
   name: string;
   description: string;
+  taskCodePrefix?: string;
+  /** ID of the phase to use as the default for new tasks. Must belong to this project. */
+  defaultPhaseId?: string | null;
+}
+
+export interface TaskPhaseRequest {
+  name: TaskPhaseName;
+  description?: string;
+  projectId: string;
 }
 
 export interface UserRequest {

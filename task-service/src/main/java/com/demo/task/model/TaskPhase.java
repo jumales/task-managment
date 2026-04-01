@@ -1,5 +1,6 @@
 package com.demo.task.model;
 
+import com.demo.common.dto.TaskPhaseName;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
@@ -10,8 +11,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A phase (e.g. "Backlog", "In Review", "Released") within a project.
- * Each project may have one default phase, which is automatically assigned to newly created tasks.
+ * A named phase (e.g. BACKLOG, IN_REVIEW, RELEASED) within a project.
+ * The active default phase for new tasks is tracked on the owning {@link TaskProject}.
  */
 @Entity
 @Table(name = "task_phases")
@@ -30,14 +31,11 @@ public class TaskPhase {
     @Column(name = "project_id", nullable = false)
     private UUID projectId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String name;
+    private TaskPhaseName name;
 
     private String description;
-
-    /** When true, this phase is automatically assigned to new tasks in the project. */
-    @Column(name = "is_default", nullable = false)
-    private boolean isDefault;
 
     private Instant deletedAt;
 }

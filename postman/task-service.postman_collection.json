@@ -168,7 +168,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Backend Rewrite v2\",\n  \"description\": \"Updated description\",\n  \"taskCodePrefix\": \"BR_\"\n}",
+              "raw": "{\n  \"name\": \"Backend Rewrite v2\",\n  \"description\": \"Updated description\",\n  \"taskCodePrefix\": \"BR_\",\n  \"defaultPhaseId\": \"{{phaseId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -303,7 +303,7 @@
           ]
         },
         {
-          "name": "Create phase (default)",
+          "name": "Create phase (BACKLOG)",
           "request": {
             "method": "POST",
             "header": [
@@ -314,7 +314,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Backlog\",\n  \"description\": \"Work not yet started\",\n  \"projectId\": \"{{projectId}}\",\n  \"isDefault\": true\n}",
+              "raw": "{\n  \"name\": \"BACKLOG\",\n  \"description\": \"Work not yet started\",\n  \"projectId\": \"{{projectId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -342,7 +342,7 @@
                   "var json = pm.response.json();",
                   "pm.collectionVariables.set('phaseId', json.id);",
                   "pm.test('ID saved to phaseId', () => pm.expect(json.id).to.be.a('string'));",
-                  "pm.test('Is default', () => pm.expect(json.isDefault).to.be.true);"
+                  "pm.test('Name is BACKLOG', () => pm.expect(json.name).to.eql('BACKLOG'));"
                 ],
                 "type": "text/javascript"
               }
@@ -350,7 +350,7 @@
           ]
         },
         {
-          "name": "Create phase (non-default)",
+          "name": "Create phase (IN_REVIEW)",
           "request": {
             "method": "POST",
             "header": [
@@ -361,7 +361,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"In Review\",\n  \"description\": \"Work under review\",\n  \"projectId\": \"{{projectId}}\",\n  \"isDefault\": false\n}",
+              "raw": "{\n  \"name\": \"IN_REVIEW\",\n  \"description\": \"Work under review\",\n  \"projectId\": \"{{projectId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -404,7 +404,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Backlog Updated\",\n  \"description\": \"Updated description\",\n  \"projectId\": \"{{projectId}}\",\n  \"isDefault\": true\n}",
+              "raw": "{\n  \"name\": \"DONE\",\n  \"description\": \"Updated description\",\n  \"projectId\": \"{{projectId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -702,7 +702,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"type\": \"FEATURE\",\n  \"progress\": 0,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null,\n  \"plannedStart\": \"2026-04-01T08:00:00Z\",\n  \"plannedEnd\": \"2026-04-30T17:00:00Z\"\n}",
+              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"TODO\",\n  \"type\": \"FEATURE\",\n  \"progress\": 0,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": \"{{phaseId}}\",\n  \"plannedStart\": \"2026-04-01T08:00:00Z\",\n  \"plannedEnd\": \"2026-04-30T17:00:00Z\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -749,7 +749,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"IN_PROGRESS\",\n  \"type\": \"FEATURE\",\n  \"progress\": 40,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": null\n}",
+              "raw": "{\n  \"title\": \"Implement login API\",\n  \"description\": \"JWT-based authentication endpoint\",\n  \"status\": \"IN_PROGRESS\",\n  \"type\": \"FEATURE\",\n  \"progress\": 40,\n  \"assignedUserId\": \"{{userId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"phaseId\": \"{{phaseId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

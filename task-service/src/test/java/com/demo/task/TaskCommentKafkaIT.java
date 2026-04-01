@@ -2,6 +2,9 @@ package com.demo.task;
 
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskPhaseName;
+import com.demo.common.dto.TaskPhaseRequest;
+import com.demo.common.dto.TaskPhaseResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -15,9 +18,12 @@ import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCommentRepository;
+import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,8 +86,12 @@ class TaskCommentKafkaIT {
     @Autowired
     TaskTimelineRepository timelineRepository;
 
+    @Autowired
+    TaskPhaseRepository phaseRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private UUID projectId;
+    private UUID phaseId;
 
     @BeforeEach
     void setUp() {
@@ -89,6 +99,7 @@ class TaskCommentKafkaIT {
         commentRepository.deleteAll();
         timelineRepository.deleteAll();
         taskRepository.deleteAll();
+        phaseRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
                 .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
@@ -96,6 +107,16 @@ class TaskCommentKafkaIT {
         projectReq.setName("Test Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
                 .getBody().getId();
+
+        TaskPhaseRequest phaseReq = new TaskPhaseRequest();
+        phaseReq.setName(TaskPhaseName.BACKLOG);
+        phaseReq.setProjectId(projectId);
+        phaseId = restTemplate.postForEntity("/api/v1/phases", phaseReq, TaskPhaseResponse.class).getBody().getId();
+        TaskProjectRequest defaultPhaseReq = new TaskProjectRequest();
+        defaultPhaseReq.setName("Test Project");
+        defaultPhaseReq.setDefaultPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/projects/" + projectId, HttpMethod.PUT,
+                new HttpEntity<>(defaultPhaseReq), TaskProjectResponse.class);
     }
 
     // ── Adding comments ───────────────────────────────────────────
@@ -190,6 +211,7 @@ class TaskCommentKafkaIT {
         req.setStatus(TaskStatus.TODO);
         req.setAssignedUserId(ALICE_ID);
         req.setProjectId(projectId);
+        req.setPhaseId(phaseId);
         req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class).getBody();

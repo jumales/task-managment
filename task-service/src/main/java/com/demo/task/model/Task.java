@@ -38,7 +38,7 @@ public class Task {
     @Column(name = "project_id", nullable = false)
     private UUID projectId;
 
-    @Column(name = "phase_id")
+    @Column(name = "phase_id", nullable = false)
     private UUID phaseId;
 
     /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1"). */
