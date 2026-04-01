@@ -212,6 +212,7 @@ class TaskPlannedWorkControllerIT {
         updateReq.setStatus(TaskStatus.IN_PROGRESS);
         updateReq.setAssignedUserId(ALICE_ID);
         updateReq.setProjectId(projectId);
+        updateReq.setPhaseId(phaseId);
         restTemplate.exchange("/api/v1/tasks/" + taskId, HttpMethod.PUT,
                 new HttpEntity<>(updateReq), TaskResponse.class);
 
