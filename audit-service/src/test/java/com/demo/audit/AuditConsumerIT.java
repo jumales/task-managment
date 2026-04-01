@@ -1,13 +1,15 @@
 package com.demo.audit;
 
 import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
-import com.demo.audit.model.WorkLogAuditRecord;
+import com.demo.audit.model.PlannedWorkAuditRecord;
 import com.demo.audit.repository.AuditRepository;
+import com.demo.audit.repository.BookedWorkAuditRepository;
 import com.demo.audit.repository.CommentAuditRepository;
 import com.demo.audit.repository.PhaseAuditRepository;
-import com.demo.audit.repository.WorkLogAuditRepository;
+import com.demo.audit.repository.PlannedWorkAuditRepository;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.WorkType;
 import com.demo.common.event.TaskChangeType;
@@ -55,7 +57,10 @@ class AuditConsumerIT {
     AuditRepository auditRepository;
 
     @Autowired
-    WorkLogAuditRepository workLogAuditRepository;
+    PlannedWorkAuditRepository plannedWorkAuditRepository;
+
+    @Autowired
+    BookedWorkAuditRepository bookedWorkAuditRepository;
 
     @Autowired
     CommentAuditRepository commentAuditRepository;
@@ -68,7 +73,8 @@ class AuditConsumerIT {
         auditRepository.deleteAll();
         commentAuditRepository.deleteAll();
         phaseAuditRepository.deleteAll();
-        workLogAuditRepository.deleteAll();
+        plannedWorkAuditRepository.deleteAll();
+        bookedWorkAuditRepository.deleteAll();
     }
 
     // ── Status events ─────────────────────────────────────────────
@@ -235,86 +241,108 @@ class AuditConsumerIT {
         });
     }
 
-    // ── Work log events ───────────────────────────────────────────
+    // ── Planned work events ───────────────────────────────────────
 
     @Test
-    void consumeWorkLogCreatedEvent_persistsAuditRecord() {
-        UUID taskId    = UUID.randomUUID();
-        UUID workLogId = UUID.randomUUID();
-        UUID userId    = UUID.randomUUID();
+    void consumePlannedWorkCreatedEvent_persistsAuditRecord() {
+        UUID taskId       = UUID.randomUUID();
+        UUID plannedWorkId = UUID.randomUUID();
+        UUID userId       = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogCreated(taskId, null, null, workLogId, userId,
-                        WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(3)));
+                TaskChangedEvent.plannedWorkCreated(taskId, null, null, plannedWorkId, userId,
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(8)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            List<PlannedWorkAuditRecord> records = plannedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
-            assertThat(records.get(0).getWorkLogId()).isEqualTo(workLogId);
-            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
-            assertThat(records.get(0).getWorkLogUserId()).isEqualTo(userId);
+            assertThat(records.get(0).getPlannedWorkId()).isEqualTo(plannedWorkId);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.PLANNED_WORK_CREATED);
+            assertThat(records.get(0).getPlannedWorkUserId()).isEqualTo(userId);
             assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
             assertThat(records.get(0).getPlannedHours()).isEqualTo(8);
+            assertThat(records.get(0).getRecordedAt()).isNotNull();
+        });
+    }
+
+    // ── Booked work events ────────────────────────────────────────
+
+    @Test
+    void consumeBookedWorkCreatedEvent_persistsAuditRecord() {
+        UUID taskId      = UUID.randomUUID();
+        UUID bookedWorkId = UUID.randomUUID();
+        UUID userId      = UUID.randomUUID();
+
+        kafkaTemplate.send("task-changed", taskId.toString(),
+                TaskChangedEvent.bookedWorkCreated(taskId, null, null, bookedWorkId, userId,
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(3)));
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            List<BookedWorkAuditRecord> records = bookedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).getBookedWorkId()).isEqualTo(bookedWorkId);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_CREATED);
+            assertThat(records.get(0).getBookedWorkUserId()).isEqualTo(userId);
+            assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
             assertThat(records.get(0).getBookedHours()).isEqualTo(3);
             assertThat(records.get(0).getRecordedAt()).isNotNull();
         });
     }
 
     @Test
-    void consumeWorkLogUpdatedEvent_persistsAuditRecord() {
-        UUID taskId    = UUID.randomUUID();
-        UUID workLogId = UUID.randomUUID();
+    void consumeBookedWorkUpdatedEvent_persistsAuditRecord() {
+        UUID taskId      = UUID.randomUUID();
+        UUID bookedWorkId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogUpdated(taskId, null, null, workLogId, UUID.randomUUID(),
-                        WorkType.TESTING, BigInteger.valueOf(4), BigInteger.valueOf(4)));
+                TaskChangedEvent.bookedWorkUpdated(taskId, null, null, bookedWorkId, UUID.randomUUID(),
+                        WorkType.TESTING, BigInteger.valueOf(4)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            List<BookedWorkAuditRecord> records = bookedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
-            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_UPDATED);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_UPDATED);
             assertThat(records.get(0).getWorkType()).isEqualTo(WorkType.TESTING);
         });
     }
 
     @Test
-    void consumeWorkLogDeletedEvent_persistsAuditRecord() {
-        UUID taskId    = UUID.randomUUID();
-        UUID workLogId = UUID.randomUUID();
+    void consumeBookedWorkDeletedEvent_persistsAuditRecord() {
+        UUID taskId      = UUID.randomUUID();
+        UUID bookedWorkId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogDeleted(taskId, null, null, workLogId));
+                TaskChangedEvent.bookedWorkDeleted(taskId, null, null, bookedWorkId));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            List<BookedWorkAuditRecord> records = bookedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
-            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_DELETED);
-            assertThat(records.get(0).getWorkLogId()).isEqualTo(workLogId);
-            assertThat(records.get(0).getPlannedHours()).isNull();
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_DELETED);
+            assertThat(records.get(0).getBookedWorkId()).isEqualTo(bookedWorkId);
             assertThat(records.get(0).getBookedHours()).isNull();
         });
     }
 
     @Test
-    void multipleWorkLogEvents_allPersistedInOrder() {
-        UUID taskId    = UUID.randomUUID();
-        UUID workLogId = UUID.randomUUID();
+    void multipleBookedWorkEvents_allPersistedInOrder() {
+        UUID taskId      = UUID.randomUUID();
+        UUID bookedWorkId = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogCreated(taskId, null, null, workLogId, UUID.randomUUID(),
-                        WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(0)));
+                TaskChangedEvent.bookedWorkCreated(taskId, null, null, bookedWorkId, UUID.randomUUID(),
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(3)));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogUpdated(taskId, null, null, workLogId, UUID.randomUUID(),
-                        WorkType.DEVELOPMENT, BigInteger.valueOf(8), BigInteger.valueOf(5)));
+                TaskChangedEvent.bookedWorkUpdated(taskId, null, null, bookedWorkId, UUID.randomUUID(),
+                        WorkType.DEVELOPMENT, BigInteger.valueOf(5)));
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogDeleted(taskId, null, null, workLogId));
+                TaskChangedEvent.bookedWorkDeleted(taskId, null, null, bookedWorkId));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<WorkLogAuditRecord> records = workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            List<BookedWorkAuditRecord> records = bookedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(3);
-            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_CREATED);
-            assertThat(records.get(1).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_UPDATED);
-            assertThat(records.get(2).getChangeType()).isEqualTo(TaskChangeType.WORK_LOG_DELETED);
+            assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_CREATED);
+            assertThat(records.get(1).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_UPDATED);
+            assertThat(records.get(2).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_DELETED);
         });
     }
 }

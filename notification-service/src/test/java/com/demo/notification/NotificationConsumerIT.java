@@ -201,15 +201,15 @@ class NotificationConsumerIT {
     }
 
     @Test
-    void consumeWorkLogCreatedEvent_notifiesWorkLogUser() {
-        UUID taskId       = UUID.randomUUID();
-        UUID workLogUser  = UUID.randomUUID();
+    void consumePlannedWorkCreatedEvent_notifiesPlannedWorkUser() {
+        UUID taskId      = UUID.randomUUID();
+        UUID plannedUser = UUID.randomUUID();
 
         kafkaTemplate.send("task-changed", taskId.toString(),
-                TaskChangedEvent.workLogCreated(taskId, null, "Test Task",
-                        UUID.randomUUID(), workLogUser,
+                TaskChangedEvent.plannedWorkCreated(taskId, null, "Test Task",
+                        UUID.randomUUID(), plannedUser,
                         com.demo.common.dto.WorkType.DEVELOPMENT,
-                        java.math.BigInteger.valueOf(8), java.math.BigInteger.ZERO));
+                        java.math.BigInteger.valueOf(8)));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
             assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);

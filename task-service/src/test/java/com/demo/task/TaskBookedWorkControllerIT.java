@@ -1,19 +1,20 @@
 package com.demo.task;
 
+import com.demo.common.dto.TaskBookedWorkRequest;
+import com.demo.common.dto.TaskBookedWorkResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
-import com.demo.common.dto.TaskWorkLogRequest;
-import com.demo.common.dto.TaskWorkLogResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.WorkType;
 import com.demo.task.client.UserClient;
+import com.demo.task.repository.TaskBookedWorkRepository;
+import com.demo.task.repository.TaskPlannedWorkRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
-import com.demo.task.repository.TaskWorkLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +38,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 /**
- * Integration tests for {@link com.demo.task.controller.TaskWorkLogController}.
+ * Integration tests for {@link com.demo.task.controller.TaskBookedWorkController}.
  */
 @Import(TestSecurityConfig.class)
 @Testcontainers
@@ -45,7 +46,7 @@ import static org.mockito.Mockito.when;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "eureka.client.enabled=false"
 )
-class TaskWorkLogControllerIT {
+class TaskBookedWorkControllerIT {
 
     @Container
     @ServiceConnection
@@ -64,7 +65,10 @@ class TaskWorkLogControllerIT {
     TaskProjectRepository projectRepository;
 
     @Autowired
-    TaskWorkLogRepository workLogRepository;
+    TaskPlannedWorkRepository plannedWorkRepository;
+
+    @Autowired
+    TaskBookedWorkRepository bookedWorkRepository;
 
     @Autowired
     TaskTimelineRepository timelineRepository;
@@ -76,7 +80,8 @@ class TaskWorkLogControllerIT {
 
     @BeforeEach
     void setUp() {
-        workLogRepository.deleteAll();
+        bookedWorkRepository.deleteAll();
+        plannedWorkRepository.deleteAll();
         timelineRepository.deleteAll();
         taskRepository.deleteAll();
         projectRepository.deleteAll();
@@ -109,161 +114,137 @@ class TaskWorkLogControllerIT {
                 .getBody().getId().toString();
     }
 
-    // ── GET /api/v1/tasks/{taskId}/work-logs ────────────────────────────────
+    // ── GET /api/v1/tasks/{taskId}/booked-work ───────────────────────────────
 
     @Test
-    void getWorkLogs_whenNoneExist_returnsEmptyList() {
-        ResponseEntity<TaskWorkLogResponse[]> response = restTemplate.getForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
-                TaskWorkLogResponse[].class);
+    void getBookedWork_whenNoneExist_returnsEmptyList() {
+        ResponseEntity<TaskBookedWorkResponse[]> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/booked-work",
+                TaskBookedWorkResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEmpty();
     }
 
     @Test
-    void getWorkLogs_whenTaskNotFound_returns404() {
+    void getBookedWork_whenTaskNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.getForEntity(
-                "/api/v1/tasks/" + UUID.randomUUID() + "/work-logs",
+                "/api/v1/tasks/" + UUID.randomUUID() + "/booked-work",
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // ── POST /api/v1/tasks/{taskId}/work-logs ───────────────────────────────
+    // ── POST /api/v1/tasks/{taskId}/booked-work ──────────────────────────────
 
     @Test
-    void createWorkLog_persistsAndReturnsEntry() {
-        TaskWorkLogRequest request = workLogRequest(ALICE_ID, WorkType.DEVELOPMENT, "8", "5");
+    void createBookedWork_persistsAndReturnsEntry() {
+        TaskBookedWorkRequest request = bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "5");
 
-        ResponseEntity<TaskWorkLogResponse> response = restTemplate.postForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
+        ResponseEntity<TaskBookedWorkResponse> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/booked-work",
                 request,
-                TaskWorkLogResponse.class);
+                TaskBookedWorkResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getUserId()).isEqualTo(ALICE_ID);
         assertThat(response.getBody().getUserName()).isEqualTo("Alice Johnson");
         assertThat(response.getBody().getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
-        assertThat(response.getBody().getPlannedHours()).isEqualTo(BigInteger.valueOf(8));
         assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(5));
     }
 
     @Test
-    void createWorkLog_multipleEntriesForSameTask_areAllReturned() {
-        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/work-logs",
-                workLogRequest(ALICE_ID, WorkType.DEVELOPMENT, "4", "4"), TaskWorkLogResponse.class);
-        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/work-logs",
-                workLogRequest(BOB_ID, WorkType.TESTING, "2", "1"), TaskWorkLogResponse.class);
+    void createBookedWork_multipleEntriesForSameWorkType_areAllReturned() {
+        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/booked-work",
+                bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"), TaskBookedWorkResponse.class);
+        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/booked-work",
+                bookedWorkRequest(BOB_ID, WorkType.DEVELOPMENT, "4"), TaskBookedWorkResponse.class);
+        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/booked-work",
+                bookedWorkRequest(ALICE_ID, WorkType.TESTING, "2"), TaskBookedWorkResponse.class);
 
-        ResponseEntity<TaskWorkLogResponse[]> response = restTemplate.getForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
-                TaskWorkLogResponse[].class);
+        ResponseEntity<TaskBookedWorkResponse[]> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/booked-work",
+                TaskBookedWorkResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()).hasSize(3);
     }
 
     @Test
-    void createWorkLog_whenTaskNotFound_returns404() {
+    void createBookedWork_whenTaskNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/v1/tasks/" + UUID.randomUUID() + "/work-logs",
-                workLogRequest(ALICE_ID, WorkType.PLANNING, "1", "0"),
+                "/api/v1/tasks/" + UUID.randomUUID() + "/booked-work",
+                bookedWorkRequest(ALICE_ID, WorkType.PLANNING, "1"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // ── PUT /api/v1/tasks/{taskId}/work-logs/{workLogId} ────────────────────
+    // ── PUT /api/v1/tasks/{taskId}/booked-work/{bookedWorkId} ────────────────
 
     @Test
-    void updateWorkLog_updatesAllFields() {
-        String workLogId = restTemplate.postForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
-                workLogRequest(ALICE_ID, WorkType.DEVELOPMENT, "4", "0"),
-                TaskWorkLogResponse.class).getBody().getId().toString();
+    void updateBookedWork_updatesAllFields() {
+        String bookedWorkId = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/booked-work",
+                bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"),
+                TaskBookedWorkResponse.class).getBody().getId().toString();
 
-        TaskWorkLogRequest update = workLogRequest(BOB_ID, WorkType.CODE_REVIEW, "2", "2");
+        TaskBookedWorkRequest update = bookedWorkRequest(BOB_ID, WorkType.CODE_REVIEW, "6");
 
-        ResponseEntity<TaskWorkLogResponse> response = restTemplate.exchange(
-                "/api/v1/tasks/" + taskId + "/work-logs/" + workLogId,
+        ResponseEntity<TaskBookedWorkResponse> response = restTemplate.exchange(
+                "/api/v1/tasks/" + taskId + "/booked-work/" + bookedWorkId,
                 HttpMethod.PUT,
                 new HttpEntity<>(update),
-                TaskWorkLogResponse.class);
+                TaskBookedWorkResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getUserId()).isEqualTo(BOB_ID);
         assertThat(response.getBody().getWorkType()).isEqualTo(WorkType.CODE_REVIEW);
-        assertThat(response.getBody().getPlannedHours()).isEqualTo(BigInteger.valueOf(4)); // immutable: stays at original 4
-        assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(2));
+        assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(6));
     }
 
     @Test
-    void updateWorkLog_plannedHoursAreImmutable() {
-        // Create a log with plannedHours = 10
-        String workLogId = restTemplate.postForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
-                workLogRequest(ALICE_ID, WorkType.DEVELOPMENT, "10", "0"),
-                TaskWorkLogResponse.class).getBody().getId().toString();
-
-        // Update with a different plannedHours value — should be ignored
-        TaskWorkLogRequest update = workLogRequest(ALICE_ID, WorkType.DEVELOPMENT, "99", "5");
-
-        ResponseEntity<TaskWorkLogResponse> response = restTemplate.exchange(
-                "/api/v1/tasks/" + taskId + "/work-logs/" + workLogId,
-                HttpMethod.PUT,
-                new HttpEntity<>(update),
-                TaskWorkLogResponse.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getPlannedHours()).isEqualTo(BigInteger.valueOf(10)); // unchanged
-        assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(5));   // updated
-    }
-
-    @Test
-    void updateWorkLog_whenNotFound_returns404() {
+    void updateBookedWork_whenNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/tasks/" + taskId + "/work-logs/" + UUID.randomUUID(),
+                "/api/v1/tasks/" + taskId + "/booked-work/" + UUID.randomUUID(),
                 HttpMethod.PUT,
-                new HttpEntity<>(workLogRequest(ALICE_ID, WorkType.TESTING, "1", "0")),
+                new HttpEntity<>(bookedWorkRequest(ALICE_ID, WorkType.TESTING, "1")),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // ── DELETE /api/v1/tasks/{taskId}/work-logs/{workLogId} ─────────────────
+    // ── DELETE /api/v1/tasks/{taskId}/booked-work/{bookedWorkId} ────────────
 
     @Test
-    void deleteWorkLog_removesItFromList() {
-        String workLogId = restTemplate.postForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
-                workLogRequest(ALICE_ID, WorkType.MEETING, "1", "1"),
-                TaskWorkLogResponse.class).getBody().getId().toString();
+    void deleteBookedWork_removesItFromList() {
+        String bookedWorkId = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/booked-work",
+                bookedWorkRequest(ALICE_ID, WorkType.MEETING, "1"),
+                TaskBookedWorkResponse.class).getBody().getId().toString();
 
-        restTemplate.delete("/api/v1/tasks/" + taskId + "/work-logs/" + workLogId);
+        restTemplate.delete("/api/v1/tasks/" + taskId + "/booked-work/" + bookedWorkId);
 
-        ResponseEntity<TaskWorkLogResponse[]> listResponse = restTemplate.getForEntity(
-                "/api/v1/tasks/" + taskId + "/work-logs",
-                TaskWorkLogResponse[].class);
-        assertThat(listResponse.getBody()).noneMatch(l -> l.getId().toString().equals(workLogId));
+        ResponseEntity<TaskBookedWorkResponse[]> listResponse = restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/booked-work",
+                TaskBookedWorkResponse[].class);
+        assertThat(listResponse.getBody()).noneMatch(e -> e.getId().toString().equals(bookedWorkId));
     }
 
     @Test
-    void deleteWorkLog_whenNotFound_returns404() {
+    void deleteBookedWork_whenNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/tasks/" + taskId + "/work-logs/" + UUID.randomUUID(),
+                "/api/v1/tasks/" + taskId + "/booked-work/" + UUID.randomUUID(),
                 HttpMethod.DELETE, HttpEntity.EMPTY, String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private TaskWorkLogRequest workLogRequest(UUID userId, WorkType workType,
-                                              String plannedHours, String bookedHours) {
-        TaskWorkLogRequest req = new TaskWorkLogRequest();
+    private TaskBookedWorkRequest bookedWorkRequest(UUID userId, WorkType workType, String bookedHours) {
+        TaskBookedWorkRequest req = new TaskBookedWorkRequest();
         req.setUserId(userId);
         req.setWorkType(workType);
-        req.setPlannedHours(new BigInteger(plannedHours));
         req.setBookedHours(new BigInteger(bookedHours));
         return req;
     }

@@ -37,7 +37,11 @@
       "value": ""
     },
     {
-      "key": "workLogId",
+      "key": "plannedWorkId",
+      "value": ""
+    },
+    {
+      "key": "bookedWorkId",
       "value": ""
     }
   ],
@@ -1002,15 +1006,15 @@
       ]
     },
     {
-      "name": "Task Work Logs",
+      "name": "Task Planned Work",
       "item": [
         {
-          "name": "Get work logs for task",
+          "name": "Get planned-work for task",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs",
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/planned-work",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1019,7 +1023,7 @@
                 "v1",
                 "tasks",
                 "{{taskId}}",
-                "work-logs"
+                "planned-work"
               ]
             }
           },
@@ -1037,7 +1041,7 @@
           ]
         },
         {
-          "name": "Add work log",
+          "name": "Add planned-work entry",
           "request": {
             "method": "POST",
             "header": [
@@ -1048,7 +1052,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"DEVELOPMENT\",\n  \"plannedHours\": 8,\n  \"bookedHours\": 5\n}",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"DEVELOPMENT\",\n  \"plannedHours\": 8\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1056,7 +1060,7 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs",
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/planned-work",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1065,7 +1069,7 @@
                 "v1",
                 "tasks",
                 "{{taskId}}",
-                "work-logs"
+                "planned-work"
               ]
             }
           },
@@ -1076,9 +1080,47 @@
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "var json = pm.response.json();",
-                  "pm.collectionVariables.set('workLogId', json.id);",
-                  "pm.test('ID saved to workLogId', () => pm.expect(json.id).to.be.a('string'));",
-                  "pm.test('Has workType', () => pm.expect(json.workType).to.eql('DEVELOPMENT'));"
+                  "pm.collectionVariables.set('plannedWorkId', json.id);",
+                  "pm.test('ID saved to plannedWorkId', () => pm.expect(json.id).to.be.a('string'));",
+                  "pm.test('Has workType', () => pm.expect(json.workType).to.eql('DEVELOPMENT'));",
+                  "pm.test('Has plannedHours', () => pm.expect(json.plannedHours).to.eql(8));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Task Booked Work",
+      "item": [
+        {
+          "name": "Get booked-work for task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/booked-work",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "booked-work"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
                 ],
                 "type": "text/javascript"
               }
@@ -1086,7 +1128,57 @@
           ]
         },
         {
-          "name": "Update work log",
+          "name": "Add booked-work entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"DEVELOPMENT\",\n  \"bookedHours\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/booked-work",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "booked-work"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('bookedWorkId', json.id);",
+                  "pm.test('ID saved to bookedWorkId', () => pm.expect(json.id).to.be.a('string'));",
+                  "pm.test('Has workType', () => pm.expect(json.workType).to.eql('DEVELOPMENT'));",
+                  "pm.test('Has bookedHours', () => pm.expect(json.bookedHours).to.eql(3));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update booked-work entry",
           "request": {
             "method": "PUT",
             "header": [
@@ -1105,7 +1197,7 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs/{{workLogId}}",
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/booked-work/{{bookedWorkId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1114,8 +1206,8 @@
                 "v1",
                 "tasks",
                 "{{taskId}}",
-                "work-logs",
-                "{{workLogId}}"
+                "booked-work",
+                "{{bookedWorkId}}"
               ]
             }
           },
@@ -1133,12 +1225,12 @@
           ]
         },
         {
-          "name": "Delete work log",
+          "name": "Delete booked-work entry",
           "request": {
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/work-logs/{{workLogId}}",
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/booked-work/{{bookedWorkId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1147,8 +1239,8 @@
                 "v1",
                 "tasks",
                 "{{taskId}}",
-                "work-logs",
-                "{{workLogId}}"
+                "booked-work",
+                "{{bookedWorkId}}"
               ]
             }
           },

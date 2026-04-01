@@ -1,13 +1,15 @@
 package com.demo.audit.controller;
 
 import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
-import com.demo.audit.model.WorkLogAuditRecord;
+import com.demo.audit.model.PlannedWorkAuditRecord;
 import com.demo.audit.repository.AuditRepository;
+import com.demo.audit.repository.BookedWorkAuditRepository;
 import com.demo.audit.repository.CommentAuditRepository;
 import com.demo.audit.repository.PhaseAuditRepository;
-import com.demo.audit.repository.WorkLogAuditRepository;
+import com.demo.audit.repository.PlannedWorkAuditRepository;
 import com.demo.common.dto.PageResponse;
 import com.demo.common.web.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,16 +32,19 @@ public class AuditController {
     private final AuditRepository auditRepository;
     private final CommentAuditRepository commentAuditRepository;
     private final PhaseAuditRepository phaseAuditRepository;
-    private final WorkLogAuditRepository workLogAuditRepository;
+    private final PlannedWorkAuditRepository plannedWorkAuditRepository;
+    private final BookedWorkAuditRepository bookedWorkAuditRepository;
 
     public AuditController(AuditRepository auditRepository,
                            CommentAuditRepository commentAuditRepository,
                            PhaseAuditRepository phaseAuditRepository,
-                           WorkLogAuditRepository workLogAuditRepository) {
+                           PlannedWorkAuditRepository plannedWorkAuditRepository,
+                           BookedWorkAuditRepository bookedWorkAuditRepository) {
         this.auditRepository = auditRepository;
         this.commentAuditRepository = commentAuditRepository;
         this.phaseAuditRepository = phaseAuditRepository;
-        this.workLogAuditRepository = workLogAuditRepository;
+        this.plannedWorkAuditRepository = plannedWorkAuditRepository;
+        this.bookedWorkAuditRepository = bookedWorkAuditRepository;
     }
 
     /** Returns a paginated page of status transitions for the given task, ordered chronologically. */
@@ -75,15 +80,26 @@ public class AuditController {
         return toPageResponse(phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, pageable));
     }
 
-    /** Returns a paginated page of work log changes (create/update/delete) for the given task, ordered chronologically. */
-    @Operation(summary = "Get work log change history for a task",
-               description = "Returns a paginated page of work log creates, updates, and deletes for the given task, ordered chronologically.")
-    @GetMapping("/tasks/{taskId}/work-logs")
+    /** Returns a paginated page of planned-work creates for the given task, ordered chronologically. */
+    @Operation(summary = "Get planned-work history for a task",
+               description = "Returns a paginated page of planned-work creates for the given task, ordered chronologically.")
+    @GetMapping("/tasks/{taskId}/planned-work")
     @PreAuthorize("isAuthenticated()")
-    public PageResponse<WorkLogAuditRecord> getWorkLogHistory(
+    public PageResponse<PlannedWorkAuditRecord> getPlannedWorkHistory(
             @Parameter(description = "Task UUID") @PathVariable UUID taskId,
             @PageableDefault(size = 20, sort = "changedAt", direction = Sort.Direction.ASC) Pageable pageable) {
-        return toPageResponse(workLogAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, pageable));
+        return toPageResponse(plannedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, pageable));
+    }
+
+    /** Returns a paginated page of booked-work changes (create/update/delete) for the given task, ordered chronologically. */
+    @Operation(summary = "Get booked-work history for a task",
+               description = "Returns a paginated page of booked-work creates, updates, and deletes for the given task, ordered chronologically.")
+    @GetMapping("/tasks/{taskId}/booked-work")
+    @PreAuthorize("isAuthenticated()")
+    public PageResponse<BookedWorkAuditRecord> getBookedWorkHistory(
+            @Parameter(description = "Task UUID") @PathVariable UUID taskId,
+            @PageableDefault(size = 20, sort = "changedAt", direction = Sort.Direction.ASC) Pageable pageable) {
+        return toPageResponse(bookedWorkAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, pageable));
     }
 
     /** Converts a {@link Page} to a {@link PageResponse}. */
