@@ -4,6 +4,9 @@ import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskParticipantRole;
+import com.demo.common.dto.TaskPhaseName;
+import com.demo.common.dto.TaskPhaseRequest;
+import com.demo.common.dto.TaskPhaseResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -14,6 +17,7 @@ import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskParticipantRepository;
+import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
@@ -70,18 +74,23 @@ class TaskControllerIT {
     @Autowired
     TaskTimelineRepository timelineRepository;
 
+    @Autowired
+    TaskPhaseRepository phaseRepository;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private static final UUID BOB_ID   = UUID.randomUUID();
 
     private UserDto alice;
     private UserDto bob;
     private UUID projectId;
+    private UUID phaseId;
 
     @BeforeEach
     void setUp() {
         participantRepository.deleteAll();
         timelineRepository.deleteAll();
         repository.deleteAll();
+        phaseRepository.deleteAll();
         projectRepository.deleteAll();
 
         alice = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null, "en");
@@ -101,6 +110,16 @@ class TaskControllerIT {
         projectReq.setName("Default Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
                 .getBody().getId();
+
+        TaskPhaseRequest phaseReq = new TaskPhaseRequest();
+        phaseReq.setName(TaskPhaseName.BACKLOG);
+        phaseReq.setProjectId(projectId);
+        phaseId = restTemplate.postForEntity("/api/v1/phases", phaseReq, TaskPhaseResponse.class).getBody().getId();
+        TaskProjectRequest defaultPhaseProjectReq = new TaskProjectRequest();
+        defaultPhaseProjectReq.setName("Default Project");
+        defaultPhaseProjectReq.setDefaultPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/projects/" + projectId, org.springframework.http.HttpMethod.PUT,
+                new org.springframework.http.HttpEntity<>(defaultPhaseProjectReq), TaskProjectResponse.class);
     }
 
     // ── GET /api/v1/tasks ────────────────────────────────────────────
@@ -429,6 +448,7 @@ class TaskControllerIT {
         req.setStatus(status);
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
+        req.setPhaseId(phaseId);
         req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         return req;
