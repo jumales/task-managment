@@ -161,11 +161,12 @@ public class UserController {
     /** Assigns the specified role to the user and returns the updated user. */
     @Operation(summary = "Assign a role to a user")
     @ApiResponses({
-            @ApiResponse(responseCode = ResponseCode.OK, description = "Role assigned"),
+            @ApiResponse(responseCode = ResponseCode.CREATED, description = "Role assigned"),
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User or role not found"),
             @ApiResponse(responseCode = ResponseCode.CONFLICT, description = "User already has this role")
     })
     @PostMapping("/{userId}/roles/{roleId}")
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
     public UserDto assignRole(@Parameter(description = "User UUID") @PathVariable UUID userId,
                               @Parameter(description = "Role UUID") @PathVariable UUID roleId,

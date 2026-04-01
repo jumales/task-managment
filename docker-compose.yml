@@ -35,8 +35,8 @@ services:
     container_name: ms-kafka
     depends_on:
       - zookeeper
-    ports:
-      - "9092:9092"   # accessible from host (local dev)
+    # Host port mapping (9092:9092) lives in docker-compose.override.yml for local dev only.
+    # In CI/staging, only this file is used so Kafka is not exposed to the host.
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181

@@ -1,18 +1,22 @@
 package com.demo.search.controller;
 
+import com.demo.common.web.ResponseCode;
 import com.demo.search.document.TaskDocument;
 import com.demo.search.document.UserDocument;
+import com.demo.search.dto.ReindexResult;
 import com.demo.search.service.ReindexService;
 import com.demo.search.service.TaskIndexService;
 import com.demo.search.service.UserIndexService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * REST API for full-text search across tasks and users using Elasticsearch.
@@ -66,13 +70,22 @@ public class SearchController {
     /**
      * Re-indexes all users and tasks from the source services into Elasticsearch.
      * Use this after first startup or when the index is out of sync with the database.
+     * Returns {@code 202 Accepted} with a {@link ReindexResult} showing how many records were
+     * indexed and how many pages failed — a non-zero {@code failedPages} value means the index
+     * is incomplete and a retry is recommended.
      */
     @PostMapping("/reindex")
+    @ResponseStatus(HttpStatus.ACCEPTED)
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Re-index all data", description = "Fetches all users and tasks from source services and rebuilds the Elasticsearch index")
-    public Map<String, Integer> reindex() {
-        int users = reindexService.reindexUsers();
-        int tasks = reindexService.reindexTasks();
-        return Map.of("users", users, "tasks", tasks);
+    @Operation(summary = "Re-index all data",
+               description = "Fetches all users and tasks from source services and rebuilds the Elasticsearch index. "
+                           + "Returns 202 with counts of indexed records and failed pages. "
+                           + "A non-zero failedPages value means the index is partial — retry to complete it.")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.ACCEPTED, description = "Reindex completed (possibly partial — check failedPages)"),
+            @ApiResponse(responseCode = ResponseCode.INTERNAL_SERVER_ERROR, description = "Index setup failed")
+    })
+    public ReindexResult reindex() {
+        return reindexService.reindex();
     }
 }
