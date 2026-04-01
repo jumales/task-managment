@@ -1,6 +1,9 @@
 package com.demo.task;
 
 import com.demo.common.dto.PageResponse;
+import com.demo.common.dto.TaskPhaseName;
+import com.demo.common.dto.TaskPhaseRequest;
+import com.demo.common.dto.TaskPhaseResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -9,6 +12,7 @@ import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
+import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
@@ -53,6 +57,9 @@ class TaskProjectControllerIT {
     TestRestTemplate restTemplate;
 
     @Autowired
+    TaskPhaseRepository phaseRepository;
+
+    @Autowired
     TaskProjectRepository projectRepository;
 
     @Autowired
@@ -62,12 +69,16 @@ class TaskProjectControllerIT {
     TaskTimelineRepository timelineRepository;
 
     private static final UUID ALICE_ID = UUID.randomUUID();
+    /** Tracks the default BACKLOG phase per project so tasks can always be created with a valid phase. */
+    private final java.util.Map<UUID, UUID> defaultPhaseByProject = new java.util.HashMap<>();
 
     @BeforeEach
     void setUp() {
         timelineRepository.deleteAll();
         taskRepository.deleteAll();
+        phaseRepository.deleteAll();
         projectRepository.deleteAll();
+        defaultPhaseByProject.clear();
         when(userClient.getUserById(ALICE_ID))
                 .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
     }
@@ -259,9 +270,10 @@ class TaskProjectControllerIT {
     @Test
     void createTask_embeddedProjectInResponse() {
         TaskProjectResponse project = createProject("Embedded Project", "desc");
+        UUID phaseId = getOrCreateDefaultPhase(project.getId());
 
         ResponseEntity<TaskResponse> response = restTemplate.postForEntity(
-                "/api/v1/tasks", taskRequest("Task A", TaskStatus.TODO, ALICE_ID, project.getId()), TaskResponse.class);
+                "/api/v1/tasks", taskRequest("Task A", TaskStatus.TODO, ALICE_ID, project.getId(), phaseId), TaskResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getProject()).isNotNull();
@@ -272,7 +284,7 @@ class TaskProjectControllerIT {
     @Test
     void createTask_withNonExistentProject_returns404() {
         ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/v1/tasks", taskRequest("Bad Task", TaskStatus.TODO, ALICE_ID, UUID.randomUUID()), String.class);
+                "/api/v1/tasks", taskRequest("Bad Task", TaskStatus.TODO, ALICE_ID, UUID.randomUUID(), null), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(taskRepository.count()).isEqualTo(0);
@@ -285,7 +297,25 @@ class TaskProjectControllerIT {
     }
 
     private TaskResponse createTask(String title, TaskStatus status, UUID userId, UUID projectId) {
-        return restTemplate.postForEntity("/api/v1/tasks", taskRequest(title, status, userId, projectId), TaskResponse.class).getBody();
+        UUID phaseId = getOrCreateDefaultPhase(projectId);
+        return restTemplate.postForEntity("/api/v1/tasks", taskRequest(title, status, userId, projectId, phaseId), TaskResponse.class).getBody();
+    }
+
+    /** Returns the BACKLOG phase for the given project, creating one if it does not exist yet. */
+    private UUID getOrCreateDefaultPhase(UUID projectId) {
+        return defaultPhaseByProject.computeIfAbsent(projectId, pid -> {
+            TaskPhaseRequest req = new TaskPhaseRequest();
+            req.setName(TaskPhaseName.BACKLOG);
+            req.setProjectId(pid);
+            UUID phaseId = restTemplate.postForEntity("/api/v1/phases", req, TaskPhaseResponse.class).getBody().getId();
+            // Set this phase as the project's default so task creation without explicit phaseId also works.
+            TaskProjectRequest projectReq = new TaskProjectRequest();
+            projectReq.setName("project");
+            projectReq.setDefaultPhaseId(phaseId);
+            restTemplate.exchange("/api/v1/projects/" + pid, HttpMethod.PUT,
+                    new HttpEntity<>(projectReq), TaskProjectResponse.class);
+            return phaseId;
+        });
     }
 
     private TaskProjectRequest projectRequest(String name, String description) {
@@ -295,13 +325,14 @@ class TaskProjectControllerIT {
         return req;
     }
 
-    private TaskRequest taskRequest(String title, TaskStatus status, UUID userId, UUID projectId) {
+    private TaskRequest taskRequest(String title, TaskStatus status, UUID userId, UUID projectId, UUID phaseId) {
         TaskRequest req = new TaskRequest();
         req.setTitle(title);
         req.setDescription("desc");
         req.setStatus(status);
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
+        req.setPhaseId(phaseId);
         req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return req;

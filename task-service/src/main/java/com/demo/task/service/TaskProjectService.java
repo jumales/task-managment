@@ -4,6 +4,7 @@ import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
+import com.demo.task.model.TaskPhase;
 import com.demo.task.model.TaskProject;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
@@ -20,10 +21,14 @@ public class TaskProjectService {
 
     private final TaskProjectRepository repository;
     private final TaskRepository taskRepository;
+    private final TaskPhaseService phaseService;
 
-    public TaskProjectService(TaskProjectRepository repository, TaskRepository taskRepository) {
+    public TaskProjectService(TaskProjectRepository repository,
+                              TaskRepository taskRepository,
+                              TaskPhaseService phaseService) {
         this.repository = repository;
         this.taskRepository = taskRepository;
+        this.phaseService = phaseService;
     }
 
     /** Returns all projects. */
@@ -31,7 +36,7 @@ public class TaskProjectService {
         return repository.findAll().stream().map(this::toResponse).toList();
     }
 
-    /** Returns the project with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
+    /** Returns the project with the given ID, or throws {@link ResourceNotFoundException}. */
     public TaskProjectResponse findById(UUID id) {
         return toResponse(getOrThrow(id));
     }
@@ -48,7 +53,7 @@ public class TaskProjectService {
         return toResponse(repository.save(project));
     }
 
-    /** Updates name, description, and task code prefix of the project identified by {@code id}. */
+    /** Updates name, description, task code prefix, and default phase of the project identified by {@code id}. */
     public TaskProjectResponse update(UUID id, TaskProjectRequest request) {
         TaskProject project = getOrThrow(id);
         project.setName(request.getName());
@@ -56,6 +61,7 @@ public class TaskProjectService {
         if (request.getTaskCodePrefix() != null) {
             project.setTaskCodePrefix(resolvePrefix(request.getTaskCodePrefix()));
         }
+        project.setDefaultPhaseId(resolveDefaultPhaseId(request.getDefaultPhaseId(), id));
         return toResponse(repository.save(project));
     }
 
@@ -88,10 +94,25 @@ public class TaskProjectService {
         return repository.findAllById(ids);
     }
 
-    /** Returns the raw {@link com.demo.task.model.TaskProject} entity, or throws {@link com.demo.common.exception.ResourceNotFoundException}. Package-private for use by {@link com.demo.task.service.TaskService}. */
+    /** Returns the raw {@link TaskProject} entity, or throws {@link ResourceNotFoundException}. Package-private for use by {@link TaskService}. */
     TaskProject getOrThrow(UUID id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TaskProject", id));
+    }
+
+    /**
+     * Validates that the given phase ID belongs to the given project, then returns it.
+     * Returns null when {@code phaseId} is null (no default configured).
+     */
+    private UUID resolveDefaultPhaseId(UUID phaseId, UUID projectId) {
+        if (phaseId == null) {
+            return null;
+        }
+        TaskPhase phase = phaseService.getOrThrow(phaseId);
+        if (!phase.getProjectId().equals(projectId)) {
+            throw new IllegalArgumentException("Default phase does not belong to this project");
+        }
+        return phaseId;
     }
 
     /** Returns "TASK_" when the given prefix is blank or null. */
@@ -99,9 +120,9 @@ public class TaskProjectService {
         return (prefix != null && !prefix.isBlank()) ? prefix : DEFAULT_TASK_CODE_PREFIX;
     }
 
-    /** Converts a {@link com.demo.task.model.TaskProject} entity to its DTO representation. */
+    /** Converts a {@link TaskProject} entity to its DTO representation. */
     TaskProjectResponse toResponse(TaskProject project) {
         return new TaskProjectResponse(project.getId(), project.getName(), project.getDescription(),
-                project.getTaskCodePrefix());
+                project.getTaskCodePrefix(), project.getDefaultPhaseId());
     }
 }

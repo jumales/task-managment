@@ -8,10 +8,8 @@ import com.demo.task.model.TaskPhase;
 import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,36 +28,26 @@ public class TaskPhaseService {
         return phaseRepository.findByProjectId(projectId).stream().map(this::toResponse).toList();
     }
 
-    /** Returns the phase with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
+    /** Returns the phase with the given ID, or throws {@link ResourceNotFoundException}. */
     public TaskPhaseResponse findById(UUID id) {
         return toResponse(getOrThrow(id));
     }
 
-    /** Creates a new phase; if marked as default, clears any existing default for the same project first. */
-    @Transactional
+    /** Creates a new phase for the project specified in the request body. */
     public TaskPhaseResponse create(TaskPhaseRequest request) {
-        if (request.isDefault()) {
-            phaseRepository.clearDefaultForProject(request.getProjectId());
-        }
         TaskPhase phase = TaskPhase.builder()
                 .projectId(request.getProjectId())
                 .name(request.getName())
                 .description(request.getDescription())
-                .isDefault(request.isDefault())
                 .build();
         return toResponse(phaseRepository.save(phase));
     }
 
-    /** Updates the phase; if the new request sets it as default, clears the previous default for the project. */
-    @Transactional
+    /** Updates the phase identified by {@code id} with values from the request body. */
     public TaskPhaseResponse update(UUID id, TaskPhaseRequest request) {
         TaskPhase phase = getOrThrow(id);
-        if (request.isDefault() && !phase.isDefault()) {
-            phaseRepository.clearDefaultForProject(phase.getProjectId());
-        }
         phase.setName(request.getName());
         phase.setDescription(request.getDescription());
-        phase.setDefault(request.isDefault());
         return toResponse(phaseRepository.save(phase));
     }
 
@@ -77,24 +65,18 @@ public class TaskPhaseService {
         return phaseRepository.findAllById(ids);
     }
 
-    /** Returns the default phase for the given project, if one exists. */
-    Optional<TaskPhase> findDefaultForProject(UUID projectId) {
-        return phaseRepository.findByProjectIdAndIsDefaultTrue(projectId);
-    }
-
-    /** Returns the raw entity; package-private for use by TaskService. */
+    /** Returns the raw entity; package-private for use by TaskService and TaskProjectService. */
     TaskPhase getOrThrow(UUID id) {
         return phaseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TaskPhase", id));
     }
 
-    /** Converts a {@link com.demo.task.model.TaskPhase} entity to its DTO representation. */
+    /** Converts a {@link TaskPhase} entity to its DTO representation. */
     TaskPhaseResponse toResponse(TaskPhase phase) {
         return new TaskPhaseResponse(
                 phase.getId(),
                 phase.getName(),
                 phase.getDescription(),
-                phase.getProjectId(),
-                phase.isDefault());
+                phase.getProjectId());
     }
 }

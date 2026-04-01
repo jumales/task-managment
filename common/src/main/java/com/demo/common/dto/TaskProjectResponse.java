@@ -13,4 +13,6 @@ public class TaskProjectResponse {
     private String description;
     /** Prefix used when auto-generating task codes for this project (e.g. "PROJ_"). */
     private String taskCodePrefix;
+    /** ID of the phase automatically assigned to new tasks when no explicit phase is provided. Null when no default is configured. */
+    private UUID defaultPhaseId;
 }

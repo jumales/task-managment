@@ -39,5 +39,9 @@ public class TaskProject {
     @Column(nullable = false)
     private int nextTaskNumber;
 
+    /** The phase automatically assigned to new tasks when no explicit phase is provided. Null means no default is configured. */
+    @Column(name = "default_phase_id")
+    private UUID defaultPhaseId;
+
     private Instant deletedAt;
 }

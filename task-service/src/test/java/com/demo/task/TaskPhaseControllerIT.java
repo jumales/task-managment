@@ -1,5 +1,6 @@
 package com.demo.task;
 
+import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
 import com.demo.common.dto.TaskProjectRequest;
@@ -91,8 +92,8 @@ class TaskPhaseControllerIT {
 
     @Test
     void getPhasesForProject_returnsAllCreatedPhases() {
-        createPhase("Backlog", false);
-        createPhase("In Review", false);
+        createPhase(TaskPhaseName.BACKLOG);
+        createPhase(TaskPhaseName.IN_REVIEW);
 
         ResponseEntity<TaskPhaseResponse[]> response =
                 restTemplate.getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class);
@@ -100,20 +101,20 @@ class TaskPhaseControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).hasSize(2);
         assertThat(response.getBody()).extracting("name")
-                .containsExactlyInAnyOrder("Backlog", "In Review");
+                .containsExactlyInAnyOrder(TaskPhaseName.BACKLOG, TaskPhaseName.IN_REVIEW);
     }
 
     // ── GET /api/v1/phases/{id} ──────────────────────────────────────
 
     @Test
     void getPhaseById_returnsPhase() {
-        TaskPhaseResponse created = createPhase("Backlog", false);
+        TaskPhaseResponse created = createPhase(TaskPhaseName.BACKLOG);
 
         ResponseEntity<TaskPhaseResponse> response =
                 restTemplate.getForEntity("/api/v1/phases/" + created.getId(), TaskPhaseResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getName()).isEqualTo("Backlog");
+        assertThat(response.getBody().getName()).isEqualTo(TaskPhaseName.BACKLOG);
         assertThat(response.getBody().getProjectId()).isEqualTo(projectId);
     }
 
@@ -128,45 +129,28 @@ class TaskPhaseControllerIT {
     @Test
     void createPhase_persistsAndReturnsPhase() {
         ResponseEntity<TaskPhaseResponse> response =
-                restTemplate.postForEntity("/api/v1/phases", phaseRequest("Sprint 1", true), TaskPhaseResponse.class);
+                restTemplate.postForEntity("/api/v1/phases", phaseRequest(TaskPhaseName.IN_PROGRESS), TaskPhaseResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
-        assertThat(response.getBody().getName()).isEqualTo("Sprint 1");
-        assertThat(response.getBody().isDefault()).isTrue();
+        assertThat(response.getBody().getName()).isEqualTo(TaskPhaseName.IN_PROGRESS);
         assertThat(phaseRepository.count()).isEqualTo(1);
-    }
-
-    @Test
-    void createTwoDefaultPhases_onlyLastIsDefault() {
-        createPhase("Phase A", true);
-        createPhase("Phase B", true);
-
-        ResponseEntity<TaskPhaseResponse[]> phases =
-                restTemplate.getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class);
-
-        long defaultCount = java.util.Arrays.stream(phases.getBody())
-                .filter(TaskPhaseResponse::isDefault).count();
-        assertThat(defaultCount).isEqualTo(1);
-        assertThat(phases.getBody()).filteredOn(TaskPhaseResponse::isDefault)
-                .extracting("name").containsExactly("Phase B");
     }
 
     // ── PUT /api/v1/phases/{id} ──────────────────────────────────────
 
     @Test
     void updatePhase_updatesFields() {
-        TaskPhaseResponse created = createPhase("Old Name", false);
+        TaskPhaseResponse created = createPhase(TaskPhaseName.BACKLOG);
 
         ResponseEntity<TaskPhaseResponse> response = restTemplate.exchange(
                 "/api/v1/phases/" + created.getId(),
                 HttpMethod.PUT,
-                new HttpEntity<>(phaseRequest("New Name", true)),
+                new HttpEntity<>(phaseRequest(TaskPhaseName.DONE)),
                 TaskPhaseResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getName()).isEqualTo("New Name");
-        assertThat(response.getBody().isDefault()).isTrue();
+        assertThat(response.getBody().getName()).isEqualTo(TaskPhaseName.DONE);
     }
 
     @Test
@@ -174,7 +158,7 @@ class TaskPhaseControllerIT {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/v1/phases/" + UUID.randomUUID(),
                 HttpMethod.PUT,
-                new HttpEntity<>(phaseRequest("X", false)),
+                new HttpEntity<>(phaseRequest(TaskPhaseName.TODO)),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -184,7 +168,7 @@ class TaskPhaseControllerIT {
 
     @Test
     void deletePhase_softDeletesPhase() {
-        TaskPhaseResponse created = createPhase("To Delete", false);
+        TaskPhaseResponse created = createPhase(TaskPhaseName.BACKLOG);
 
         restTemplate.delete("/api/v1/phases/" + created.getId());
 
@@ -195,7 +179,8 @@ class TaskPhaseControllerIT {
 
     @Test
     void deletePhase_withActiveTasks_returns409() {
-        TaskPhaseResponse phase = createPhase("Blocked Phase", false);
+        TaskPhaseResponse phase = createPhase(TaskPhaseName.BACKLOG);
+        setProjectDefaultPhase(projectId, phase.getId());
         createTask("Task", TaskStatus.TODO, ALICE_ID, phase.getId());
 
         ResponseEntity<String> response = restTemplate.exchange(
@@ -216,7 +201,8 @@ class TaskPhaseControllerIT {
 
     @Test
     void createTask_withNoPhaseId_assignsProjectDefaultPhase() {
-        TaskPhaseResponse defaultPhase = createPhase("Default Phase", true);
+        TaskPhaseResponse defaultPhase = createPhase(TaskPhaseName.BACKLOG);
+        setProjectDefaultPhase(projectId, defaultPhase.getId());
 
         TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, null);
         ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
@@ -227,18 +213,19 @@ class TaskPhaseControllerIT {
     }
 
     @Test
-    void createTask_withNoPhaseIdAndNoDefault_hasNullPhase() {
+    void createTask_withNoPhaseIdAndNoDefault_returns400() {
+        // Phase is mandatory: no phase and no project default → 400
         TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, null);
-        ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/tasks", req, String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody().getPhase()).isNull();
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void createTask_withExplicitPhaseId_usesProvidedPhase() {
-        createPhase("Default Phase", true);
-        TaskPhaseResponse explicit = createPhase("Explicit Phase", false);
+        TaskPhaseResponse defaultPhase = createPhase(TaskPhaseName.BACKLOG);
+        setProjectDefaultPhase(projectId, defaultPhase.getId());
+        TaskPhaseResponse explicit = createPhase(TaskPhaseName.IN_REVIEW);
 
         TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, explicit.getId());
         ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
@@ -255,6 +242,39 @@ class TaskPhaseControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    // ── Project default phase ─────────────────────────────────────
+
+    @Test
+    void setProjectDefaultPhase_phaseMustBelongToProject() {
+        TaskProjectResponse otherProject = createProject("Other Project");
+        TaskPhaseResponse otherPhase = createPhaseForProject(TaskPhaseName.BACKLOG, otherProject.getId());
+
+        // Attempt to set a phase from another project as the default — should fail with 400
+        TaskProjectRequest req = new TaskProjectRequest();
+        req.setName("Default Project");
+        req.setDefaultPhaseId(otherPhase.getId());
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/projects/" + projectId,
+                HttpMethod.PUT,
+                new HttpEntity<>(req),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void setProjectDefaultPhase_updatesProject() {
+        TaskPhaseResponse phase = createPhase(TaskPhaseName.IN_PROGRESS);
+        setProjectDefaultPhase(projectId, phase.getId());
+
+        ResponseEntity<TaskProjectResponse> response =
+                restTemplate.getForEntity("/api/v1/projects/" + projectId, TaskProjectResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getDefaultPhaseId()).isEqualTo(phase.getId());
+    }
+
     // ── Helpers ───────────────────────────────────────────────────
 
     private TaskProjectResponse createProject(String name) {
@@ -263,19 +283,34 @@ class TaskPhaseControllerIT {
         return restTemplate.postForEntity("/api/v1/projects", req, TaskProjectResponse.class).getBody();
     }
 
-    private TaskPhaseResponse createPhase(String name, boolean isDefault) {
-        return restTemplate.postForEntity("/api/v1/phases", phaseRequest(name, isDefault), TaskPhaseResponse.class).getBody();
+    private void setProjectDefaultPhase(UUID projectId, UUID phaseId) {
+        TaskProjectRequest req = new TaskProjectRequest();
+        req.setName("Default Project");
+        req.setDefaultPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/projects/" + projectId, HttpMethod.PUT,
+                new HttpEntity<>(req), TaskProjectResponse.class);
+    }
+
+    private TaskPhaseResponse createPhase(TaskPhaseName name) {
+        return createPhaseForProject(name, projectId);
+    }
+
+    private TaskPhaseResponse createPhaseForProject(TaskPhaseName name, UUID forProjectId) {
+        return restTemplate.postForEntity("/api/v1/phases", phaseRequest(name, forProjectId), TaskPhaseResponse.class).getBody();
     }
 
     private TaskResponse createTask(String title, TaskStatus status, UUID userId, UUID phaseId) {
         return restTemplate.postForEntity("/api/v1/tasks", taskRequest(status, userId, phaseId), TaskResponse.class).getBody();
     }
 
-    private TaskPhaseRequest phaseRequest(String name, boolean isDefault) {
+    private TaskPhaseRequest phaseRequest(TaskPhaseName name) {
+        return phaseRequest(name, projectId);
+    }
+
+    private TaskPhaseRequest phaseRequest(TaskPhaseName name, UUID forProjectId) {
         TaskPhaseRequest req = new TaskPhaseRequest();
         req.setName(name);
-        req.setProjectId(projectId);
-        req.setDefault(isDefault);
+        req.setProjectId(forProjectId);
         return req;
     }
 

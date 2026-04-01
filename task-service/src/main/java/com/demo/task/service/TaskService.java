@@ -24,7 +24,6 @@ import com.demo.task.model.Task;
 import com.demo.task.model.TaskComment;
 import com.demo.task.model.TaskPhase;
 import com.demo.task.model.TaskProject;
-import com.demo.task.outbox.OutboxPublisher;
 import com.demo.task.outbox.OutboxWriter;
 import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCommentRepository;
@@ -37,7 +36,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -134,7 +132,7 @@ public class TaskService {
         TaskProject project = projectService.getOrThrow(request.getProjectId());
 
         // Use the explicitly requested phase, or fall back to the project's default phase.
-        UUID phaseId = resolvePhaseId(request.getPhaseId(), request.getProjectId());
+        UUID phaseId = resolvePhaseId(request.getPhaseId(), project);
 
         String taskCode = projectService.nextTaskCode(request.getProjectId());
 
@@ -186,7 +184,10 @@ public class TaskService {
         if (!task.getProjectId().equals(request.getProjectId())) {
             projectService.getOrThrow(request.getProjectId());
         }
-        if (request.getPhaseId() != null && !request.getPhaseId().equals(oldPhaseId)) {
+        if (request.getPhaseId() == null) {
+            throw new IllegalArgumentException("phaseId is required");
+        }
+        if (!request.getPhaseId().equals(oldPhaseId)) {
             phaseService.getOrThrow(request.getPhaseId());
         }
 
@@ -220,8 +221,9 @@ public class TaskService {
                     saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
         }
         if (!Objects.equals(oldPhaseId, newPhaseId)) {
-            String oldName = oldPhaseId != null ? phaseService.getOrThrow(oldPhaseId).getName() : null;
-            String newName = newPhaseId != null ? phaseService.getOrThrow(newPhaseId).getName() : null;
+            // getName() returns TaskPhaseName enum; .name() converts to String for the event payload
+            String oldName = oldPhaseId != null ? phaseService.getOrThrow(oldPhaseId).getName().name() : null;
+            String newName = newPhaseId != null ? phaseService.getOrThrow(newPhaseId).getName().name() : null;
             outboxWriter.write(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
                     saved.getProjectId(), saved.getTitle(), oldPhaseId, oldName, newPhaseId, newName));
         }
@@ -270,7 +272,8 @@ public class TaskService {
      */
     private void writeTaskLifecycleOutboxEvent(Task task, OutboxEventType eventType,
                                                String projectName, UUID phaseId, String userName) {
-        String phaseName = phaseId != null ? phaseService.getOrThrow(phaseId).getName() : null;
+        // getName() returns TaskPhaseName enum; .name() converts to String for the event payload
+        String phaseName = phaseId != null ? phaseService.getOrThrow(phaseId).getName().name() : null;
         TaskEvent event = switch (eventType) {
             case TASK_CREATED -> TaskEvent.created(task.getId(), task.getTitle(), task.getDescription(),
                     task.getStatus(), task.getProjectId(), projectName,
@@ -310,13 +313,20 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task", id));
     }
 
-    /** Returns the explicit phaseId if provided, otherwise the project's default phase id (or null). */
-    private UUID resolvePhaseId(UUID requestedPhaseId, UUID projectId) {
+    /**
+     * Returns the explicit phaseId if provided, otherwise the project's configured default phase id.
+     * Throws {@link IllegalArgumentException} when neither is available, since phase is mandatory.
+     */
+    private UUID resolvePhaseId(UUID requestedPhaseId, TaskProject project) {
         if (requestedPhaseId != null) {
             phaseService.getOrThrow(requestedPhaseId);
             return requestedPhaseId;
         }
-        return phaseService.findDefaultForProject(projectId).map(TaskPhase::getId).orElse(null);
+        if (project.getDefaultPhaseId() != null) {
+            return project.getDefaultPhaseId();
+        }
+        throw new IllegalArgumentException(
+                "phaseId is required: the project has no default phase configured");
     }
 
     /**
@@ -326,9 +336,7 @@ public class TaskService {
     private TaskResponse toResponse(Task task) {
         List<TaskParticipantResponse> participants = participantService.findByTaskId(task.getId());
         TaskProjectResponse project = projectService.toResponse(projectService.getOrThrow(task.getProjectId()));
-        TaskPhaseResponse phase = task.getPhaseId() != null
-                ? phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()))
-                : null;
+        TaskPhaseResponse phase = phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()));
         return new TaskResponse(task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(), participants, project, phase);
     }
@@ -342,16 +350,15 @@ public class TaskService {
 
         Set<UUID> taskIds    = tasks.stream().map(Task::getId).collect(Collectors.toSet());
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
-        Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).collect(Collectors.toSet());
 
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
                 .collect(Collectors.toMap(TaskProject::getId, projectService::toResponse));
 
-        Map<UUID, TaskPhaseResponse> phasesById = phaseIds.isEmpty() ? Map.of() :
-                phaseService.findAllByIds(phaseIds)
-                        .stream()
-                        .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
+        Map<UUID, TaskPhaseResponse> phasesById = phaseService.findAllByIds(phaseIds)
+                .stream()
+                .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
 
         // Batch-load all participants for these tasks in two queries (DB + user-service batch)
         Map<UUID, List<TaskParticipantResponse>> participantsByTaskId =
@@ -362,7 +369,7 @@ public class TaskService {
                 task.getType(), task.getProgress(),
                 participantsByTaskId.getOrDefault(task.getId(), List.of()),
                 projectsById.get(task.getProjectId()),
-                task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null))
+                phasesById.get(task.getPhaseId())))
                 .toList();
     }
 
@@ -385,22 +392,21 @@ public class TaskService {
         if (tasks.isEmpty()) return List.of();
 
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
-        Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).collect(Collectors.toSet());
         Set<UUID> userIds    = tasks.stream().map(Task::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
 
         Map<UUID, TaskProject> projectsById = projectService.findAllByIds(projectIds).stream()
                 .collect(Collectors.toMap(TaskProject::getId, p -> p));
 
-        Map<UUID, TaskPhase> phasesById = phaseIds.isEmpty() ? Map.of() :
-                phaseService.findAllByIds(phaseIds).stream()
-                        .collect(Collectors.toMap(TaskPhase::getId, p -> p));
+        Map<UUID, TaskPhase> phasesById = phaseService.findAllByIds(phaseIds).stream()
+                .collect(Collectors.toMap(TaskPhase::getId, p -> p));
 
         Map<UUID, String> userNamesById = userIds.isEmpty() ? Map.of() :
                 userClientHelper.fetchUserNames(userIds);
 
         return tasks.stream().map(task -> {
             TaskProject project = projectsById.get(task.getProjectId());
-            TaskPhase phase = task.getPhaseId() != null ? phasesById.get(task.getPhaseId()) : null;
+            TaskPhase phase = phasesById.get(task.getPhaseId());
             return new TaskSummaryResponse(
                     task.getId(),
                     task.getTaskCode(),
@@ -414,7 +420,8 @@ public class TaskService {
                     project != null ? project.getId() : null,
                     project != null ? project.getName() : null,
                     phase != null ? phase.getId() : null,
-                    phase != null ? phase.getName() : null);
+                    // getName() returns TaskPhaseName enum; .name() converts to String for the response
+                    phase != null ? phase.getName().name() : null);
         }).toList();
     }
 
