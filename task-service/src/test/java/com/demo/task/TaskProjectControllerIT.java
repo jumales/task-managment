@@ -308,9 +308,10 @@ class TaskProjectControllerIT {
             req.setName(TaskPhaseName.BACKLOG);
             req.setProjectId(pid);
             UUID phaseId = restTemplate.postForEntity("/api/v1/phases", req, TaskPhaseResponse.class).getBody().getId();
-            // Set this phase as the project's default so task creation without explicit phaseId also works.
+            // Set this phase as the project's default, preserving the existing project name.
+            TaskProjectResponse existing = restTemplate.getForEntity("/api/v1/projects/" + pid, TaskProjectResponse.class).getBody();
             TaskProjectRequest projectReq = new TaskProjectRequest();
-            projectReq.setName("project");
+            projectReq.setName(existing.getName());
             projectReq.setDefaultPhaseId(phaseId);
             restTemplate.exchange("/api/v1/projects/" + pid, HttpMethod.PUT,
                     new HttpEntity<>(projectReq), TaskProjectResponse.class);
