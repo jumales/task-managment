@@ -691,6 +691,42 @@
           ]
         },
         {
+          "name": "Get full task view",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/full",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "full"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(json).to.have.property('id'));",
+                  "pm.test('Has timelines', () => pm.expect(json).to.have.property('timelines'));",
+                  "pm.test('Has plannedWork', () => pm.expect(json).to.have.property('plannedWork'));",
+                  "pm.test('Has bookedWork', () => pm.expect(json).to.have.property('bookedWork'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Create task",
           "request": {
             "method": "POST",
@@ -853,8 +889,10 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Has id', () => pm.expect(pm.response.json()).to.have.property('id'));",
-                  "pm.test('Has content', () => pm.expect(pm.response.json()).to.have.property('content'));"
+                  "var json = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(json).to.have.property('id'));",
+                  "pm.test('Has content', () => pm.expect(json).to.have.property('content'));",
+                  "pm.test('Has userId', () => pm.expect(json).to.have.property('userId'));"
                 ],
                 "type": "text/javascript"
               }

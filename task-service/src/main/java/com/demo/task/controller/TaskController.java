@@ -3,6 +3,7 @@ package com.demo.task.controller;
 import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskSummaryResponse;
@@ -75,6 +76,25 @@ public class TaskController {
         return service.findById(id);
     }
 
+    /**
+     * Returns the full task view, including timeline, planned work, booked work, and assigned-user details.
+     * Timeline, planned work, and booked work are fetched concurrently.
+     * Comments are excluded — use {@code GET /api/v1/tasks/{id}/comments} separately.
+     */
+    @Operation(summary = "Get full task view",
+               description = "Returns the task with all related data: participants, project, phase, "
+                           + "assigned user profile, timeline, planned work, and booked work. "
+                           + "Comments are fetched separately via the /comments endpoint.")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Full task view returned"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task not found")
+    })
+    @GetMapping("/{id}/full")
+    @PreAuthorize("isAuthenticated()")
+    public TaskFullResponse getFullById(@Parameter(description = "Task UUID") @PathVariable UUID id) {
+        return service.findFullById(id);
+    }
+
     /** Creates a new task and returns the persisted representation. */
     @Operation(summary = "Create a new task")
     @ApiResponses({
@@ -144,8 +164,10 @@ public class TaskController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("isAuthenticated()")
     public TaskCommentResponse addComment(@Parameter(description = "Task UUID") @PathVariable UUID id,
-                                          @RequestBody TaskCommentRequest request) {
-        return service.addComment(id, request);
+                                          @RequestBody TaskCommentRequest request,
+                                          Authentication authentication) {
+        UUID authorId = resolveUserId(authentication);
+        return service.addComment(id, request, authorId);
     }
 
     /** Soft-deletes the task identified by {@code id}. */
