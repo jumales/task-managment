@@ -97,6 +97,42 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Re-index all data",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/search/reindex",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "search", "reindex"]
+            },
+            "description": "Rebuilds the Elasticsearch index from task-service and user-service. Requires ADMIN role. Returns 202 with indexedUsers, indexedTasks, failedUserPages, failedTaskPages."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 202', () => pm.response.to.have.status(202));",
+                  "var json = pm.response.json();",
+                  "pm.test('Has indexedUsers', () => pm.expect(json).to.have.property('indexedUsers'));",
+                  "pm.test('Has indexedTasks', () => pm.expect(json).to.have.property('indexedTasks'));",
+                  "pm.test('No failed pages', () => {",
+                  "    pm.expect(json.failedUserPages).to.eql(0);",
+                  "    pm.expect(json.failedTaskPages).to.eql(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

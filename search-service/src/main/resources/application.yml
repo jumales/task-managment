@@ -31,6 +31,20 @@ feign:
         connect-timeout: 2000   # 2 s — fail fast on connection refused
         read-timeout: 5000      # 5 s — prevent thread starvation on slow responses
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      searchTaskService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      searchUserService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+
 eureka:
   client:
     service-url:
@@ -40,7 +54,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,metrics
   endpoint:
     health:
       show-details: never

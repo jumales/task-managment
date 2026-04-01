@@ -1,0 +1,9 @@
+# Local development overrides — applied automatically by docker compose on top of docker-compose.yml.
+# Do NOT use this file in staging or production environments.
+#
+# Exposes Kafka on localhost:9092 so that Spring Boot services running directly
+# on the host (e.g. from an IDE) can connect. Inside Docker, services use kafka:29092.
+services:
+  kafka:
+    ports:
+      - "9092:9092"
