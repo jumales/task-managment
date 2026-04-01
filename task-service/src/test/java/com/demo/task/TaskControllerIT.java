@@ -3,6 +3,7 @@ package com.demo.task;
 import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
@@ -163,6 +164,41 @@ class TaskControllerIT {
     @Test
     void getTaskById_whenNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/tasks/" + UUID.randomUUID(), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    // ── GET /api/v1/tasks/{id}/full ──────────────────────────────────
+
+    @Test
+    void getFullTaskById_returnsAllRelatedData() {
+        TaskRequest req = request("Full task", "Full desc", TaskStatus.TODO, ALICE_ID);
+        req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
+        req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class).getBody();
+
+        ResponseEntity<TaskFullResponse> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + created.getId() + "/full", TaskFullResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        TaskFullResponse body = response.getBody();
+        assertThat(body.getId()).isEqualTo(created.getId());
+        assertThat(body.getTitle()).isEqualTo("Full task");
+        // PLANNED_START + PLANNED_END are created automatically on task creation
+        assertThat(body.getTimelines()).hasSize(2);
+        assertThat(body.getPlannedWork()).isEmpty();
+        assertThat(body.getBookedWork()).isEmpty();
+        assertThat(body.getAssignedUser()).isNotNull();
+        assertThat(body.getAssignedUser().getId()).isEqualTo(ALICE_ID);
+        assertThat(body.getParticipants()).isNotEmpty();
+        assertThat(body.getProject()).isNotNull();
+        assertThat(body.getPhase()).isNotNull();
+    }
+
+    @Test
+    void getFullTaskById_whenNotFound_returns404() {
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/api/v1/tasks/" + UUID.randomUUID() + "/full", String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -392,7 +428,7 @@ class TaskControllerIT {
     }
 
     @Test
-    void addComment_returnsCreatedComment() {
+    void addComment_returnsCreatedCommentWithAuthor() {
         TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", request("Task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
 
         ResponseEntity<TaskCommentResponse> response = restTemplate.postForEntity(
@@ -401,12 +437,15 @@ class TaskControllerIT {
                 TaskCommentResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody().getContent()).isEqualTo("Great progress!");
         assertThat(response.getBody().getId()).isNotNull();
+        assertThat(response.getBody().getContent()).isEqualTo("Great progress!");
+        // Author is the test principal (TestSecurityConfig.TEST_USER_ID)
+        assertThat(response.getBody().getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
+        assertThat(response.getBody().getUserName()).isEqualTo("Test Admin");
     }
 
     @Test
-    void addComment_thenGetComments_returnsComment() {
+    void addComment_thenGetComments_returnsCommentWithAuthor() {
         TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", request("Task", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
         restTemplate.postForEntity("/api/v1/tasks/" + created.getId() + "/comments",
                 comment("First comment"), TaskCommentResponse.class);
@@ -416,6 +455,8 @@ class TaskControllerIT {
 
         assertThat(response.getBody()).hasSize(1);
         assertThat(response.getBody()[0].getContent()).isEqualTo("First comment");
+        assertThat(response.getBody()[0].getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
+        assertThat(response.getBody()[0].getUserName()).isEqualTo("Test Admin");
     }
 
     // ── Resilience ────────────────────────────────────────────────

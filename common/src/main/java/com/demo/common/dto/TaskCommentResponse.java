@@ -6,6 +6,10 @@ import lombok.Getter;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Response DTO for a task comment, including the author's identity and display name.
+ * {@code userId} and {@code userName} are null for legacy comments created before author tracking was introduced.
+ */
 @Getter
 @AllArgsConstructor
 public class TaskCommentResponse {

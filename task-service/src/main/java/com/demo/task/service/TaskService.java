@@ -123,18 +123,14 @@ public class TaskService {
                 CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id));
 
         // Fetch synchronous data while the async calls are running.
-        List<TaskParticipantResponse> participants = participantService.findByTaskId(id);
-        TaskProjectResponse project = projectService.toResponse(projectService.getOrThrow(task.getProjectId()));
-        TaskPhaseResponse phase = phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()));
+        TaskBaseData base = fetchBaseData(task);
         // Fetch full user profile; null when no user is assigned or user-service is unavailable.
-        UserDto assignedUser = task.getAssignedUserId() != null
-                ? userClient.getUserById(task.getAssignedUserId())
-                : null;
+        UserDto assignedUser = userClientHelper.fetchUser(task.getAssignedUserId());
 
         return new TaskFullResponse(
                 task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
-                participants, project, phase, assignedUser,
+                base.participants(), base.project(), base.phase(), assignedUser,
                 timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join());
     }
 
@@ -398,12 +394,24 @@ public class TaskService {
      * Use for single-task endpoints (findById, create, update).
      */
     private TaskResponse toResponse(Task task) {
-        List<TaskParticipantResponse> participants = participantService.findByTaskId(task.getId());
-        TaskProjectResponse project = projectService.toResponse(projectService.getOrThrow(task.getProjectId()));
-        TaskPhaseResponse phase = phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId()));
+        TaskBaseData base = fetchBaseData(task);
         return new TaskResponse(task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
-                task.getStatus(), task.getType(), task.getProgress(), participants, project, phase);
+                task.getStatus(), task.getType(), task.getProgress(),
+                base.participants(), base.project(), base.phase());
     }
+
+    /** Fetches participants, project, and phase for a single task — shared by toResponse and findFullById. */
+    private TaskBaseData fetchBaseData(Task task) {
+        return new TaskBaseData(
+                participantService.findByTaskId(task.getId()),
+                projectService.toResponse(projectService.getOrThrow(task.getProjectId())),
+                phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId())));
+    }
+
+    /** Bundles the three sub-fetches that are common to both the standard and full task responses. */
+    private record TaskBaseData(List<TaskParticipantResponse> participants,
+                                TaskProjectResponse project,
+                                TaskPhaseResponse phase) {}
 
     /**
      * Converts a list of tasks to response DTOs using batch queries for projects, phases, and participants,

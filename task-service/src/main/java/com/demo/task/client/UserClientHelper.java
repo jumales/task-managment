@@ -79,6 +79,21 @@ public class UserClientHelper {
     }
 
     /**
+     * Fetches the full {@link UserDto} for a single user.
+     * Returns {@code null} if the user is not found or user-service is unavailable.
+     */
+    @CircuitBreaker(name = "userService", fallbackMethod = "fetchUserFallback")
+    public UserDto fetchUser(UUID userId) {
+        if (userId == null) return null;
+        return userClient.getUserById(userId);
+    }
+
+    private UserDto fetchUserFallback(UUID userId, Throwable t) {
+        log.warn("user-service circuit open — cannot fetch user {}: {}", userId, t.getMessage());
+        return null;
+    }
+
+    /**
      * Batch-fetches full {@link UserDto} objects keyed by UUID.
      * Returns an empty map if user-service is unavailable.
      */
