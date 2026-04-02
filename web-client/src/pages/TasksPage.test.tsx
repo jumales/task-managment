@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 
 import { server } from '../test/mocks/server';
-import { mockTask, mockProject, mockUser } from '../test/mocks/handlers';
+import { mockTaskSummary, mockProject, mockPhase, mockUser } from '../test/mocks/handlers';
 import { TasksPage } from './TasksPage';
 
 // ---------------------------------------------------------------------------
@@ -32,7 +32,8 @@ function renderTasksPage() {
  * play well with userEvent's synthetic pointer model in jsdom.
  */
 async function selectAntOption(labelText: string, optionText: string) {
-  const input = screen.getByLabelText(labelText);
+  // Use waitFor so that async-loaded selects (e.g. Phase after project onChange) are retried
+  const input = await waitFor(() => screen.getByLabelText(labelText), { timeout: 6000 });
   // mouseDown opens the dropdown
   fireEvent.mouseDown(input);
   // Wait for options to render in the portal
@@ -64,13 +65,13 @@ describe('TasksPage', () => {
     renderTasksPage();
 
     await waitFor(() => {
-      expect(screen.getByText(mockTask.title)).toBeInTheDocument();
+      expect(screen.getByText(mockTaskSummary.title)).toBeInTheDocument();
     });
 
     expect(screen.getByText(mockProject.name)).toBeInTheDocument();
     expect(screen.getByText(mockUser.name)).toBeInTheDocument();
-    // Status tag
-    expect(screen.getByText('TODO')).toBeInTheDocument();
+    // Status tag (rendered using i18n translation)
+    expect(screen.getByText('To Do')).toBeInTheDocument();
   });
 
   it('shows an error alert when the tasks API call fails', async () => {
@@ -96,7 +97,7 @@ describe('TasksPage', () => {
     renderTasksPage();
 
     // Wait for the page to finish loading
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     await user.click(screen.getByRole('button', { name: /new task/i }));
 
@@ -118,7 +119,7 @@ describe('TasksPage', () => {
 
     renderTasksPage();
 
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     // Open modal
     await user.click(screen.getByRole('button', { name: /new task/i }));
@@ -134,13 +135,13 @@ describe('TasksPage', () => {
 
     expect(screen.getByText('Project is required')).toBeInTheDocument();
     expect(screen.getByText('User is required')).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('renders all form fields inside the Create Task modal', async () => {
     const user = userEvent.setup();
     renderTasksPage();
 
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     await user.click(screen.getByRole('button', { name: /new task/i }));
 
@@ -152,43 +153,40 @@ describe('TasksPage', () => {
     expect(screen.getByLabelText('Description')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
     expect(screen.getByLabelText('Project')).toBeInTheDocument();
-    expect(screen.getByLabelText('Assign to')).toBeInTheDocument();
+    expect(screen.getByLabelText('Assigned to')).toBeInTheDocument();
   });
 
   it('calls POST /api/v1/tasks with form values on submit', async () => {
     const user = userEvent.setup();
 
+    // Use 2 projects so neither is auto-selected — test controls all inputs explicitly
+    server.use(
+      http.get('*/api/v1/projects', () =>
+        HttpResponse.json([mockProject, { ...mockProject, id: 'proj-2', name: 'Beta Project' }]),
+      ),
+    );
+
     let postBody: Record<string, unknown> | null = null;
     server.use(
       http.post('*/api/v1/tasks', async ({ request }) => {
         postBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          {
-            id: 'task-new',
-            title: postBody.title,
-            description: '',
-            status: 'TODO',
-            assignedUser: { id: mockUser.id, name: mockUser.name, email: mockUser.email },
-            project: mockProject,
-            phase: null,
-            comments: [],
-          },
-          { status: 201 },
-        );
+        return HttpResponse.json({ ...mockTaskSummary, id: 'task-new', title: postBody.title as string }, { status: 201 });
       }),
     );
 
     renderTasksPage();
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     await user.click(screen.getByRole('button', { name: /new task/i }));
     await waitFor(() => screen.getByLabelText('Title'));
 
     await user.type(screen.getByLabelText('Title'), 'My New Task');
 
-    // Select Project and Assignee using Ant Design Select helper
+    // Select project — triggers phase loading via onChange
     await selectAntOption('Project', mockProject.name);
-    await selectAntOption('Assign to', mockUser.name);
+    // Phase options load asynchronously after project selection; retry until available
+    await selectAntOption('Phase', mockPhase.name);
+    await selectAntOption('Assigned to', mockUser.name);
 
     fireEvent.click(screen.getByRole('button', { name: /^create$/i }));
 
@@ -198,15 +196,16 @@ describe('TasksPage', () => {
         expect(postBody!.title).toBe('My New Task');
         expect(postBody!.projectId).toBe(mockProject.id);
         expect(postBody!.assignedUserId).toBe(mockUser.id);
+        expect(postBody!.phaseId).toBe(mockPhase.id);
       },
       { timeout: 8000 },
     );
-  }, 15000);
+  }, 25000);
 
   it('renders the page heading "Tasks"', async () => {
     renderTasksPage();
 
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     expect(screen.getByRole('heading', { name: /^tasks$/i })).toBeInTheDocument();
   });
@@ -215,7 +214,7 @@ describe('TasksPage', () => {
     const user = userEvent.setup();
     renderTasksPage();
 
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     // Default handlers return exactly one project and one user
     await user.click(screen.getByRole('button', { name: /new task/i }));
@@ -227,7 +226,7 @@ describe('TasksPage', () => {
       expect(projectSelect?.querySelector('.ant-select-selection-item')?.textContent?.trim()).toBe(mockProject.name);
     });
 
-    const userSelect = screen.getByLabelText('Assign to').closest('.ant-select');
+    const userSelect = screen.getByLabelText('Assigned to').closest('.ant-select');
     // Two users in default handlers — should NOT be auto-selected
     expect(userSelect?.querySelector('.ant-select-selection-item')).toBeNull();
   });
@@ -236,7 +235,7 @@ describe('TasksPage', () => {
     const user = userEvent.setup();
     renderTasksPage();
 
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
@@ -245,7 +244,7 @@ describe('TasksPage', () => {
     });
 
     // Title field should be pre-filled with the task's title
-    expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe(mockTask.title);
+    expect((screen.getByLabelText('Title') as HTMLInputElement).value).toBe(mockTaskSummary.title);
   });
 
   it('calls PUT /api/v1/tasks/:id when edit form is saved', async () => {
@@ -255,12 +254,12 @@ describe('TasksPage', () => {
     server.use(
       http.put('*/api/v1/tasks/:id', async ({ request }) => {
         putBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ ...mockTask, title: putBody.title as string });
+        return HttpResponse.json({ ...mockTaskSummary, title: putBody.title as string });
       }),
     );
 
     renderTasksPage();
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     await user.click(screen.getByRole('button', { name: /^edit$/i }));
     await waitFor(() => screen.getByText('Edit Task'));
@@ -291,7 +290,7 @@ describe('TasksPage', () => {
     );
 
     renderTasksPage();
-    await waitFor(() => screen.getByText(mockTask.title));
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
 
     // Click the trigger Delete button to open the popconfirm
     const [triggerButton] = screen.getAllByRole('button', { name: /^delete$/i });
@@ -306,56 +305,16 @@ describe('TasksPage', () => {
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
-      expect(deletedId).toBe(mockTask.id);
+      expect(deletedId).toBe(mockTaskSummary.id);
     });
-  });
-
-  it('opens the task detail drawer when "View" is clicked', async () => {
-    const user = userEvent.setup();
-    renderTasksPage();
-
-    await waitFor(() => screen.getByText(mockTask.title));
-
-    await user.click(screen.getByRole('button', { name: /^view$/i }));
-
-    await waitFor(() => {
-      // Drawer title is the task title
-      expect(screen.getAllByText(mockTask.title).length).toBeGreaterThan(1);
-    });
-
-    expect(screen.getByText('No comments yet.')).toBeInTheDocument();
-  });
-
-  it('calls POST /api/v1/tasks/:id/comments when a comment is submitted', async () => {
-    const user = userEvent.setup();
-
-    let commentBody: Record<string, unknown> | null = null;
-    server.use(
-      http.post('*/api/v1/tasks/:taskId/comments', async ({ request }) => {
-        commentBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          { id: 'c-1', content: commentBody.content as string, createdAt: '2026-03-23T10:00:00Z' },
-          { status: 201 },
-        );
-      }),
-    );
-
-    renderTasksPage();
-    await waitFor(() => screen.getByText(mockTask.title));
-
-    // Open detail drawer
-    await user.click(screen.getByRole('button', { name: /^view$/i }));
-    await waitFor(() => screen.getByLabelText('New comment'));
-
-    await user.type(screen.getByLabelText('New comment'), 'Great task!');
-    await user.click(screen.getByRole('button', { name: /add comment/i }));
-
-    await waitFor(
-      () => {
-        expect(commentBody).not.toBeNull();
-        expect(commentBody!.content).toBe('Great task!');
-      },
-      { timeout: 8000 },
-    );
   }, 15000);
+
+  it('renders a "View" button for each task row', async () => {
+    renderTasksPage();
+
+    await waitFor(() => screen.getByText(mockTaskSummary.title));
+
+    // Each task row has a View button that triggers navigation to the detail page
+    expect(screen.getByRole('button', { name: /^view$/i })).toBeInTheDocument();
+  });
 });

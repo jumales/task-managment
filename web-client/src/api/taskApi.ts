@@ -1,8 +1,21 @@
 import apiClient from './client';
-import type { PageResponse, TaskParticipantRequest, TaskParticipantResponse, TaskResponse, TaskSummaryResponse, TaskRequest, TaskCommentResponse, TaskProjectResponse, TaskProjectRequest, TaskWorkLogRequest, TaskWorkLogResponse, TaskTimelineRequest, TaskTimelineResponse, TimelineState, ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest, TemplatePlaceholder, TaskChangeType } from './types';
+import type {
+  PageResponse,
+  TaskParticipantRequest, TaskParticipantResponse,
+  TaskResponse, TaskFullResponse, TaskSummaryResponse, TaskRequest,
+  TaskCommentResponse,
+  TaskProjectResponse, TaskProjectRequest,
+  TaskPhaseResponse, TaskPhaseRequest,
+  TaskPlannedWorkRequest, TaskPlannedWorkResponse,
+  TaskBookedWorkRequest, TaskBookedWorkResponse,
+  TaskTimelineRequest, TaskTimelineResponse, TimelineState,
+  ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest,
+  TemplatePlaceholder, TaskChangeType,
+} from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
+const PHASES_URL   = '/api/v1/phases';
 
 /** Fetches a paginated list of tasks (summary view), with optional filters. */
 export function getTasks(params?: { userId?: string; projectId?: string; status?: string; page?: number; size?: number }) {
@@ -12,6 +25,11 @@ export function getTasks(params?: { userId?: string; projectId?: string; status?
 /** Fetches a single task by ID. */
 export function getTask(id: string) {
   return apiClient.get<TaskResponse>(`${TASKS_URL}/${id}`).then((r) => r.data);
+}
+
+/** Fetches the full task view including participants, timelines, planned work, booked work, and assigned user. */
+export function getTaskFull(id: string) {
+  return apiClient.get<TaskFullResponse>(`${TASKS_URL}/${id}/full`).then((r) => r.data);
 }
 
 /** Creates a new task. */
@@ -54,24 +72,34 @@ export function removeParticipant(taskId: string, participantId: string) {
   return apiClient.delete(`${TASKS_URL}/${taskId}/participants/${participantId}`);
 }
 
-/** Fetches all work log entries for a task. */
-export function getWorkLogs(taskId: string) {
-  return apiClient.get<TaskWorkLogResponse[]>(`${TASKS_URL}/${taskId}/work-logs`).then((r) => r.data);
+/** Fetches all planned work entries for a task. */
+export function getPlannedWork(taskId: string) {
+  return apiClient.get<TaskPlannedWorkResponse[]>(`${TASKS_URL}/${taskId}/planned-work`).then((r) => r.data);
 }
 
-/** Adds a work log entry to a task. */
-export function createWorkLog(taskId: string, request: TaskWorkLogRequest) {
-  return apiClient.post<TaskWorkLogResponse>(`${TASKS_URL}/${taskId}/work-logs`, request).then((r) => r.data);
+/** Adds a planned work entry (only allowed when task status is TODO). */
+export function createPlannedWork(taskId: string, request: TaskPlannedWorkRequest) {
+  return apiClient.post<TaskPlannedWorkResponse>(`${TASKS_URL}/${taskId}/planned-work`, request).then((r) => r.data);
 }
 
-/** Updates an existing work log entry. */
-export function updateWorkLog(taskId: string, workLogId: string, request: TaskWorkLogRequest) {
-  return apiClient.put<TaskWorkLogResponse>(`${TASKS_URL}/${taskId}/work-logs/${workLogId}`, request).then((r) => r.data);
+/** Fetches all booked work entries for a task. */
+export function getBookedWork(taskId: string) {
+  return apiClient.get<TaskBookedWorkResponse[]>(`${TASKS_URL}/${taskId}/booked-work`).then((r) => r.data);
 }
 
-/** Soft-deletes a work log entry. */
-export function deleteWorkLog(taskId: string, workLogId: string) {
-  return apiClient.delete(`${TASKS_URL}/${taskId}/work-logs/${workLogId}`);
+/** Adds a booked work entry to a task. */
+export function createBookedWork(taskId: string, request: TaskBookedWorkRequest) {
+  return apiClient.post<TaskBookedWorkResponse>(`${TASKS_URL}/${taskId}/booked-work`, request).then((r) => r.data);
+}
+
+/** Updates an existing booked work entry. */
+export function updateBookedWork(taskId: string, bookedWorkId: string, request: TaskBookedWorkRequest) {
+  return apiClient.put<TaskBookedWorkResponse>(`${TASKS_URL}/${taskId}/booked-work/${bookedWorkId}`, request).then((r) => r.data);
+}
+
+/** Soft-deletes a booked work entry. */
+export function deleteBookedWork(taskId: string, bookedWorkId: string) {
+  return apiClient.delete(`${TASKS_URL}/${taskId}/booked-work/${bookedWorkId}`);
 }
 
 /** Fetches all active timeline entries for a task. */
@@ -107,6 +135,21 @@ export function updateProject(id: string, request: TaskProjectRequest) {
 /** Soft-deletes a project. */
 export function deleteProject(id: string) {
   return apiClient.delete(`${PROJECTS_URL}/${id}`);
+}
+
+/** Fetches all phases for a project. */
+export function getPhases(projectId: string) {
+  return apiClient.get<TaskPhaseResponse[]>(PHASES_URL, { params: { projectId } }).then((r) => r.data);
+}
+
+/** Creates a new phase for a project. */
+export function createPhase(request: TaskPhaseRequest) {
+  return apiClient.post<TaskPhaseResponse>(PHASES_URL, request).then((r) => r.data);
+}
+
+/** Soft-deletes a phase. */
+export function deletePhase(id: string) {
+  return apiClient.delete(`${PHASES_URL}/${id}`);
 }
 
 /** Fetches all active notification templates for a project. */

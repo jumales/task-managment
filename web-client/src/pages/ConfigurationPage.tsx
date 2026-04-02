@@ -35,9 +35,10 @@ const ALL_EVENT_TYPES: TaskChangeType[] = [
   'STATUS_CHANGED',
   'COMMENT_ADDED',
   'PHASE_CHANGED',
-  'WORK_LOG_CREATED',
-  'WORK_LOG_UPDATED',
-  'WORK_LOG_DELETED',
+  'PLANNED_WORK_CREATED',
+  'BOOKED_WORK_CREATED',
+  'BOOKED_WORK_UPDATED',
+  'BOOKED_WORK_DELETED',
 ];
 
 /** Row shape for the templates table — one row per event type. */

@@ -9,14 +9,16 @@ import { ArrowLeftOutlined, CalendarOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   getTask, getTimelines, setTimeline, deleteTimeline,
-  getWorkLogs, createWorkLog, updateWorkLog, deleteWorkLog,
+  getPlannedWork, createPlannedWork,
+  getBookedWork, createBookedWork, updateBookedWork, deleteBookedWork,
   getParticipants, addParticipant, removeParticipant,
   getTaskComments, addComment,
 } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import type {
   TaskResponse, TaskTimelineResponse, TimelineState,
-  TaskWorkLogResponse, TaskParticipantResponse, TaskParticipantRole,
+  TaskPlannedWorkResponse, TaskBookedWorkResponse,
+  TaskParticipantResponse, TaskParticipantRole,
   TaskCommentResponse, TaskStatus, TaskType, WorkType, UserResponse,
 } from '../api/types';
 
@@ -58,16 +60,23 @@ export function TaskDetailPage() {
   const [savingTimeline,   setSavingTimeline]   = useState(false);
   const [deletingTlState,  setDeletingTlState]  = useState<TimelineState | null>(null);
 
-  // ── Work logs ────────────────────────────────────────────────────────────
-  const [workLogs,       setWorkLogs]       = useState<TaskWorkLogResponse[]>([]);
-  const [wlLoading,      setWlLoading]      = useState(false);
-  const [editingWl,      setEditingWl]      = useState<TaskWorkLogResponse | null>(null);
-  const [wlUserId,       setWlUserId]       = useState<string | null>(null);
-  const [wlType,         setWlType]         = useState<WorkType>('DEVELOPMENT');
-  const [wlPlanned,      setWlPlanned]      = useState(0);
-  const [wlBooked,       setWlBooked]       = useState(0);
-  const [savingWl,       setSavingWl]       = useState(false);
-  const [deletingWlId,   setDeletingWlId]   = useState<string | null>(null);
+  // ── Planned work ─────────────────────────────────────────────────────────
+  const [plannedWork,      setPlannedWork]      = useState<TaskPlannedWorkResponse[]>([]);
+  const [pwLoading,        setPwLoading]        = useState(false);
+  const [pwUserId,         setPwUserId]         = useState<string | null>(null);
+  const [pwType,           setPwType]           = useState<WorkType>('DEVELOPMENT');
+  const [pwHours,          setPwHours]          = useState(0);
+  const [savingPw,         setSavingPw]         = useState(false);
+
+  // ── Booked work ──────────────────────────────────────────────────────────
+  const [bookedWork,       setBookedWork]       = useState<TaskBookedWorkResponse[]>([]);
+  const [bwLoading,        setBwLoading]        = useState(false);
+  const [editingBw,        setEditingBw]        = useState<TaskBookedWorkResponse | null>(null);
+  const [bwUserId,         setBwUserId]         = useState<string | null>(null);
+  const [bwType,           setBwType]           = useState<WorkType>('DEVELOPMENT');
+  const [bwHours,          setBwHours]          = useState(0);
+  const [savingBw,         setSavingBw]         = useState(false);
+  const [deletingBwId,     setDeletingBwId]     = useState<string | null>(null);
 
   // ── Participants ─────────────────────────────────────────────────────────
   const [participants,    setParticipants]    = useState<TaskParticipantResponse[]>([]);
@@ -125,11 +134,17 @@ export function TaskDetailPage() {
       .catch((err) => setError(err?.message ?? t('tasks.failedLoad')))
       .finally(() => setLoading(false));
 
-    setWlLoading(true);
-    getWorkLogs(id)
-      .then(setWorkLogs)
-      .catch(() => setError(t('tasks.failedLoadWorkLogs')))
-      .finally(() => setWlLoading(false));
+    setPwLoading(true);
+    getPlannedWork(id)
+      .then(setPlannedWork)
+      .catch(() => setError(t('tasks.failedLoadPlannedWork')))
+      .finally(() => setPwLoading(false));
+
+    setBwLoading(true);
+    getBookedWork(id)
+      .then(setBookedWork)
+      .catch(() => setError(t('tasks.failedLoadBookedWork')))
+      .finally(() => setBwLoading(false));
   }, [id]);
 
   // ── Timeline handlers ─────────────────────────────────────────────────────
@@ -167,40 +182,54 @@ export function TaskDetailPage() {
       .finally(() => setDeletingTlState(null));
   };
 
-  // ── Work log handlers ─────────────────────────────────────────────────────
-  const resetWlForm = () => {
-    setEditingWl(null);
-    setWlUserId(null);
-    setWlType('DEVELOPMENT');
-    setWlPlanned(0);
-    setWlBooked(0);
-  };
-
-  const handleSaveWorkLog = () => {
-    if (!id || !wlUserId) return;
-    setSavingWl(true);
-    const request = { userId: wlUserId, workType: wlType, plannedHours: wlPlanned, bookedHours: wlBooked };
-    const apiCall = editingWl
-      ? updateWorkLog(id, editingWl.id, request)
-      : createWorkLog(id, request);
-    apiCall
+  // ── Planned work handlers ─────────────────────────────────────────────────
+  const handleSavePlannedWork = () => {
+    if (!id || !pwUserId) return;
+    setSavingPw(true);
+    createPlannedWork(id, { userId: pwUserId, workType: pwType, plannedHours: pwHours })
       .then((saved) => {
-        setWorkLogs((prev) =>
-          editingWl ? prev.map((l) => (l.id === saved.id ? saved : l)) : [...prev, saved]
-        );
-        resetWlForm();
+        setPlannedWork((prev) => [...prev, saved]);
+        setPwUserId(null);
+        setPwType('DEVELOPMENT');
+        setPwHours(0);
       })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedSaveWorkLog')))
-      .finally(() => setSavingWl(false));
+      .catch((err: unknown) => setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('tasks.failedSavePlannedWork')))
+      .finally(() => setSavingPw(false));
   };
 
-  const handleDeleteWorkLog = (workLogId: string) => {
+  // ── Booked work handlers ──────────────────────────────────────────────────
+  const resetBwForm = () => {
+    setEditingBw(null);
+    setBwUserId(null);
+    setBwType('DEVELOPMENT');
+    setBwHours(0);
+  };
+
+  const handleSaveBookedWork = () => {
+    if (!id || !bwUserId) return;
+    setSavingBw(true);
+    const request = { userId: bwUserId, workType: bwType, bookedHours: bwHours };
+    const apiCall = editingBw
+      ? updateBookedWork(id, editingBw.id, request)
+      : createBookedWork(id, request);
+    apiCall
+      .then((saved: TaskBookedWorkResponse) => {
+        setBookedWork((prev) =>
+          editingBw ? prev.map((b) => (b.id === saved.id ? saved : b)) : [...prev, saved]
+        );
+        resetBwForm();
+      })
+      .catch((err: unknown) => setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('tasks.failedSaveBookedWork')))
+      .finally(() => setSavingBw(false));
+  };
+
+  const handleDeleteBookedWork = (bookedWorkId: string) => {
     if (!id) return;
-    setDeletingWlId(workLogId);
-    deleteWorkLog(id, workLogId)
-      .then(() => setWorkLogs((prev) => prev.filter((l) => l.id !== workLogId)))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedDeleteWorkLog')))
-      .finally(() => setDeletingWlId(null));
+    setDeletingBwId(bookedWorkId);
+    deleteBookedWork(id, bookedWorkId)
+      .then(() => setBookedWork((prev) => prev.filter((b) => b.id !== bookedWorkId)))
+      .catch((err: unknown) => setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('tasks.failedDeleteBookedWork')))
+      .finally(() => setDeletingBwId(null));
   };
 
   // ── Participant handlers ──────────────────────────────────────────────────
@@ -299,43 +328,101 @@ export function TaskDetailPage() {
     </Row>
   );
 
-  // ── Tab: Work Logs ────────────────────────────────────────────────────────
-  const workLogsTab = (
+  // ── Tab: Planned Work ─────────────────────────────────────────────────────
+  const plannedWorkTab = (
     <>
-      {wlLoading ? (
+      {pwLoading ? (
         <Spin size="small" />
       ) : (
         <List
           size="small"
-          dataSource={workLogs}
-          locale={{ emptyText: t('tasks.noWorkLogs') }}
-          renderItem={(log) => (
+          dataSource={plannedWork}
+          locale={{ emptyText: t('tasks.noPlannedWork') }}
+          renderItem={(pw) => (
+            <List.Item key={pw.id}>
+              <Space direction="vertical" size={0}>
+                <Space>
+                  <Tag color="blue">{workTypeLabels[pw.workType]}</Tag>
+                  <Typography.Text strong>{pw.userName ?? pw.userId}</Typography.Text>
+                </Space>
+                <Typography.Text type="secondary">
+                  {t('tasks.planned')}: <strong>{pw.plannedHours}h</strong>
+                </Typography.Text>
+              </Space>
+            </List.Item>
+          )}
+        />
+      )}
+
+      {task.status === 'TODO' && (
+        <>
+          <Divider orientation="left" style={{ marginTop: 16 }}>{t('tasks.addPlannedWork')}</Divider>
+          <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder={t('tasks.selectUser')}
+              value={pwUserId}
+              onChange={setPwUserId}
+              options={users.map((u) => ({ label: u.name, value: u.id }))}
+            />
+            <Select
+              style={{ width: '100%' }}
+              value={pwType}
+              onChange={setPwType}
+              options={(Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w }))}
+            />
+            <InputNumber
+              min={0} step={1} precision={0}
+              value={pwHours}
+              onChange={(v) => setPwHours(v ?? 0)}
+              addonBefore={t('tasks.planned')}
+              addonAfter="h"
+              style={{ width: '100%' }}
+            />
+            <Button type="primary" loading={savingPw} disabled={!pwUserId} onClick={handleSavePlannedWork}>
+              {t('common.add')}
+            </Button>
+          </Space>
+        </>
+      )}
+    </>
+  );
+
+  // ── Tab: Booked Work ──────────────────────────────────────────────────────
+  const bookedWorkTab = (
+    <>
+      {bwLoading ? (
+        <Spin size="small" />
+      ) : (
+        <List
+          size="small"
+          dataSource={bookedWork}
+          locale={{ emptyText: t('tasks.noBookedWork') }}
+          renderItem={(bw) => (
             <List.Item
-              key={log.id}
+              key={bw.id}
               actions={[
-                <Button key="edit" size="small" onClick={() => { setEditingWl(log); setWlUserId(log.userId); setWlType(log.workType); setWlPlanned(Number(log.plannedHours)); setWlBooked(Number(log.bookedHours)); }}>
+                <Button key="edit" size="small" onClick={() => { setEditingBw(bw); setBwUserId(bw.userId); setBwType(bw.workType); setBwHours(Number(bw.bookedHours)); }}>
                   {t('common.edit')}
                 </Button>,
                 <Popconfirm
                   key="del"
-                  title={t('tasks.deleteWorkLog')}
-                  onConfirm={() => handleDeleteWorkLog(log.id)}
+                  title={t('tasks.deleteBookedWork')}
+                  onConfirm={() => handleDeleteBookedWork(bw.id)}
                   okText={t('common.delete')}
                   okButtonProps={{ danger: true }}
                 >
-                  <Button danger size="small" loading={deletingWlId === log.id}>{t('common.delete')}</Button>
+                  <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
                 </Popconfirm>,
               ]}
             >
               <Space direction="vertical" size={0}>
                 <Space>
-                  <Tag color="blue">{workTypeLabels[log.workType]}</Tag>
-                  <Typography.Text strong>{log.userName ?? log.userId}</Typography.Text>
+                  <Tag color="green">{workTypeLabels[bw.workType]}</Tag>
+                  <Typography.Text strong>{bw.userName ?? bw.userId}</Typography.Text>
                 </Space>
                 <Typography.Text type="secondary">
-                  {t('tasks.planned')}: <strong>{log.plannedHours}h</strong>
-                  {' · '}
-                  {t('tasks.booked')}: <strong>{log.bookedHours}h</strong>
+                  {t('tasks.booked')}: <strong>{bw.bookedHours}h</strong>
                 </Typography.Text>
               </Space>
             </List.Item>
@@ -344,45 +431,35 @@ export function TaskDetailPage() {
       )}
 
       <Divider orientation="left" style={{ marginTop: 16 }}>
-        {editingWl ? t('tasks.editWorkLog') : t('tasks.addWorkLog')}
+        {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
       </Divider>
       <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
         <Select
           style={{ width: '100%' }}
           placeholder={t('tasks.selectUser')}
-          value={wlUserId}
-          onChange={setWlUserId}
+          value={bwUserId}
+          onChange={setBwUserId}
           options={users.map((u) => ({ label: u.name, value: u.id }))}
         />
         <Select
           style={{ width: '100%' }}
-          value={wlType}
-          onChange={setWlType}
+          value={bwType}
+          onChange={setBwType}
           options={(Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w }))}
         />
+        <InputNumber
+          min={0} step={1} precision={0}
+          value={bwHours}
+          onChange={(v) => setBwHours(v ?? 0)}
+          addonBefore={t('tasks.booked')}
+          addonAfter="h"
+          style={{ width: '100%' }}
+        />
         <Space>
-          {!editingWl && (
-            <InputNumber
-              min={0} step={1} precision={0}
-              value={wlPlanned}
-              onChange={(v) => setWlPlanned(v ?? 0)}
-              addonBefore={t('tasks.planned')}
-              addonAfter="h"
-            />
-          )}
-          <InputNumber
-            min={0} step={1} precision={0}
-            value={wlBooked}
-            onChange={(v) => setWlBooked(v ?? 0)}
-            addonBefore={t('tasks.booked')}
-            addonAfter="h"
-          />
-        </Space>
-        <Space>
-          <Button type="primary" loading={savingWl} disabled={!wlUserId} onClick={handleSaveWorkLog}>
-            {editingWl ? t('common.save') : t('common.add')}
+          <Button type="primary" loading={savingBw} disabled={!bwUserId} onClick={handleSaveBookedWork}>
+            {editingBw ? t('common.save') : t('common.add')}
           </Button>
-          {editingWl && <Button onClick={resetWlForm}>{t('common.cancel')}</Button>}
+          {editingBw && <Button onClick={resetBwForm}>{t('common.cancel')}</Button>}
         </Space>
       </Space>
     </>
@@ -522,7 +599,8 @@ export function TaskDetailPage() {
       <Tabs
         items={[
           { key: 'timeline',     label: t('tasks.timeline'),     children: timelineTab     },
-          { key: 'worklogs',     label: t('tasks.workLogs'),     children: workLogsTab     },
+          { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: plannedWorkTab  },
+          { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: bookedWorkTab   },
           { key: 'participants', label: t('tasks.participants'), children: participantsTab },
           { key: 'comments',     label: t('tasks.comments'),     children: commentsTab     },
         ]}

@@ -1,7 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import type {
   TaskResponse,
+  TaskSummaryResponse,
   TaskProjectResponse,
+  TaskPhaseResponse,
+  PageResponse,
   UserResponse,
   AuditRecord,
 } from '../../api/types';
@@ -14,6 +17,15 @@ export const mockProject: TaskProjectResponse = {
   id: 'proj-1',
   name: 'Alpha Project',
   description: 'First project',
+  taskCodePrefix: 'ALPHA',
+  defaultPhaseId: 'phase-1',
+};
+
+export const mockPhase: TaskPhaseResponse = {
+  id: 'phase-1',
+  name: 'TODO',
+  description: null,
+  projectId: 'proj-1',
 };
 
 export const mockUser: UserResponse = {
@@ -23,6 +35,7 @@ export const mockUser: UserResponse = {
   username: 'alice',
   active: true,
   avatarFileId: null,
+  language: 'en',
   roles: [
     { id: 'role-1', name: 'ADMIN', description: 'Administrator' },
   ],
@@ -35,6 +48,7 @@ export const mockUser2: UserResponse = {
   username: 'bob',
   active: true,
   avatarFileId: null,
+  language: 'en',
   roles: [
     { id: 'role-2', name: 'DEVELOPER', description: 'Developer' },
   ],
@@ -45,9 +59,26 @@ export const mockTask: TaskResponse = {
   title: 'Fix login bug',
   description: 'Users cannot log in',
   status: 'TODO',
+  type: null,
+  progress: 0,
   participants: [{ id: 'part-1', userId: 'user-1', userName: 'Alice Smith', userEmail: 'alice@example.com', role: 'ASSIGNEE' }],
   project: mockProject,
-  phase: null,
+  phase: mockPhase,
+};
+
+export const mockTaskSummary: TaskSummaryResponse = {
+  id: 'task-1',
+  title: 'Fix login bug',
+  description: 'Users cannot log in',
+  status: 'TODO',
+  type: null,
+  progress: 0,
+  assignedUserId: 'user-1',
+  assignedUserName: 'Alice Smith',
+  projectId: 'proj-1',
+  projectName: 'Alpha Project',
+  phaseId: 'phase-1',
+  phaseName: 'TODO',
 };
 
 export const mockAuditRecord: AuditRecord = {
@@ -65,7 +96,11 @@ export const mockAuditRecord: AuditRecord = {
 export const handlers = [
   // Tasks
   http.get('*/api/v1/tasks', () => {
-    return HttpResponse.json([mockTask]);
+    const page: PageResponse<TaskSummaryResponse> = {
+      content: [mockTaskSummary],
+      page: 0, size: 20, totalElements: 1, totalPages: 1, last: true,
+    };
+    return HttpResponse.json(page);
   }),
 
   http.get('*/api/v1/tasks/:id', ({ params }) => {
@@ -79,9 +114,11 @@ export const handlers = [
       title: body.title as string,
       description: (body.description as string) ?? '',
       status: (body.status as TaskResponse['status']) ?? 'TODO',
+      type: null,
+      progress: 0,
       participants: [{ id: 'part-new', userId: 'user-1', userName: 'Alice Smith', userEmail: 'alice@example.com', role: 'ASSIGNEE' as const }],
       project: mockProject,
-      phase: null,
+      phase: mockPhase,
     };
     return HttpResponse.json(created, { status: 201 });
   }),
@@ -149,9 +186,18 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  // Phases
+  http.get('*/api/v1/phases', () => {
+    return HttpResponse.json([mockPhase]);
+  }),
+
   // Users
   http.get('*/api/v1/users', () => {
-    return HttpResponse.json([mockUser, mockUser2]);
+    const page: PageResponse<UserResponse> = {
+      content: [mockUser, mockUser2],
+      page: 0, size: 20, totalElements: 2, totalPages: 1, last: true,
+    };
+    return HttpResponse.json(page);
   }),
 
   http.get('*/api/v1/users/:id', ({ params }) => {

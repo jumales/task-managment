@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 /**
  * Minimal keycloak-js stub for the jsdom test environment.
  * Exported as the default export so `import Keycloak from 'keycloak-js'`
