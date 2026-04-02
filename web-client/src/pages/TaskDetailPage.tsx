@@ -19,26 +19,9 @@ import type {
   TaskResponse, TaskTimelineResponse, TimelineState,
   TaskPlannedWorkResponse, TaskBookedWorkResponse,
   TaskParticipantResponse, TaskParticipantRole,
-  TaskCommentResponse, TaskStatus, TaskType, WorkType, UserResponse,
+  TaskCommentResponse, TaskType, WorkType, UserResponse,
 } from '../api/types';
-
-const STATUS_COLORS: Record<TaskStatus, string> = {
-  TODO:        'default',
-  IN_PROGRESS: 'blue',
-  DONE:        'green',
-};
-
-const TYPE_COLORS: Record<TaskType, string> = {
-  FEATURE:        'purple',
-  BUG_FIXING:     'red',
-  TESTING:        'cyan',
-  PLANNING:       'gold',
-  TECHNICAL_DEBT: 'orange',
-  DOCUMENTATION:  'geekblue',
-  OTHER:          'default',
-};
-
-const TIMELINE_STATES: TimelineState[] = ['PLANNED_START', 'PLANNED_END', 'REAL_START', 'REAL_END'];
+import { STATUS_COLORS, TYPE_COLORS, TIMELINE_STATES } from './taskDetail/taskDetailConstants';
 
 /** Full-page view for a single task: overview, timeline, work logs, participants, and comments. */
 export function TaskDetailPage() {
