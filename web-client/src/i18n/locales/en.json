@@ -151,7 +151,11 @@
       "DEPLOYMENT": "Deployment",
       "MEETING": "Meeting",
       "OTHER": "Other"
-    }
+    },
+    "selectProjectFirst": "Select a project first",
+    "selectPhase": "Select a phase",
+    "phaseRequired": "Phase is required",
+    "failedLoadPhases": "Failed to load phases"
   },
   "projects": {
     "title": "Projects",

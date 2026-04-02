@@ -44,6 +44,7 @@ export function TasksPage() {
   const [users,        setUsers]        = useState<UserResponse[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
+  const [modalError,   setModalError]   = useState<string | null>(null);
   const [searchQuery,  setSearchQuery]  = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const searchInputRef = useRef<InputRef | null>(null);
@@ -82,7 +83,7 @@ export function TasksPage() {
       .finally(() => setLoading(false));
 
   const loadPhases = (projectId: string) =>
-    getPhases(projectId).then(setPhases).catch(() => setError(t('tasks.failedLoadPhases')));
+    getPhases(projectId).then(setPhases).catch(() => setModalError(t('tasks.failedLoadPhases')));
 
   const refreshDropdowns = () => {
     getProjects().then(setProjects).catch(() => setError(t('projects.failedLoad')));
@@ -151,6 +152,7 @@ export function TasksPage() {
   const openCreateModal = () => {
     setEditingTask(null);
     setPhases([]);
+    setModalError(null);
     form.resetFields();
     Promise.all([getProjects(), getUsers()])
       .then(([fetchedProjects, fetchedUsersPage]) => {
@@ -173,6 +175,7 @@ export function TasksPage() {
 
   /** Opens the modal in edit mode, pre-filled with the given task's values. */
   const openEditModal = (task: TaskSummaryResponse) => {
+    setModalError(null);
     setEditingTask(task);
     form.setFieldsValue({
       title:          task.title,
@@ -309,10 +312,11 @@ export function TasksPage() {
         title={editingTask ? t('tasks.editTask') : t('tasks.createTask')}
         open={modalOpen}
         onOk={handleSubmit}
-        onCancel={() => { setModalOpen(false); setEditingTask(null); }}
+        onCancel={() => { setModalOpen(false); setEditingTask(null); setModalError(null); }}
         okText={editingTask ? t('common.save') : t('common.create')}
         confirmLoading={submitting}
       >
+        {modalError && <Alert type="error" message={modalError} style={{ marginBottom: 12 }} />}
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
             <Input />
