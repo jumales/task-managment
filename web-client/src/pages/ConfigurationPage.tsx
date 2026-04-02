@@ -157,9 +157,11 @@ function TemplatesTab() {
     form.setFieldValue(field, current + `{${key}}`);
   }
 
+  // Build a Map once (O(n)) so each eventType lookup is O(1) instead of O(n) per row.
+  const templatesByEvent = new Map(templates.map((tmpl) => [tmpl.eventType, tmpl]));
   const rows: TemplateRow[] = ALL_EVENT_TYPES.map((eventType) => ({
     eventType,
-    template: templates.find((tmpl) => tmpl.eventType === eventType) ?? null,
+    template: templatesByEvent.get(eventType) ?? null,
   }));
 
   const columns: ColumnsType<TemplateRow> = [
