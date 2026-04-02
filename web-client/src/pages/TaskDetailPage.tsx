@@ -6,22 +6,16 @@ import {
   List, Modal, Popconfirm, Progress, Row, Select, Space, Spin, Tabs, Tag, Typography,
 } from 'antd';
 import { ArrowLeftOutlined, CalendarOutlined } from '@ant-design/icons';
-import dayjs, { type Dayjs } from 'dayjs';
-import {
-  getTask, getTimelines, setTimeline, deleteTimeline,
-  getPlannedWork, createPlannedWork,
-  getBookedWork, createBookedWork, updateBookedWork, deleteBookedWork,
-  getParticipants, addParticipant, removeParticipant,
-  getTaskComments, addComment,
-} from '../api/taskApi';
+import dayjs from 'dayjs';
+import { getTask } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
-import type {
-  TaskResponse, TaskTimelineResponse, TimelineState,
-  TaskPlannedWorkResponse, TaskBookedWorkResponse,
-  TaskParticipantResponse, TaskParticipantRole,
-  TaskCommentResponse, TaskType, WorkType, UserResponse,
-} from '../api/types';
+import type { TaskResponse, TaskType, WorkType, UserResponse } from '../api/types';
 import { STATUS_COLORS, TYPE_COLORS, TIMELINE_STATES } from './taskDetail/taskDetailConstants';
+import { useTaskTimeline }     from '../hooks/useTaskTimeline';
+import { useTaskPlannedWork }  from '../hooks/useTaskPlannedWork';
+import { useTaskBookedWork }   from '../hooks/useTaskBookedWork';
+import { useTaskParticipants } from '../hooks/useTaskParticipants';
+import { useTaskComments }     from '../hooks/useTaskComments';
 
 /** Full-page view for a single task: overview, timeline, work logs, participants, and comments. */
 export function TaskDetailPage() {
@@ -34,44 +28,11 @@ export function TaskDetailPage() {
   const [error,   setError]   = useState<string | null>(null);
   const [users,   setUsers]   = useState<UserResponse[]>([]);
 
-  // ── Timeline ─────────────────────────────────────────────────────────────
-  const [timelines,        setTimelines]        = useState<TaskTimelineResponse[]>([]);
-  const [tlModalOpen,      setTlModalOpen]      = useState(false);
-  const [editingState,     setEditingState]     = useState<TimelineState | null>(null);
-  const [tlUserId,         setTlUserId]         = useState<string | null>(null);
-  const [tlTimestamp,      setTlTimestamp]      = useState<Dayjs | null>(null);
-  const [savingTimeline,   setSavingTimeline]   = useState(false);
-  const [deletingTlState,  setDeletingTlState]  = useState<TimelineState | null>(null);
-
-  // ── Planned work ─────────────────────────────────────────────────────────
-  const [plannedWork,      setPlannedWork]      = useState<TaskPlannedWorkResponse[]>([]);
-  const [pwLoading,        setPwLoading]        = useState(false);
-  const [pwUserId,         setPwUserId]         = useState<string | null>(null);
-  const [pwType,           setPwType]           = useState<WorkType>('DEVELOPMENT');
-  const [pwHours,          setPwHours]          = useState(0);
-  const [savingPw,         setSavingPw]         = useState(false);
-
-  // ── Booked work ──────────────────────────────────────────────────────────
-  const [bookedWork,       setBookedWork]       = useState<TaskBookedWorkResponse[]>([]);
-  const [bwLoading,        setBwLoading]        = useState(false);
-  const [editingBw,        setEditingBw]        = useState<TaskBookedWorkResponse | null>(null);
-  const [bwUserId,         setBwUserId]         = useState<string | null>(null);
-  const [bwType,           setBwType]           = useState<WorkType>('DEVELOPMENT');
-  const [bwHours,          setBwHours]          = useState(0);
-  const [savingBw,         setSavingBw]         = useState(false);
-  const [deletingBwId,     setDeletingBwId]     = useState<string | null>(null);
-
-  // ── Participants ─────────────────────────────────────────────────────────
-  const [participants,    setParticipants]    = useState<TaskParticipantResponse[]>([]);
-  const [newPUserId,      setNewPUserId]      = useState<string | null>(null);
-  const [newPRole,        setNewPRole]        = useState<TaskParticipantRole>('VIEWER');
-  const [addingP,         setAddingP]         = useState(false);
-  const [removingPId,     setRemovingPId]     = useState<string | null>(null);
-
-  // ── Comments ─────────────────────────────────────────────────────────────
-  const [comments,     setComments]     = useState<TaskCommentResponse[]>([]);
-  const [newComment,   setNewComment]   = useState('');
-  const [addingCmt,    setAddingCmt]    = useState(false);
+  const timeline     = useTaskTimeline(id, setError);
+  const plannedWork  = useTaskPlannedWork(id, setError);
+  const bookedWork   = useTaskBookedWork(id, setError);
+  const participants = useTaskParticipants(id, setError);
+  const comments     = useTaskComments(id, setError);
 
   // ── Translation maps ─────────────────────────────────────────────────────
   const typeLabels: Record<TaskType, string> = {
@@ -100,155 +61,14 @@ export function TaskDetailPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([
-      getTask(id),
-      getTimelines(id),
-      getParticipants(id),
-      getTaskComments(id),
-      getUsers(),
-    ])
-      .then(([taskData, timelinesData, participantsData, commentsData, usersPage]) => {
+    Promise.all([getTask(id), getUsers()])
+      .then(([taskData, usersPage]) => {
         setTask(taskData);
-        setTimelines(timelinesData);
-        setParticipants(participantsData);
-        setComments(commentsData);
         setUsers(usersPage.content);
       })
       .catch((err) => setError(err?.message ?? t('tasks.failedLoad')))
       .finally(() => setLoading(false));
-
-    setPwLoading(true);
-    getPlannedWork(id)
-      .then(setPlannedWork)
-      .catch(() => setError(t('tasks.failedLoadPlannedWork')))
-      .finally(() => setPwLoading(false));
-
-    setBwLoading(true);
-    getBookedWork(id)
-      .then(setBookedWork)
-      .catch(() => setError(t('tasks.failedLoadBookedWork')))
-      .finally(() => setBwLoading(false));
   }, [id]);
-
-  // ── Timeline handlers ─────────────────────────────────────────────────────
-  const openTlModal = (state: TimelineState) => {
-    const existing = timelines.find((tl) => tl.state === state);
-    setEditingState(state);
-    setTlUserId(existing?.setByUserId ?? null);
-    setTlTimestamp(existing ? dayjs(existing.timestamp) : null);
-    setTlModalOpen(true);
-  };
-
-  const handleSaveTimeline = () => {
-    if (!id || !editingState || !tlUserId || !tlTimestamp) return;
-    setSavingTimeline(true);
-    setTimeline(id, editingState, { setByUserId: tlUserId, timestamp: tlTimestamp.toISOString() })
-      .then((saved) => {
-        setTimelines((prev) => {
-          const idx = prev.findIndex((tl) => tl.state === saved.state);
-          return idx >= 0
-            ? prev.map((tl, i) => (i === idx ? saved : tl))
-            : [...prev, saved];
-        });
-        setTlModalOpen(false);
-      })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedSaveTimeline')))
-      .finally(() => setSavingTimeline(false));
-  };
-
-  const handleDeleteTimeline = (state: TimelineState) => {
-    if (!id) return;
-    setDeletingTlState(state);
-    deleteTimeline(id, state)
-      .then(() => setTimelines((prev) => prev.filter((tl) => tl.state !== state)))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedDeleteTimeline')))
-      .finally(() => setDeletingTlState(null));
-  };
-
-  // ── Planned work handlers ─────────────────────────────────────────────────
-  const handleSavePlannedWork = () => {
-    if (!id || !pwUserId) return;
-    setSavingPw(true);
-    createPlannedWork(id, { userId: pwUserId, workType: pwType, plannedHours: pwHours })
-      .then((saved) => {
-        setPlannedWork((prev) => [...prev, saved]);
-        setPwUserId(null);
-        setPwType('DEVELOPMENT');
-        setPwHours(0);
-      })
-      .catch((err: unknown) => setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('tasks.failedSavePlannedWork')))
-      .finally(() => setSavingPw(false));
-  };
-
-  // ── Booked work handlers ──────────────────────────────────────────────────
-  const resetBwForm = () => {
-    setEditingBw(null);
-    setBwUserId(null);
-    setBwType('DEVELOPMENT');
-    setBwHours(0);
-  };
-
-  const handleSaveBookedWork = () => {
-    if (!id || !bwUserId) return;
-    setSavingBw(true);
-    const request = { userId: bwUserId, workType: bwType, bookedHours: bwHours };
-    const apiCall = editingBw
-      ? updateBookedWork(id, editingBw.id, request)
-      : createBookedWork(id, request);
-    apiCall
-      .then((saved: TaskBookedWorkResponse) => {
-        setBookedWork((prev) =>
-          editingBw ? prev.map((b) => (b.id === saved.id ? saved : b)) : [...prev, saved]
-        );
-        resetBwForm();
-      })
-      .catch((err: unknown) => setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('tasks.failedSaveBookedWork')))
-      .finally(() => setSavingBw(false));
-  };
-
-  const handleDeleteBookedWork = (bookedWorkId: string) => {
-    if (!id) return;
-    setDeletingBwId(bookedWorkId);
-    deleteBookedWork(id, bookedWorkId)
-      .then(() => setBookedWork((prev) => prev.filter((b) => b.id !== bookedWorkId)))
-      .catch((err: unknown) => setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? t('tasks.failedDeleteBookedWork')))
-      .finally(() => setDeletingBwId(null));
-  };
-
-  // ── Participant handlers ──────────────────────────────────────────────────
-  const handleAddParticipant = () => {
-    if (!id || !newPUserId) return;
-    setAddingP(true);
-    addParticipant(id, { userId: newPUserId, role: newPRole })
-      .then((created) => {
-        setParticipants((prev) => [...prev, created]);
-        setNewPUserId(null);
-      })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedAddParticipant')))
-      .finally(() => setAddingP(false));
-  };
-
-  const handleRemoveParticipant = (participantId: string) => {
-    if (!id) return;
-    setRemovingPId(participantId);
-    removeParticipant(id, participantId)
-      .then(() => setParticipants((prev) => prev.filter((p) => p.id !== participantId)))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedRemoveParticipant')))
-      .finally(() => setRemovingPId(null));
-  };
-
-  // ── Comment handlers ──────────────────────────────────────────────────────
-  const handleAddComment = () => {
-    if (!id || !newComment.trim()) return;
-    setAddingCmt(true);
-    addComment(id, newComment.trim())
-      .then((created) => {
-        setComments((prev) => [...prev, created]);
-        setNewComment('');
-      })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedAddComment')))
-      .finally(() => setAddingCmt(false));
-  };
 
   // ── Early returns ─────────────────────────────────────────────────────────
   if (loading) return <div style={{ textAlign: 'center', marginTop: 80 }}><Spin size="large" /></div>;
@@ -261,7 +81,7 @@ export function TaskDetailPage() {
   const timelineTab = (
     <Row gutter={[16, 16]}>
       {TIMELINE_STATES.map((state) => {
-        const entry = timelines.find((tl) => tl.state === state);
+        const entry = timeline.timelines.find((tl) => tl.state === state);
         return (
           <Col xs={24} sm={12} key={state}>
             <Card
@@ -274,17 +94,17 @@ export function TaskDetailPage() {
               }
               extra={
                 <Space size="small">
-                  <Button size="small" onClick={() => openTlModal(state)}>
+                  <Button size="small" onClick={() => timeline.openTlModal(state)}>
                     {entry ? t('common.edit') : t('tasks.setDate')}
                   </Button>
                   {entry && (
                     <Popconfirm
                       title={t('tasks.clearTimelineConfirm')}
-                      onConfirm={() => handleDeleteTimeline(state)}
+                      onConfirm={() => timeline.handleDeleteTimeline(state)}
                       okText={t('common.delete')}
                       okButtonProps={{ danger: true }}
                     >
-                      <Button danger size="small" loading={deletingTlState === state}>
+                      <Button danger size="small" loading={timeline.deletingTlState === state}>
                         {t('tasks.clearDate')}
                       </Button>
                     </Popconfirm>
@@ -314,12 +134,12 @@ export function TaskDetailPage() {
   // ── Tab: Planned Work ─────────────────────────────────────────────────────
   const plannedWorkTab = (
     <>
-      {pwLoading ? (
+      {plannedWork.pwLoading ? (
         <Spin size="small" />
       ) : (
         <List
           size="small"
-          dataSource={plannedWork}
+          dataSource={plannedWork.plannedWork}
           locale={{ emptyText: t('tasks.noPlannedWork') }}
           renderItem={(pw) => (
             <List.Item key={pw.id}>
@@ -344,25 +164,25 @@ export function TaskDetailPage() {
             <Select
               style={{ width: '100%' }}
               placeholder={t('tasks.selectUser')}
-              value={pwUserId}
-              onChange={setPwUserId}
+              value={plannedWork.pwUserId}
+              onChange={plannedWork.setPwUserId}
               options={users.map((u) => ({ label: u.name, value: u.id }))}
             />
             <Select
               style={{ width: '100%' }}
-              value={pwType}
-              onChange={setPwType}
+              value={plannedWork.pwType}
+              onChange={plannedWork.setPwType}
               options={(Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w }))}
             />
             <InputNumber
               min={0} step={1} precision={0}
-              value={pwHours}
-              onChange={(v) => setPwHours(v ?? 0)}
+              value={plannedWork.pwHours}
+              onChange={(v) => plannedWork.setPwHours(v ?? 0)}
               addonBefore={t('tasks.planned')}
               addonAfter="h"
               style={{ width: '100%' }}
             />
-            <Button type="primary" loading={savingPw} disabled={!pwUserId} onClick={handleSavePlannedWork}>
+            <Button type="primary" loading={plannedWork.savingPw} disabled={!plannedWork.pwUserId} onClick={plannedWork.handleSavePlannedWork}>
               {t('common.add')}
             </Button>
           </Space>
@@ -374,28 +194,28 @@ export function TaskDetailPage() {
   // ── Tab: Booked Work ──────────────────────────────────────────────────────
   const bookedWorkTab = (
     <>
-      {bwLoading ? (
+      {bookedWork.bwLoading ? (
         <Spin size="small" />
       ) : (
         <List
           size="small"
-          dataSource={bookedWork}
+          dataSource={bookedWork.bookedWork}
           locale={{ emptyText: t('tasks.noBookedWork') }}
           renderItem={(bw) => (
             <List.Item
               key={bw.id}
               actions={[
-                <Button key="edit" size="small" onClick={() => { setEditingBw(bw); setBwUserId(bw.userId); setBwType(bw.workType); setBwHours(Number(bw.bookedHours)); }}>
+                <Button key="edit" size="small" onClick={() => bookedWork.startEditing(bw)}>
                   {t('common.edit')}
                 </Button>,
                 <Popconfirm
                   key="del"
                   title={t('tasks.deleteBookedWork')}
-                  onConfirm={() => handleDeleteBookedWork(bw.id)}
+                  onConfirm={() => bookedWork.handleDeleteBookedWork(bw.id)}
                   okText={t('common.delete')}
                   okButtonProps={{ danger: true }}
                 >
-                  <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
+                  <Button danger size="small" loading={bookedWork.deletingBwId === bw.id}>{t('common.delete')}</Button>
                 </Popconfirm>,
               ]}
             >
@@ -414,35 +234,35 @@ export function TaskDetailPage() {
       )}
 
       <Divider orientation="left" style={{ marginTop: 16 }}>
-        {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
+        {bookedWork.editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
       </Divider>
       <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
         <Select
           style={{ width: '100%' }}
           placeholder={t('tasks.selectUser')}
-          value={bwUserId}
-          onChange={setBwUserId}
+          value={bookedWork.bwUserId}
+          onChange={bookedWork.setBwUserId}
           options={users.map((u) => ({ label: u.name, value: u.id }))}
         />
         <Select
           style={{ width: '100%' }}
-          value={bwType}
-          onChange={setBwType}
+          value={bookedWork.bwType}
+          onChange={bookedWork.setBwType}
           options={(Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w }))}
         />
         <InputNumber
           min={0} step={1} precision={0}
-          value={bwHours}
-          onChange={(v) => setBwHours(v ?? 0)}
+          value={bookedWork.bwHours}
+          onChange={(v) => bookedWork.setBwHours(v ?? 0)}
           addonBefore={t('tasks.booked')}
           addonAfter="h"
           style={{ width: '100%' }}
         />
         <Space>
-          <Button type="primary" loading={savingBw} disabled={!bwUserId} onClick={handleSaveBookedWork}>
-            {editingBw ? t('common.save') : t('common.add')}
+          <Button type="primary" loading={bookedWork.savingBw} disabled={!bookedWork.bwUserId} onClick={bookedWork.handleSaveBookedWork}>
+            {bookedWork.editingBw ? t('common.save') : t('common.add')}
           </Button>
-          {editingBw && <Button onClick={resetBwForm}>{t('common.cancel')}</Button>}
+          {bookedWork.editingBw && <Button onClick={bookedWork.resetBwForm}>{t('common.cancel')}</Button>}
         </Space>
       </Space>
     </>
@@ -453,7 +273,7 @@ export function TaskDetailPage() {
     <>
       <List
         size="small"
-        dataSource={participants}
+        dataSource={participants.participants}
         locale={{ emptyText: t('tasks.noParticipants') }}
         renderItem={(p) => (
           <List.Item
@@ -462,11 +282,11 @@ export function TaskDetailPage() {
               <Popconfirm
                 key="remove"
                 title={t('tasks.removeParticipant')}
-                onConfirm={() => handleRemoveParticipant(p.id)}
+                onConfirm={() => participants.handleRemoveParticipant(p.id)}
                 okText={t('common.remove')}
                 okButtonProps={{ danger: true }}
               >
-                <Button danger size="small" loading={removingPId === p.id}>{t('common.remove')}</Button>
+                <Button danger size="small" loading={participants.removingPId === p.id}>{t('common.remove')}</Button>
               </Popconfirm>,
             ]}
           >
@@ -482,17 +302,17 @@ export function TaskDetailPage() {
         <Select
           style={{ flex: 1 }}
           placeholder={t('tasks.selectUser')}
-          value={newPUserId}
-          onChange={setNewPUserId}
+          value={participants.newPUserId}
+          onChange={participants.setNewPUserId}
           options={users.map((u) => ({ label: u.name, value: u.id }))}
         />
         <Select
           style={{ width: 130 }}
-          value={newPRole}
-          onChange={setNewPRole}
-          options={(['ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }))}
+          value={participants.newPRole}
+          onChange={participants.setNewPRole}
+          options={(['ASSIGNEE', 'VIEWER', 'REVIEWER'] as import('../api/types').TaskParticipantRole[]).map((r) => ({ label: r, value: r }))}
         />
-        <Button type="primary" loading={addingP} disabled={!newPUserId} onClick={handleAddParticipant}>
+        <Button type="primary" loading={participants.addingP} disabled={!participants.newPUserId} onClick={participants.handleAddParticipant}>
           {t('common.add')}
         </Button>
       </Space.Compact>
@@ -503,7 +323,7 @@ export function TaskDetailPage() {
   const commentsTab = (
     <>
       <List
-        dataSource={comments}
+        dataSource={comments.comments}
         locale={{ emptyText: t('tasks.noComments') }}
         renderItem={(c) => (
           <List.Item key={c.id}>
@@ -518,15 +338,15 @@ export function TaskDetailPage() {
       <Space direction="vertical" style={{ width: '100%', maxWidth: 600 }}>
         <Input.TextArea
           rows={3}
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
+          value={comments.newComment}
+          onChange={(e) => comments.setNewComment(e.target.value)}
           placeholder={t('tasks.addCommentPlaceholder')}
         />
         <Button
           type="primary"
-          loading={addingCmt}
-          disabled={!newComment.trim()}
-          onClick={handleAddComment}
+          loading={comments.addingCmt}
+          disabled={!comments.newComment.trim()}
+          onClick={comments.handleAddComment}
         >
           {t('tasks.addComment')}
         </Button>
@@ -591,27 +411,27 @@ export function TaskDetailPage() {
 
       {/* Timeline set/edit modal */}
       <Modal
-        title={editingState ? t(`tasks.timelineStates.${editingState}`) : ''}
-        open={tlModalOpen}
-        onOk={handleSaveTimeline}
-        onCancel={() => setTlModalOpen(false)}
+        title={timeline.editingState ? t(`tasks.timelineStates.${timeline.editingState}`) : ''}
+        open={timeline.tlModalOpen}
+        onOk={timeline.handleSaveTimeline}
+        onCancel={() => timeline.setTlModalOpen(false)}
         okText={t('common.save')}
-        confirmLoading={savingTimeline}
-        okButtonProps={{ disabled: !tlUserId || !tlTimestamp }}
+        confirmLoading={timeline.savingTimeline}
+        okButtonProps={{ disabled: !timeline.tlUserId || !timeline.tlTimestamp }}
       >
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
           <DatePicker
             showTime
             style={{ width: '100%' }}
-            value={tlTimestamp}
-            onChange={setTlTimestamp}
+            value={timeline.tlTimestamp}
+            onChange={timeline.setTlTimestamp}
             placeholder={t('tasks.selectDate')}
           />
           <Select
             style={{ width: '100%' }}
             placeholder={t('tasks.selectUser')}
-            value={tlUserId}
-            onChange={setTlUserId}
+            value={timeline.tlUserId}
+            onChange={timeline.setTlUserId}
             options={users.map((u) => ({ label: u.name, value: u.id }))}
           />
         </Space>
