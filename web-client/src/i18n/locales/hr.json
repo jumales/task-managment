@@ -151,7 +151,11 @@
       "DEPLOYMENT": "Postavljanje",
       "MEETING": "Sastanak",
       "OTHER": "Ostalo"
-    }
+    },
+    "selectProjectFirst": "Najprije odaberi projekt",
+    "selectPhase": "Odaberi fazu",
+    "phaseRequired": "Faza je obavezna",
+    "failedLoadPhases": "Neuspješno učitavanje faza"
   },
   "projects": {
     "title": "Projekti",
