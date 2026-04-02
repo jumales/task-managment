@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input, Tabs, Table, Tag, Typography, Space, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -29,7 +29,7 @@ export function SearchPage() {
   const [searched, setSearched] = useState(initialQuery.length > 0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const taskColumns: ColumnsType<TaskDocument> = [
+  const taskColumns: ColumnsType<TaskDocument> = useMemo(() => [
     {
       title: t('search.title_col'),
       dataIndex: 'title',
@@ -73,9 +73,9 @@ export function SearchPage() {
       key: 'assignedUserName',
       render: (name: string | null) => name ?? <Text type="secondary">—</Text>,
     },
-  ];
+  ], [t]);
 
-  const userColumns: ColumnsType<UserDocument> = [
+  const userColumns: ColumnsType<UserDocument> = useMemo(() => [
     {
       title: t('common.name'),
       dataIndex: 'name',
@@ -102,7 +102,17 @@ export function SearchPage() {
         <Tag color={active ? 'success' : 'default'}>{active ? t('common.active') : t('common.inactive')}</Tag>
       ),
     },
-  ];
+  ], [t]);
+
+  const onTaskRow = useCallback((record: TaskDocument) => ({
+    onClick: () => navigate(`/tasks?highlight=${record.id}`),
+    style: { cursor: 'pointer' },
+  }), [navigate]);
+
+  const onUserRow = useCallback((record: UserDocument) => ({
+    onClick: () => navigate(`/users?highlight=${record.id}`),
+    style: { cursor: 'pointer' },
+  }), [navigate]);
 
   // Run search whenever query changes, debounced 350ms
   useEffect(() => {
@@ -153,10 +163,7 @@ export function SearchPage() {
           rowKey="id"
           loading={loading}
           locale={{ emptyText: searched ? <Empty description={t('search.noTasksFound')} /> : <Empty description={t('search.enterQuery')} /> }}
-          onRow={(record) => ({
-            onClick: () => navigate(`/tasks?highlight=${record.id}`),
-            style: { cursor: 'pointer' },
-          })}
+          onRow={onTaskRow}
           pagination={false}
           size="middle"
         />
@@ -172,10 +179,7 @@ export function SearchPage() {
           rowKey="id"
           loading={loading}
           locale={{ emptyText: searched ? <Empty description={t('search.noUsersFound')} /> : <Empty description={t('search.enterQuery')} /> }}
-          onRow={(record) => ({
-            onClick: () => navigate(`/users?highlight=${record.id}`),
-            style: { cursor: 'pointer' },
-          })}
+          onRow={onUserRow}
           pagination={false}
           size="middle"
         />

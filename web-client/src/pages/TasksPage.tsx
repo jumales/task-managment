@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -12,6 +12,7 @@ import { getTasks, createTask, updateTask, deleteTask, getProjects, getPhases } 
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
 import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, TaskPhaseResponse, UserResponse } from '../api/types';
+import { getTypeLabels } from './taskDetail/taskDetailConstants';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -53,24 +54,19 @@ export function TasksPage() {
 
   const [form] = Form.useForm();
 
-  // Derived translation maps — recomputed on language change
-  const statusOptions = [
+  // Derived translation maps — recomputed on language change only
+  const statusOptions = useMemo(() => [
     { label: t('tasks.statuses.TODO'),        value: 'TODO' as TaskStatus },
     { label: t('tasks.statuses.IN_PROGRESS'), value: 'IN_PROGRESS' as TaskStatus },
     { label: t('tasks.statuses.DONE'),        value: 'DONE' as TaskStatus },
-  ];
+  ], [t]);
 
-  const typeLabels: Record<TaskType, string> = {
-    FEATURE:        t('tasks.types.FEATURE'),
-    BUG_FIXING:     t('tasks.types.BUG_FIXING'),
-    TESTING:        t('tasks.types.TESTING'),
-    PLANNING:       t('tasks.types.PLANNING'),
-    TECHNICAL_DEBT: t('tasks.types.TECHNICAL_DEBT'),
-    DOCUMENTATION:  t('tasks.types.DOCUMENTATION'),
-    OTHER:          t('tasks.types.OTHER'),
-  };
+  const typeLabels = useMemo(() => getTypeLabels(t), [t]);
 
-  const typeOptions = (Object.keys(typeLabels) as TaskType[]).map((k) => ({ label: typeLabels[k], value: k }));
+  const typeOptions = useMemo(
+    () => (Object.keys(typeLabels) as TaskType[]).map((k) => ({ label: typeLabels[k], value: k })),
+    [typeLabels],
+  );
 
   const loadTasks = (page = currentPage, size = pageSize) =>
     getTasks({ page: page - 1, size })
@@ -238,7 +234,7 @@ export function TasksPage() {
       .finally(() => setDeletingId(null));
   };
 
-  const columns: ColumnsType<TaskSummaryResponse> = [
+  const columns: ColumnsType<TaskSummaryResponse> = useMemo(() => [
     { title: t('tasks.title_field'), dataIndex: 'title',       key: 'title' },
     { title: t('common.project'),    dataIndex: 'projectName', key: 'project' },
     { title: t('tasks.assignedTo'),  key: 'user',
@@ -272,7 +268,8 @@ export function TasksPage() {
         </Space>
       ),
     },
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, navigate, typeLabels, deletingId]);
 
   if (loading) return <Spin />;
   if (error)   return <Alert type="error" message={error} />;

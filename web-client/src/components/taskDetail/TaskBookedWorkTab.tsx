@@ -19,7 +19,12 @@ export function TaskBookedWorkTab({
 }: Props) {
   const { t } = useTranslation();
 
-  const workTypeLabels = useMemo(() => getWorkTypeLabels(t), [t]);
+  const workTypeLabels  = useMemo(() => getWorkTypeLabels(t), [t]);
+  const userOptions     = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
+  const workTypeOptions = useMemo(
+    () => (Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w })),
+    [workTypeLabels],
+  );
 
   return (
     <>
@@ -67,13 +72,13 @@ export function TaskBookedWorkTab({
           placeholder={t('tasks.selectUser')}
           value={bwUserId}
           onChange={setBwUserId}
-          options={users.map((u) => ({ label: u.name, value: u.id }))}
+          options={userOptions}
         />
         <Select
           style={{ width: '100%' }}
           value={bwType}
           onChange={setBwType}
-          options={(Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w }))}
+          options={workTypeOptions}
         />
         <InputNumber
           min={0} step={1} precision={0}
