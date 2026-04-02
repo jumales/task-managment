@@ -29,6 +29,15 @@ After writing the file, display its contents and ask:
 
 ---
 
+## Execution rules (apply when the user says 'start' or 'continue')
+
+- **Create a branch first** — run `git checkout -b <branch_name>` before writing any code
+- **Commit the plan file in the first chunk** — include `plans/<topic-slug>.md` in the first chunk's commit so it is tracked in version control from the start
+- **Open a PR after the first chunk** — as soon as the first chunk is committed and pushed, create a PR so the user can review progress; subsequent chunks are pushed to the same branch/PR
+- **Never proceed to the next chunk automatically** — after each chunk is committed, stop and wait for the user to say 'continue' (or similar); this gives the user control over pacing and review
+
+---
+
 ## Plan file structure
 
 ```markdown
@@ -75,6 +84,6 @@ Each chunk is one atomic unit of work and one git commit.
 ## Reminders (from CLAUDE.md)
 
 - Create a branch before starting: `git checkout -b <branch_name>`
-- One PR per task — open it after the last chunk is committed
+- One PR per task — open it after the **first** chunk is committed (not the last)
 - Run `mvn clean install -DskipTests=true` before pushing
 - Check CI with `gh run watch` after pushing
