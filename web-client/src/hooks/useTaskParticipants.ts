@@ -1,24 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getParticipants, addParticipant, removeParticipant } from '../api/taskApi';
+import { addParticipant, removeParticipant } from '../api/taskApi';
 import type { TaskParticipantResponse, TaskParticipantRole } from '../api/types';
 
 /** Manages participant list, add-form state, and add/remove handlers for a task. */
-export function useTaskParticipants(taskId: string | undefined, setError: (msg: string) => void) {
+export function useTaskParticipants(taskId: string | undefined, initialData: TaskParticipantResponse[]) {
   const { t } = useTranslation();
 
-  const [participants, setParticipants] = useState<TaskParticipantResponse[]>([]);
+  const [participants, setParticipants] = useState<TaskParticipantResponse[]>(initialData);
   const [newPUserId,   setNewPUserId]   = useState<string | null>(null);
   const [newPRole,     setNewPRole]     = useState<TaskParticipantRole>('VIEWER');
   const [addingP,      setAddingP]      = useState(false);
   const [removingPId,  setRemovingPId]  = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!taskId) return;
-    getParticipants(taskId)
-      .then(setParticipants)
-      .catch((err) => setError(err?.message ?? t('tasks.failedLoad')));
-  }, [taskId]);
+  const [error,        setError]        = useState<string | null>(null);
 
   /** Adds a new participant with the selected user and role, then resets the user selector. */
   const handleAddParticipant = () => {
@@ -49,6 +43,7 @@ export function useTaskParticipants(taskId: string | undefined, setError: (msg: 
     newPRole,   setNewPRole,
     addingP,
     removingPId,
+    error,
     handleAddParticipant,
     handleRemoveParticipant,
   };

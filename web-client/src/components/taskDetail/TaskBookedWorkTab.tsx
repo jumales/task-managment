@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Button, Divider, InputNumber, List, Popconfirm, Select, Space, Spin, Tag, Typography,
+  Button, Divider, InputNumber, List, Popconfirm, Select, Space, Tag, Typography,
 } from 'antd';
 import type { UserResponse, WorkType } from '../../api/types';
 import type { useTaskBookedWork } from '../../hooks/useTaskBookedWork';
@@ -11,7 +11,7 @@ type Props = ReturnType<typeof useTaskBookedWork> & { users: UserResponse[] };
 
 /** Renders the booked-work list and the add/edit form. */
 export function TaskBookedWorkTab({
-  bookedWork, bwLoading, editingBw,
+  bookedWork, editingBw,
   bwUserId, setBwUserId, bwType, setBwType, bwHours, setBwHours,
   savingBw, deletingBwId,
   startEditing, resetBwForm, handleSaveBookedWork, handleDeleteBookedWork,
@@ -23,44 +23,40 @@ export function TaskBookedWorkTab({
 
   return (
     <>
-      {bwLoading ? (
-        <Spin size="small" />
-      ) : (
-        <List
-          size="small"
-          dataSource={bookedWork}
-          locale={{ emptyText: t('tasks.noBookedWork') }}
-          renderItem={(bw) => (
-            <List.Item
-              key={bw.id}
-              actions={[
-                <Button key="edit" size="small" onClick={() => startEditing(bw)}>
-                  {t('common.edit')}
-                </Button>,
-                <Popconfirm
-                  key="del"
-                  title={t('tasks.deleteBookedWork')}
-                  onConfirm={() => handleDeleteBookedWork(bw.id)}
-                  okText={t('common.delete')}
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
-                </Popconfirm>,
-              ]}
-            >
-              <Space direction="vertical" size={0}>
-                <Space>
-                  <Tag color="green">{workTypeLabels[bw.workType]}</Tag>
-                  <Typography.Text strong>{bw.userName ?? bw.userId}</Typography.Text>
-                </Space>
-                <Typography.Text type="secondary">
-                  {t('tasks.booked')}: <strong>{bw.bookedHours}h</strong>
-                </Typography.Text>
+      <List
+        size="small"
+        dataSource={bookedWork}
+        locale={{ emptyText: t('tasks.noBookedWork') }}
+        renderItem={(bw) => (
+          <List.Item
+            key={bw.id}
+            actions={[
+              <Button key="edit" size="small" onClick={() => startEditing(bw)}>
+                {t('common.edit')}
+              </Button>,
+              <Popconfirm
+                key="del"
+                title={t('tasks.deleteBookedWork')}
+                onConfirm={() => handleDeleteBookedWork(bw.id)}
+                okText={t('common.delete')}
+                okButtonProps={{ danger: true }}
+              >
+                <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
+              </Popconfirm>,
+            ]}
+          >
+            <Space direction="vertical" size={0}>
+              <Space>
+                <Tag color="green">{workTypeLabels[bw.workType]}</Tag>
+                <Typography.Text strong>{bw.userName ?? bw.userId}</Typography.Text>
               </Space>
-            </List.Item>
-          )}
-        />
-      )}
+              <Typography.Text type="secondary">
+                {t('tasks.booked')}: <strong>{bw.bookedHours}h</strong>
+              </Typography.Text>
+            </Space>
+          </List.Item>
+        )}
+      />
 
       <Divider orientation="left" style={{ marginTop: 16 }}>
         {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}

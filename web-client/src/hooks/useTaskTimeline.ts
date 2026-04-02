@@ -1,27 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import dayjs, { type Dayjs } from 'dayjs';
-import { getTimelines, setTimeline, deleteTimeline } from '../api/taskApi';
+import { setTimeline, deleteTimeline } from '../api/taskApi';
 import type { TaskTimelineResponse, TimelineState } from '../api/types';
 
 /** Manages timeline state, modal, and CRUD handlers for a task's timeline entries. */
-export function useTaskTimeline(taskId: string | undefined, setError: (msg: string) => void) {
+export function useTaskTimeline(taskId: string | undefined, initialData: TaskTimelineResponse[]) {
   const { t } = useTranslation();
 
-  const [timelines,       setTimelines]       = useState<TaskTimelineResponse[]>([]);
+  const [timelines,       setTimelines]       = useState<TaskTimelineResponse[]>(initialData);
   const [tlModalOpen,     setTlModalOpen]     = useState(false);
   const [editingState,    setEditingState]    = useState<TimelineState | null>(null);
   const [tlUserId,        setTlUserId]        = useState<string | null>(null);
   const [tlTimestamp,     setTlTimestamp]     = useState<Dayjs | null>(null);
   const [savingTimeline,  setSavingTimeline]  = useState(false);
   const [deletingTlState, setDeletingTlState] = useState<TimelineState | null>(null);
-
-  useEffect(() => {
-    if (!taskId) return;
-    getTimelines(taskId)
-      .then(setTimelines)
-      .catch((err) => setError(err?.message ?? t('tasks.failedLoad')));
-  }, [taskId]);
+  const [error,           setError]           = useState<string | null>(null);
 
   /** Opens the set/edit modal pre-populated with any existing entry for the given state. */
   const openTlModal = (state: TimelineState) => {
@@ -68,6 +62,7 @@ export function useTaskTimeline(taskId: string | undefined, setError: (msg: stri
     tlTimestamp, setTlTimestamp,
     savingTimeline,
     deletingTlState,
+    error,
     openTlModal,
     handleSaveTimeline,
     handleDeleteTimeline,

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Button, Divider, InputNumber, List, Select, Space, Spin, Tag, Typography,
+  Button, Divider, InputNumber, List, Select, Space, Tag, Typography,
 } from 'antd';
 import type { TaskStatus, UserResponse, WorkType } from '../../api/types';
 import type { useTaskPlannedWork } from '../../hooks/useTaskPlannedWork';
@@ -14,7 +14,7 @@ type Props = ReturnType<typeof useTaskPlannedWork> & {
 
 /** Renders the planned-work list and the add form (visible only when task status is TODO). */
 export function TaskPlannedWorkTab({
-  plannedWork, pwLoading,
+  plannedWork,
   pwUserId, setPwUserId, pwType, setPwType, pwHours, setPwHours,
   savingPw, handleSavePlannedWork,
   taskStatus, users,
@@ -25,28 +25,24 @@ export function TaskPlannedWorkTab({
 
   return (
     <>
-      {pwLoading ? (
-        <Spin size="small" />
-      ) : (
-        <List
-          size="small"
-          dataSource={plannedWork}
-          locale={{ emptyText: t('tasks.noPlannedWork') }}
-          renderItem={(pw) => (
-            <List.Item key={pw.id}>
-              <Space direction="vertical" size={0}>
-                <Space>
-                  <Tag color="blue">{workTypeLabels[pw.workType]}</Tag>
-                  <Typography.Text strong>{pw.userName ?? pw.userId}</Typography.Text>
-                </Space>
-                <Typography.Text type="secondary">
-                  {t('tasks.planned')}: <strong>{pw.plannedHours}h</strong>
-                </Typography.Text>
+      <List
+        size="small"
+        dataSource={plannedWork}
+        locale={{ emptyText: t('tasks.noPlannedWork') }}
+        renderItem={(pw) => (
+          <List.Item key={pw.id}>
+            <Space direction="vertical" size={0}>
+              <Space>
+                <Tag color="blue">{workTypeLabels[pw.workType]}</Tag>
+                <Typography.Text strong>{pw.userName ?? pw.userId}</Typography.Text>
               </Space>
-            </List.Item>
-          )}
-        />
-      )}
+              <Typography.Text type="secondary">
+                {t('tasks.planned')}: <strong>{pw.plannedHours}h</strong>
+              </Typography.Text>
+            </Space>
+          </List.Item>
+        )}
+      />
 
       {taskStatus === 'TODO' && (
         <>
