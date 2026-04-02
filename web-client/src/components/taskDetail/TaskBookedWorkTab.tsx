@@ -1,9 +1,11 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button, Divider, InputNumber, List, Popconfirm, Select, Space, Spin, Tag, Typography,
 } from 'antd';
 import type { UserResponse, WorkType } from '../../api/types';
 import type { useTaskBookedWork } from '../../hooks/useTaskBookedWork';
+import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
 type Props = ReturnType<typeof useTaskBookedWork> & { users: UserResponse[] };
 
@@ -17,17 +19,7 @@ export function TaskBookedWorkTab({
 }: Props) {
   const { t } = useTranslation();
 
-  const workTypeLabels: Record<WorkType, string> = {
-    DEVELOPMENT:   t('tasks.workTypes.DEVELOPMENT'),
-    TESTING:       t('tasks.workTypes.TESTING'),
-    CODE_REVIEW:   t('tasks.workTypes.CODE_REVIEW'),
-    DESIGN:        t('tasks.workTypes.DESIGN'),
-    PLANNING:      t('tasks.workTypes.PLANNING'),
-    DOCUMENTATION: t('tasks.workTypes.DOCUMENTATION'),
-    DEPLOYMENT:    t('tasks.workTypes.DEPLOYMENT'),
-    MEETING:       t('tasks.workTypes.MEETING'),
-    OTHER:         t('tasks.workTypes.OTHER'),
-  };
+  const workTypeLabels = useMemo(() => getWorkTypeLabels(t), [t]);
 
   return (
     <>

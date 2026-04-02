@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, Descriptions, Progress, Space, Tag, Typography } from 'antd';
-import type { TaskResponse, TaskType } from '../../api/types';
-import { STATUS_COLORS, TYPE_COLORS } from '../../pages/taskDetail/taskDetailConstants';
+import type { TaskResponse } from '../../api/types';
+import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
 interface Props {
   task: TaskResponse;
@@ -11,15 +12,7 @@ interface Props {
 export function TaskOverviewCard({ task }: Props) {
   const { t } = useTranslation();
 
-  const typeLabels: Record<TaskType, string> = {
-    FEATURE:        t('tasks.types.FEATURE'),
-    BUG_FIXING:     t('tasks.types.BUG_FIXING'),
-    TESTING:        t('tasks.types.TESTING'),
-    PLANNING:       t('tasks.types.PLANNING'),
-    TECHNICAL_DEBT: t('tasks.types.TECHNICAL_DEBT'),
-    DOCUMENTATION:  t('tasks.types.DOCUMENTATION'),
-    OTHER:          t('tasks.types.OTHER'),
-  };
+  const typeLabels = useMemo(() => getTypeLabels(t), [t]);
 
   const assignedUser = task.participants.find((p) => p.role === 'ASSIGNEE');
 
