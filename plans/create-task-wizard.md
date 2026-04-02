@@ -19,7 +19,7 @@
 - Step 1: Title (required), Description.
 - Step 2: Type (required — change rule from optional to required), Status (default TODO), Phase (required).
 - Step 3: Assigned to (required), Planned Start, Planned End.
-- Progress field: always rendered as a read-only `<Progress>` bar showing the current form value (initialValue 0); not editable in the wizard (zero on create).
+- Progress is not shown in the create wizard (hardcoded to 0 on submit).
 - Navigation: Back / Next buttons between steps; Submit on the last step.
 - Edit modal remains unchanged (flat form, no wizard).
 - Add i18n keys for step labels and navigation buttons in `en.json` and `hr.json`.
