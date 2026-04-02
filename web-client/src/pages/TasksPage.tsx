@@ -7,10 +7,11 @@ import {
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import { getTasks, createTask, updateTask, deleteTask, getProjects } from '../api/taskApi';
+import type { InputRef } from 'antd';
+import { getTasks, createTask, updateTask, deleteTask, getProjects, getPhases } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, TaskPhaseResponse, UserResponse } from '../api/types';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -38,12 +39,13 @@ export function TasksPage() {
   const [currentPage,  setCurrentPage]  = useState(1);
   const [pageSize,     setPageSize]     = useState(20);
   const [projects,     setProjects]     = useState<TaskProjectResponse[]>([]);
+  const [phases,       setPhases]       = useState<TaskPhaseResponse[]>([]);
   const [users,        setUsers]        = useState<UserResponse[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [searchQuery,  setSearchQuery]  = useState('');
   const [activeSearch, setActiveSearch] = useState('');
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editingTask,  setEditingTask]  = useState<TaskSummaryResponse | null>(null);
   const [submitting,   setSubmitting]   = useState(false);
@@ -82,6 +84,9 @@ export function TasksPage() {
         setError(`${t('tasks.failedLoad')} [${status}]: ${message}`);
       })
       .finally(() => setLoading(false));
+
+  const loadPhases = (projectId: string) =>
+    getPhases(projectId).then(setPhases).catch(() => setError(t('tasks.failedLoadPhases')));
 
   const refreshDropdowns = () => {
     getProjects().then(setProjects).catch(() => setError(t('projects.failedLoad')));
@@ -149,14 +154,22 @@ export function TasksPage() {
   /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
   const openCreateModal = () => {
     setEditingTask(null);
+    setPhases([]);
     form.resetFields();
     Promise.all([getProjects(), getUsers()])
       .then(([fetchedProjects, fetchedUsersPage]) => {
         const fetchedUsers = fetchedUsersPage.content;
         setProjects(fetchedProjects);
         setUsers(fetchedUsers);
-        if (fetchedProjects.length === 1) form.setFieldValue('projectId',      fetchedProjects[0].id);
-        if (fetchedUsers.length    === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
+        if (fetchedProjects.length === 1) {
+          const projectId = fetchedProjects[0].id;
+          form.setFieldValue('projectId', projectId);
+          loadPhases(projectId).then(() => {
+            const defaultPhaseId = fetchedProjects[0].defaultPhaseId;
+            if (defaultPhaseId) form.setFieldValue('phaseId', defaultPhaseId);
+          });
+        }
+        if (fetchedUsers.length === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
       })
       .catch(() => setError(t('tasks.failedOptions')));
     setModalOpen(true);
@@ -172,9 +185,11 @@ export function TasksPage() {
       type:           task.type ?? null,
       progress:       task.progress,
       projectId:      task.projectId,
+      phaseId:        task.phaseId,
       assignedUserId: task.assignedUserId ?? null,
     });
     refreshDropdowns();
+    if (task.projectId) loadPhases(task.projectId);
     setModalOpen(true);
   };
 
@@ -185,8 +200,7 @@ export function TasksPage() {
       setSubmitting(true);
       const request = {
         ...values,
-        phaseId: null,
-        type:    values.type ?? null,
+        type: values.type ?? null,
         progress: values.progress ?? 0,
         // plannedStart/End only on create; format dayjs to ISO string
         ...(editingTask ? {} : {
@@ -322,6 +336,17 @@ export function TasksPage() {
             <Select
               options={projects.map((p) => ({ label: p.name, value: p.id }))}
               placeholder={t('tasks.selectProject')}
+              onChange={(projectId: string) => {
+                form.setFieldValue('phaseId', undefined);
+                setPhases([]);
+                loadPhases(projectId);
+              }}
+            />
+          </Form.Item>
+          <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
+            <Select
+              options={phases.map((ph) => ({ label: ph.name, value: ph.id }))}
+              placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
             />
           </Form.Item>
           <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
@@ -333,10 +358,10 @@ export function TasksPage() {
           {/* Planned dates are only required on create */}
           {!editingTask && (
             <>
-              <Form.Item name="plannedStart" label={t('tasks.plannedStart')} rules={[{ required: true, message: t('tasks.plannedStartRequired') }]}>
+              <Form.Item name="plannedStart" label={t('tasks.plannedStart')}>
                 <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
               </Form.Item>
-              <Form.Item name="plannedEnd" label={t('tasks.plannedEnd')} rules={[{ required: true, message: t('tasks.plannedEndRequired') }]}>
+              <Form.Item name="plannedEnd" label={t('tasks.plannedEnd')}>
                 <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
               </Form.Item>
             </>

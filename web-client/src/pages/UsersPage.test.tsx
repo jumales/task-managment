@@ -145,6 +145,7 @@ describe('UsersPage', () => {
 
     await user.type(screen.getByLabelText('Name'), 'Charlie Brown');
     await user.type(screen.getByLabelText('Email'), 'charlie@example.com');
+    await user.type(screen.getByLabelText('Username'), 'charlie');
 
     fireEvent.click(screen.getByRole('button', { name: /^create$/i }));
 

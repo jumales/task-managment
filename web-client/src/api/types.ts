@@ -7,21 +7,36 @@ export type TaskType = 'FEATURE' | 'BUG_FIXING' | 'TESTING' | 'PLANNING' | 'TECH
 /** Mirrors com.demo.common.dto.WorkType */
 export type WorkType = 'DEVELOPMENT' | 'TESTING' | 'CODE_REVIEW' | 'DESIGN' | 'PLANNING' | 'DOCUMENTATION' | 'DEPLOYMENT' | 'MEETING' | 'OTHER';
 
-/** Mirrors com.demo.common.dto.TaskWorkLogRequest */
-export interface TaskWorkLogRequest {
+/** Mirrors com.demo.common.dto.TaskPlannedWorkRequest */
+export interface TaskPlannedWorkRequest {
   userId: string;
   workType: WorkType;
   plannedHours: number;
-  bookedHours: number;
 }
 
-/** Mirrors com.demo.common.dto.TaskWorkLogResponse */
-export interface TaskWorkLogResponse {
+/** Mirrors com.demo.common.dto.TaskPlannedWorkResponse */
+export interface TaskPlannedWorkResponse {
   id: string;
   userId: string;
   userName: string | null;
   workType: WorkType;
   plannedHours: number;
+  createdAt: string;
+}
+
+/** Mirrors com.demo.common.dto.TaskBookedWorkRequest */
+export interface TaskBookedWorkRequest {
+  userId: string;
+  workType: WorkType;
+  bookedHours: number;
+}
+
+/** Mirrors com.demo.common.dto.TaskBookedWorkResponse */
+export interface TaskBookedWorkResponse {
+  id: string;
+  userId: string;
+  userName: string | null;
+  workType: WorkType;
   bookedHours: number;
   createdAt: string;
 }
@@ -65,6 +80,8 @@ export interface TaskPhaseResponse {
 
 export interface TaskCommentResponse {
   id: string;
+  userId: string | null;
+  userName: string | null;
   content: string;
   createdAt: string;
 }
@@ -99,6 +116,23 @@ export interface TaskResponse {
   phase: TaskPhaseResponse;
 }
 
+/** Mirrors com.demo.task.dto.TaskFullResponse — enriched single-task view with related data. */
+export interface TaskFullResponse {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  type: TaskType | null;
+  progress: number;
+  participants: TaskParticipantResponse[];
+  project: TaskProjectResponse;
+  phase: TaskPhaseResponse;
+  assignedUser: UserDto | null;
+  timelines: TaskTimelineResponse[];
+  plannedWork: TaskPlannedWorkResponse[];
+  bookedWork: TaskBookedWorkResponse[];
+}
+
 /** Mirrors com.demo.common.dto.TaskSummaryResponse — lightweight list view without participants. */
 export interface TaskSummaryResponse {
   id: string;
@@ -123,7 +157,7 @@ export interface TaskRequest {
   progress: number;
   assignedUserId: string;
   projectId: string;
-  phaseId: string | null;
+  phaseId: string;
   /** Required on create; ignored on update. ISO 8601 instant string. */
   plannedStart?: string;
   /** Required on create; ignored on update. ISO 8601 instant string. */
@@ -238,9 +272,10 @@ export type TaskChangeType =
   | 'STATUS_CHANGED'
   | 'COMMENT_ADDED'
   | 'PHASE_CHANGED'
-  | 'WORK_LOG_CREATED'
-  | 'WORK_LOG_UPDATED'
-  | 'WORK_LOG_DELETED';
+  | 'PLANNED_WORK_CREATED'
+  | 'BOOKED_WORK_CREATED'
+  | 'BOOKED_WORK_UPDATED'
+  | 'BOOKED_WORK_DELETED';
 
 /** Mirrors com.demo.common.dto.TemplatePlaceholder */
 export interface TemplatePlaceholder {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, message } from 'antd';
 import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { InputRef } from 'antd';
 import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar } from '../api/userApi';
 import { searchUsers } from '../api/searchApi';
 import { useAuth } from '../auth/AuthProvider';
@@ -68,7 +69,7 @@ export function UsersPage() {
   const [error,       setError]       = useState<string | null>(null);
   const [searchQuery,  setSearchQuery]  = useState('');
   const [activeSearch, setActiveSearch] = useState('');
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,   setModalOpen]   = useState(false);
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
   const [submitting,  setSubmitting]  = useState(false);
