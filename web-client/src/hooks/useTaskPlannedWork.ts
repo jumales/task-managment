@@ -1,27 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getPlannedWork, createPlannedWork } from '../api/taskApi';
+import { createPlannedWork } from '../api/taskApi';
 import type { TaskPlannedWorkResponse, WorkType } from '../api/types';
 
 /** Manages planned work list, add-form state, and save handler for a task. */
-export function useTaskPlannedWork(taskId: string | undefined, setError: (msg: string) => void) {
+export function useTaskPlannedWork(taskId: string | undefined, initialData: TaskPlannedWorkResponse[]) {
   const { t } = useTranslation();
 
-  const [plannedWork, setPlannedWork] = useState<TaskPlannedWorkResponse[]>([]);
-  const [pwLoading,   setPwLoading]   = useState(false);
+  const [plannedWork, setPlannedWork] = useState<TaskPlannedWorkResponse[]>(initialData);
   const [pwUserId,    setPwUserId]    = useState<string | null>(null);
   const [pwType,      setPwType]      = useState<WorkType>('DEVELOPMENT');
   const [pwHours,     setPwHours]     = useState(0);
   const [savingPw,    setSavingPw]    = useState(false);
-
-  useEffect(() => {
-    if (!taskId) return;
-    setPwLoading(true);
-    getPlannedWork(taskId)
-      .then(setPlannedWork)
-      .catch(() => setError(t('tasks.failedLoadPlannedWork')))
-      .finally(() => setPwLoading(false));
-  }, [taskId]);
+  const [error,       setError]       = useState<string | null>(null);
 
   /** Creates a new planned-work entry and resets the form on success. */
   const handleSavePlannedWork = () => {
@@ -45,11 +36,11 @@ export function useTaskPlannedWork(taskId: string | undefined, setError: (msg: s
 
   return {
     plannedWork,
-    pwLoading,
     pwUserId, setPwUserId,
     pwType,   setPwType,
     pwHours,  setPwHours,
     savingPw,
+    error,
     handleSavePlannedWork,
   };
 }

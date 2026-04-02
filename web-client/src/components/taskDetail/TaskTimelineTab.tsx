@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button, Card, Col, DatePicker, Descriptions, Modal, Popconfirm, Row, Select, Space, Typography,
@@ -19,6 +20,8 @@ export function TaskTimelineTab({
   users,
 }: Props) {
   const { t } = useTranslation();
+
+  const userOptions = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
 
   return (
     <>
@@ -95,7 +98,7 @@ export function TaskTimelineTab({
             placeholder={t('tasks.selectUser')}
             value={tlUserId}
             onChange={setTlUserId}
-            options={users.map((u) => ({ label: u.name, value: u.id }))}
+            options={userOptions}
           />
         </Space>
       </Modal>

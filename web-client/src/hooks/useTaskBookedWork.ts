@@ -1,29 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getBookedWork, createBookedWork, updateBookedWork, deleteBookedWork } from '../api/taskApi';
+import { createBookedWork, updateBookedWork, deleteBookedWork } from '../api/taskApi';
 import type { TaskBookedWorkResponse, WorkType } from '../api/types';
 
 /** Manages booked work list, add/edit-form state, and CRUD handlers for a task. */
-export function useTaskBookedWork(taskId: string | undefined, setError: (msg: string) => void) {
+export function useTaskBookedWork(taskId: string | undefined, initialData: TaskBookedWorkResponse[]) {
   const { t } = useTranslation();
 
-  const [bookedWork,    setBookedWork]    = useState<TaskBookedWorkResponse[]>([]);
-  const [bwLoading,     setBwLoading]     = useState(false);
-  const [editingBw,     setEditingBw]     = useState<TaskBookedWorkResponse | null>(null);
-  const [bwUserId,      setBwUserId]      = useState<string | null>(null);
-  const [bwType,        setBwType]        = useState<WorkType>('DEVELOPMENT');
-  const [bwHours,       setBwHours]       = useState(0);
-  const [savingBw,      setSavingBw]      = useState(false);
-  const [deletingBwId,  setDeletingBwId]  = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!taskId) return;
-    setBwLoading(true);
-    getBookedWork(taskId)
-      .then(setBookedWork)
-      .catch(() => setError(t('tasks.failedLoadBookedWork')))
-      .finally(() => setBwLoading(false));
-  }, [taskId]);
+  const [bookedWork,   setBookedWork]   = useState<TaskBookedWorkResponse[]>(initialData);
+  const [editingBw,    setEditingBw]    = useState<TaskBookedWorkResponse | null>(null);
+  const [bwUserId,     setBwUserId]     = useState<string | null>(null);
+  const [bwType,       setBwType]       = useState<WorkType>('DEVELOPMENT');
+  const [bwHours,      setBwHours]      = useState(0);
+  const [savingBw,     setSavingBw]     = useState(false);
+  const [deletingBwId, setDeletingBwId] = useState<string | null>(null);
+  const [error,        setError]        = useState<string | null>(null);
 
   /** Populates the edit form with an existing booked-work entry. */
   const startEditing = (bw: TaskBookedWorkResponse) => {
@@ -82,13 +73,13 @@ export function useTaskBookedWork(taskId: string | undefined, setError: (msg: st
 
   return {
     bookedWork,
-    bwLoading,
     editingBw,
     bwUserId, setBwUserId,
     bwType,   setBwType,
     bwHours,  setBwHours,
     savingBw,
     deletingBwId,
+    error,
     startEditing,
     resetBwForm,
     handleSaveBookedWork,

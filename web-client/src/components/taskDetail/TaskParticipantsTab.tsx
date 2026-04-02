@@ -1,7 +1,11 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Divider, List, Popconfirm, Select, Space, Tag } from 'antd';
 import type { TaskParticipantRole, UserResponse } from '../../api/types';
 import type { useTaskParticipants } from '../../hooks/useTaskParticipants';
+
+// Static — roles never change at runtime
+const ROLE_OPTIONS = (['ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }));
 
 type Props = ReturnType<typeof useTaskParticipants> & { users: UserResponse[] };
 
@@ -13,6 +17,8 @@ export function TaskParticipantsTab({
   users,
 }: Props) {
   const { t } = useTranslation();
+
+  const userOptions = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
 
   return (
     <>
@@ -49,13 +55,13 @@ export function TaskParticipantsTab({
           placeholder={t('tasks.selectUser')}
           value={newPUserId}
           onChange={setNewPUserId}
-          options={users.map((u) => ({ label: u.name, value: u.id }))}
+          options={userOptions}
         />
         <Select
           style={{ width: 130 }}
           value={newPRole}
           onChange={setNewPRole}
-          options={(['ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }))}
+          options={ROLE_OPTIONS}
         />
         <Button type="primary" loading={addingP} disabled={!newPUserId} onClick={handleAddParticipant}>
           {t('common.add')}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, message } from 'antd';
 import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
@@ -176,7 +176,7 @@ export function UsersPage() {
     setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
   }
 
-  const columns: ColumnsType<UserResponse> = [
+  const columns: ColumnsType<UserResponse> = useMemo(() => [
     { title: t('common.name'),     dataIndex: 'name',     key: 'name' },
     { title: t('common.username'), dataIndex: 'username', key: 'username',
       render: (v: string | null) => v ?? '—' },
@@ -196,7 +196,8 @@ export function UsersPage() {
         <Button size="small" onClick={() => openEditModal(record)}>{t('common.edit')}</Button>
       ),
     }] : []),
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, isAdmin]);
 
   if (loading) return <Spin />;
   if (error)   return <Alert type="error" message={error} />;

@@ -1,22 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getTaskComments, addComment } from '../api/taskApi';
+import { addComment } from '../api/taskApi';
 import type { TaskCommentResponse } from '../api/types';
 
 /** Manages comment list, new-comment input state, and the add-comment handler for a task. */
-export function useTaskComments(taskId: string | undefined, setError: (msg: string) => void) {
+export function useTaskComments(taskId: string | undefined, initialData: TaskCommentResponse[]) {
   const { t } = useTranslation();
 
-  const [comments,   setComments]   = useState<TaskCommentResponse[]>([]);
+  const [comments,   setComments]   = useState<TaskCommentResponse[]>(initialData);
   const [newComment, setNewComment] = useState('');
   const [addingCmt,  setAddingCmt]  = useState(false);
-
-  useEffect(() => {
-    if (!taskId) return;
-    getTaskComments(taskId)
-      .then(setComments)
-      .catch((err) => setError(err?.message ?? t('tasks.failedLoad')));
-  }, [taskId]);
+  const [error,      setError]      = useState<string | null>(null);
 
   /** Posts a new comment and appends it to the local list on success. */
   const handleAddComment = () => {
@@ -35,6 +29,7 @@ export function useTaskComments(taskId: string | undefined, setError: (msg: stri
     comments,
     newComment, setNewComment,
     addingCmt,
+    error,
     handleAddComment,
   };
 }

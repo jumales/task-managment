@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAvatarBlobUrl } from '../hooks/useAvatarBlobUrl';
 import { Layout, Menu, Button, Typography, Avatar, Space, Select } from 'antd';
@@ -64,13 +64,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const navItems = [
+  const navItems = useMemo(() => [
     { key: '/dashboard',     label: t('nav.dashboard'),     icon: <DashboardOutlined /> },
     { key: '/tasks',         label: t('nav.tasks'),         icon: <CheckSquareOutlined /> },
     { key: '/projects',      label: t('nav.projects'),      icon: <ProjectOutlined /> },
     { key: '/users',         label: t('nav.users'),         icon: <TeamOutlined /> },
     { key: '/configuration', label: t('nav.configuration'), icon: <SettingOutlined /> },
-  ];
+  ], [t]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

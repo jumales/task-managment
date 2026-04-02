@@ -1,15 +1,17 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Button, Divider, InputNumber, List, Popconfirm, Select, Space, Spin, Tag, Typography,
+  Button, Divider, InputNumber, List, Popconfirm, Select, Space, Tag, Typography,
 } from 'antd';
 import type { UserResponse, WorkType } from '../../api/types';
 import type { useTaskBookedWork } from '../../hooks/useTaskBookedWork';
+import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
 type Props = ReturnType<typeof useTaskBookedWork> & { users: UserResponse[] };
 
 /** Renders the booked-work list and the add/edit form. */
 export function TaskBookedWorkTab({
-  bookedWork, bwLoading, editingBw,
+  bookedWork, editingBw,
   bwUserId, setBwUserId, bwType, setBwType, bwHours, setBwHours,
   savingBw, deletingBwId,
   startEditing, resetBwForm, handleSaveBookedWork, handleDeleteBookedWork,
@@ -17,58 +19,49 @@ export function TaskBookedWorkTab({
 }: Props) {
   const { t } = useTranslation();
 
-  const workTypeLabels: Record<WorkType, string> = {
-    DEVELOPMENT:   t('tasks.workTypes.DEVELOPMENT'),
-    TESTING:       t('tasks.workTypes.TESTING'),
-    CODE_REVIEW:   t('tasks.workTypes.CODE_REVIEW'),
-    DESIGN:        t('tasks.workTypes.DESIGN'),
-    PLANNING:      t('tasks.workTypes.PLANNING'),
-    DOCUMENTATION: t('tasks.workTypes.DOCUMENTATION'),
-    DEPLOYMENT:    t('tasks.workTypes.DEPLOYMENT'),
-    MEETING:       t('tasks.workTypes.MEETING'),
-    OTHER:         t('tasks.workTypes.OTHER'),
-  };
+  const workTypeLabels  = useMemo(() => getWorkTypeLabels(t), [t]);
+  const userOptions     = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
+  const workTypeOptions = useMemo(
+    () => (Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w })),
+    [workTypeLabels],
+  );
 
   return (
     <>
-      {bwLoading ? (
-        <Spin size="small" />
-      ) : (
-        <List
-          size="small"
-          dataSource={bookedWork}
-          locale={{ emptyText: t('tasks.noBookedWork') }}
-          renderItem={(bw) => (
-            <List.Item
-              key={bw.id}
-              actions={[
-                <Button key="edit" size="small" onClick={() => startEditing(bw)}>
-                  {t('common.edit')}
-                </Button>,
-                <Popconfirm
-                  key="del"
-                  title={t('tasks.deleteBookedWork')}
-                  onConfirm={() => handleDeleteBookedWork(bw.id)}
-                  okText={t('common.delete')}
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
-                </Popconfirm>,
-              ]}
-            >
-              <Space direction="vertical" size={0}>
-                <Space>
-                  <Tag color="green">{workTypeLabels[bw.workType]}</Tag>
-                  <Typography.Text strong>{bw.userName ?? bw.userId}</Typography.Text>
-                </Space>
-                <Typography.Text type="secondary">
-                  {t('tasks.booked')}: <strong>{bw.bookedHours}h</strong>
-                </Typography.Text>
+      <List
+        size="small"
+        dataSource={bookedWork}
+        locale={{ emptyText: t('tasks.noBookedWork') }}
+        renderItem={(bw) => (
+          <List.Item
+            key={bw.id}
+            actions={[
+              <Button key="edit" size="small" onClick={() => startEditing(bw)}>
+                {t('common.edit')}
+              </Button>,
+              <Popconfirm
+                key="del"
+                title={t('tasks.deleteBookedWork')}
+                onConfirm={() => handleDeleteBookedWork(bw.id)}
+                okText={t('common.delete')}
+                okButtonProps={{ danger: true }}
+              >
+                <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
+              </Popconfirm>,
+            ]}
+          >
+            <Space direction="vertical" size={0}>
+              <Space>
+                <Tag color="green">{workTypeLabels[bw.workType]}</Tag>
+                <Typography.Text strong>{bw.userName ?? bw.userId}</Typography.Text>
               </Space>
-            </List.Item>
-          )}
-        />
-      )}
+              <Typography.Text type="secondary">
+                {t('tasks.booked')}: <strong>{bw.bookedHours}h</strong>
+              </Typography.Text>
+            </Space>
+          </List.Item>
+        )}
+      />
 
       <Divider orientation="left" style={{ marginTop: 16 }}>
         {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
@@ -79,13 +72,13 @@ export function TaskBookedWorkTab({
           placeholder={t('tasks.selectUser')}
           value={bwUserId}
           onChange={setBwUserId}
-          options={users.map((u) => ({ label: u.name, value: u.id }))}
+          options={userOptions}
         />
         <Select
           style={{ width: '100%' }}
           value={bwType}
           onChange={setBwType}
-          options={(Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w }))}
+          options={workTypeOptions}
         />
         <InputNumber
           min={0} step={1} precision={0}
