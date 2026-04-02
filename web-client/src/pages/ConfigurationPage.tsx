@@ -8,6 +8,7 @@ import {
   Modal,
   Popconfirm,
   Select,
+  Space,
   Table,
   Tabs,
   Tag,
@@ -17,18 +18,28 @@ import {
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
+  createPhase,
   deleteNotificationTemplate,
+  deletePhase,
   getNotificationTemplates,
+  getPhases,
   getProjects,
   getTemplatePlaceholders,
+  updateProject,
   upsertNotificationTemplate,
 } from '../api/taskApi';
 import type {
   ProjectNotificationTemplateResponse,
   TaskChangeType,
+  TaskPhaseName,
+  TaskPhaseResponse,
   TaskProjectResponse,
   TemplatePlaceholder,
 } from '../api/types';
+
+const PHASE_NAMES: TaskPhaseName[] = [
+  'BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'TESTING', 'DONE', 'RELEASED',
+];
 
 const ALL_EVENT_TYPES: TaskChangeType[] = [
   'TASK_CREATED',
@@ -53,9 +64,215 @@ export function ConfigurationPage() {
     <div>
       <Typography.Title level={3} style={{ marginTop: 0 }}>{t('configuration.title')}</Typography.Title>
       <Tabs
-        defaultActiveKey="templates"
-        items={[{ key: 'templates', label: t('configuration.templates'), children: <TemplatesTab /> }]}
+        defaultActiveKey="phases"
+        items={[
+          { key: 'phases',    label: t('configuration.phases'),    children: <PhasesTab /> },
+          { key: 'templates', label: t('configuration.templates'), children: <TemplatesTab /> },
+        ]}
       />
+    </div>
+  );
+}
+
+/** Phases tab — per-project phase management (create, delete, set default). */
+function PhasesTab() {
+  const { t } = useTranslation();
+  const [projects,         setProjects]         = useState<TaskProjectResponse[]>([]);
+  const [selectedProject,  setSelectedProject]  = useState<TaskProjectResponse | null>(null);
+  const [phases,           setPhases]           = useState<TaskPhaseResponse[]>([]);
+  const [loading,          setLoading]          = useState(false);
+  const [error,            setError]            = useState<string | null>(null);
+  const [modalOpen,        setModalOpen]        = useState(false);
+  const [submitting,       setSubmitting]       = useState(false);
+  const [deletingId,       setDeletingId]       = useState<string | null>(null);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
+  const [form]                                  = Form.useForm();
+
+  useEffect(() => {
+    getProjects()
+      .then(setProjects)
+      .catch(() => setError(t('configuration.failedLoadProjects')));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProject) return;
+    loadPhases(selectedProject.id);
+  }, [selectedProject?.id]);
+
+  function loadPhases(projectId: string) {
+    setLoading(true);
+    getPhases(projectId)
+      .then(setPhases)
+      .catch(() => setError(t('configuration.failedLoadPhases')))
+      .finally(() => setLoading(false));
+  }
+
+  function handleProjectChange(projectId: string) {
+    setSelectedProject(projects.find((p) => p.id === projectId) ?? null);
+    setPhases([]);
+  }
+
+  async function handleCreate() {
+    if (!selectedProject) return;
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+      await createPhase({ ...values, projectId: selectedProject.id });
+      setModalOpen(false);
+      form.resetFields();
+      loadPhases(selectedProject.id);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      if (msg) setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      await deletePhase(id);
+      setPhases((prev) => prev.filter((ph) => ph.id !== id));
+      // Clear the cached defaultPhaseId if the deleted phase was the default
+      if (selectedProject?.defaultPhaseId === id) {
+        setSelectedProject({ ...selectedProject, defaultPhaseId: null });
+      }
+    } catch {
+      setError(t('configuration.failedDeletePhase'));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleSetDefault(phase: TaskPhaseResponse) {
+    if (!selectedProject) return;
+    const newDefaultId = selectedProject.defaultPhaseId === phase.id ? null : phase.id;
+    setSettingDefaultId(phase.id);
+    try {
+      const updated = await updateProject(selectedProject.id, {
+        name:           selectedProject.name,
+        description:    selectedProject.description,
+        taskCodePrefix: selectedProject.taskCodePrefix,
+        defaultPhaseId: newDefaultId,
+      });
+      setSelectedProject(updated);
+    } catch {
+      setError(t('configuration.failedSetDefault'));
+    } finally {
+      setSettingDefaultId(null);
+    }
+  }
+
+  const columns: ColumnsType<TaskPhaseResponse> = [
+    {
+      title: t('configuration.phaseName'),
+      dataIndex: 'name',
+      render: (name: TaskPhaseName, record) => (
+        <span>
+          {name}
+          {selectedProject?.defaultPhaseId === record.id && (
+            <Tag color="blue" style={{ marginLeft: 8 }}>{t('configuration.default')}</Tag>
+          )}
+        </span>
+      ),
+    },
+    {
+      title: t('common.description'),
+      dataIndex: 'description',
+      render: (desc: string | null) => desc ?? '—',
+    },
+    {
+      title: t('common.actions'),
+      width: 200,
+      render: (_, record) => {
+        const isDefault = selectedProject?.defaultPhaseId === record.id;
+        return (
+          <Space>
+            <Button
+              size="small"
+              type={isDefault ? 'primary' : 'default'}
+              loading={settingDefaultId === record.id}
+              onClick={() => handleSetDefault(record)}
+            >
+              {isDefault ? t('configuration.clearDefault') : t('configuration.setAsDefault')}
+            </Button>
+            <Popconfirm
+              title={t('configuration.deletePhaseConfirm')}
+              description={t('configuration.deletePhaseDescription')}
+              onConfirm={() => handleDelete(record.id)}
+              okText={t('common.delete')}
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger size="small" loading={deletingId === record.id} icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Space>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div>
+      {error && (
+        <Alert message={error} type="error" showIcon closable onClose={() => setError(null)}
+               style={{ marginBottom: 16 }} />
+      )}
+
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Typography.Text strong>{t('common.project')}:</Typography.Text>
+        <Select
+          style={{ width: 280 }}
+          placeholder={t('configuration.selectProject')}
+          value={selectedProject?.id ?? null}
+          onChange={handleProjectChange}
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+        />
+        {selectedProject && (
+          <Button type="primary" onClick={() => setModalOpen(true)}>
+            {t('configuration.addPhase')}
+          </Button>
+        )}
+      </div>
+
+      <Table<TaskPhaseResponse>
+        rowKey="id"
+        columns={columns}
+        dataSource={selectedProject ? phases : []}
+        loading={loading}
+        pagination={false}
+        locale={{
+          emptyText: selectedProject
+            ? t('configuration.emptyPhases')
+            : t('configuration.emptyPhasesNoProject'),
+        }}
+      />
+
+      <Modal
+        title={t('configuration.createPhase')}
+        open={modalOpen}
+        onOk={handleCreate}
+        onCancel={() => { setModalOpen(false); form.resetFields(); }}
+        confirmLoading={submitting}
+        okText={t('common.create')}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label={t('configuration.phaseName')}
+            rules={[{ required: true, message: t('configuration.nameRequired') }]}
+          >
+            <Select
+              options={PHASE_NAMES.map((n) => ({ value: n, label: n }))}
+              placeholder={t('configuration.selectPhaseName')}
+            />
+          </Form.Item>
+          <Form.Item name="description" label={t('common.description')}>
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
