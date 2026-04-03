@@ -102,6 +102,30 @@ public class TaskTimelineService {
     }
 
     /**
+     * Atomically updates both PLANNED_START and PLANNED_END for the task.
+     * Validates that plannedStart is strictly before plannedEnd before writing either entry.
+     * Uses direct upsert (not setState) to avoid stale-counterpart ordering checks.
+     * Package-private for use by {@link TaskService}.
+     */
+    @Transactional
+    void updatePlannedDates(UUID taskId, Instant plannedStart, Instant plannedEnd, UUID updatingUserId) {
+        if (!plannedStart.isBefore(plannedEnd)) {
+            throw new IllegalArgumentException("plannedStart must be before plannedEnd");
+        }
+
+        TaskTimeline startEntry = repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_START)
+                .map(e -> updateEntry(e, plannedStart, updatingUserId))
+                .orElseGet(() -> buildEntry(taskId, TimelineState.PLANNED_START, plannedStart, updatingUserId));
+
+        TaskTimeline endEntry = repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_END)
+                .map(e -> updateEntry(e, plannedEnd, updatingUserId))
+                .orElseGet(() -> buildEntry(taskId, TimelineState.PLANNED_END, plannedEnd, updatingUserId));
+
+        repository.save(startEntry);
+        repository.save(endEntry);
+    }
+
+    /**
      * Validates that the new timestamp preserves the start &lt; end ordering invariant.
      * Checks the counterpart state (e.g. PLANNED_END when setting PLANNED_START) if it already exists.
      */
@@ -142,6 +166,12 @@ public class TaskTimelineService {
     private TaskTimeline updateEntry(TaskTimeline entry, TaskTimelineRequest request) {
         entry.setTimestamp(request.getTimestamp());
         entry.setSetByUserId(request.getSetByUserId());
+        return entry;
+    }
+
+    private TaskTimeline updateEntry(TaskTimeline entry, Instant timestamp, UUID setByUserId) {
+        entry.setTimestamp(timestamp);
+        entry.setSetByUserId(setByUserId);
         return entry;
     }
 

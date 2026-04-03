@@ -5,6 +5,7 @@ package com.demo.common.dto;
  * Using an enum prevents arbitrary strings and keeps phase names consistent across services.
  */
 public enum TaskPhaseName {
+    PLANNING,
     BACKLOG,
     TODO,
     IN_PROGRESS,

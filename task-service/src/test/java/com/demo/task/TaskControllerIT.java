@@ -1,6 +1,7 @@
 package com.demo.task;
 
 import com.demo.common.dto.PageResponse;
+import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskFullResponse;
@@ -85,6 +86,7 @@ class TaskControllerIT {
     private UserDto bob;
     private UUID projectId;
     private UUID phaseId;
+    private UUID planningPhaseId;
 
     @BeforeEach
     void setUp() {
@@ -111,6 +113,11 @@ class TaskControllerIT {
         projectReq.setName("Default Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
                 .getBody().getId();
+
+        TaskPhaseRequest planningPhaseReq = new TaskPhaseRequest();
+        planningPhaseReq.setName(TaskPhaseName.PLANNING);
+        planningPhaseReq.setProjectId(projectId);
+        planningPhaseId = restTemplate.postForEntity("/api/v1/phases", planningPhaseReq, TaskPhaseResponse.class).getBody().getId();
 
         TaskPhaseRequest phaseReq = new TaskPhaseRequest();
         phaseReq.setName(TaskPhaseName.BACKLOG);
@@ -457,6 +464,125 @@ class TaskControllerIT {
         assertThat(response.getBody()[0].getContent()).isEqualTo("First comment");
         assertThat(response.getBody()[0].getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
         assertThat(response.getBody()[0].getUserName()).isEqualTo("Test Admin");
+    }
+
+    // ── PLANNING phase rules ──────────────────────────────────────────
+
+    @Test
+    void createTask_alwaysStartsInPlanningPhase() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        assertThat(created.getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
+    }
+
+    @Test
+    void createTask_phaseIdInRequestIsIgnored() {
+        // phaseId in request() points to BACKLOG — task must still start in PLANNING
+        TaskRequest req = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
+        req.setPhaseId(phaseId); // explicit BACKLOG id
+
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class).getBody();
+
+        assertThat(created.getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
+    }
+
+    @Test
+    void updateTask_moveAwayFromPlanning_succeeds() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        TaskRequest update = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
+        update.setPhaseId(phaseId); // BACKLOG
+
+        ResponseEntity<TaskResponse> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
+                new HttpEntity<>(update), TaskResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.BACKLOG);
+    }
+
+    @Test
+    void updateTask_returnToPlanning_returns400() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        // Move away from PLANNING first
+        TaskRequest moveAway = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
+        moveAway.setPhaseId(phaseId); // BACKLOG
+        restTemplate.exchange("/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
+                new HttpEntity<>(moveAway), TaskResponse.class);
+
+        // Attempt to return to PLANNING
+        TaskRequest returnToPlanning = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
+        returnToPlanning.setPhaseId(planningPhaseId);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
+                new HttpEntity<>(returnToPlanning), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void updatePlannedDates_inPlanningPhase_updatesTimelines() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        PlannedDatesRequest datesRequest = new PlannedDatesRequest();
+        datesRequest.setPlannedStart(Instant.parse("2026-05-01T08:00:00Z"));
+        datesRequest.setPlannedEnd(Instant.parse("2026-05-31T17:00:00Z"));
+
+        ResponseEntity<TaskFullResponse> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId() + "/planned-dates",
+                HttpMethod.PUT, new HttpEntity<>(datesRequest), TaskFullResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getTimelines()).anyMatch(t ->
+                t.getState() == com.demo.common.dto.TimelineState.PLANNED_START
+                && t.getTimestamp().equals(Instant.parse("2026-05-01T08:00:00Z")));
+        assertThat(response.getBody().getTimelines()).anyMatch(t ->
+                t.getState() == com.demo.common.dto.TimelineState.PLANNED_END
+                && t.getTimestamp().equals(Instant.parse("2026-05-31T17:00:00Z")));
+    }
+
+    @Test
+    void updatePlannedDates_outsidePlanningPhase_returns400() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        // Move task out of PLANNING
+        TaskRequest moveAway = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
+        moveAway.setPhaseId(phaseId); // BACKLOG
+        restTemplate.exchange("/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
+                new HttpEntity<>(moveAway), TaskResponse.class);
+
+        PlannedDatesRequest datesRequest = new PlannedDatesRequest();
+        datesRequest.setPlannedStart(Instant.parse("2026-05-01T08:00:00Z"));
+        datesRequest.setPlannedEnd(Instant.parse("2026-05-31T17:00:00Z"));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId() + "/planned-dates",
+                HttpMethod.PUT, new HttpEntity<>(datesRequest), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void updatePlannedDates_withInvalidOrdering_returns400() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        PlannedDatesRequest datesRequest = new PlannedDatesRequest();
+        datesRequest.setPlannedStart(Instant.parse("2026-06-01T08:00:00Z")); // start after end
+        datesRequest.setPlannedEnd(Instant.parse("2026-05-01T08:00:00Z"));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId() + "/planned-dates",
+                HttpMethod.PUT, new HttpEntity<>(datesRequest), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     // ── Resilience ────────────────────────────────────────────────
