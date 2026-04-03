@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, Descriptions, Progress, Space, Tag, Typography } from 'antd';
 import type { TaskResponse } from '../../api/types';
 import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
+import { resolvePhaseLabel } from '../../utils/phaseUtils';
 
 interface Props {
   task: TaskResponse;
@@ -34,7 +35,7 @@ export function TaskOverviewCard({ task }: Props) {
           {task.project?.name ?? '—'}
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.phase')}>
-          {task.phase?.name ?? '—'}
+          {resolvePhaseLabel(task.phase)}
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.assignedTo')}>
           {assignedUser?.userName ?? assignedUser?.userId ?? '—'}
