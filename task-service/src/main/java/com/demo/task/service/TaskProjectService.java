@@ -42,11 +42,10 @@ public class TaskProjectService {
     }
 
     /**
-     * Creates and persists a new project from the given request, then auto-creates one phase for every
-     * {@link com.demo.common.dto.TaskPhaseName} value so the project starts with a complete phase set.
-     * Uses "TASK_" prefix when none is provided.
+     * Creates and persists a new project from the given request, then asynchronously creates one phase
+     * for every {@link com.demo.common.dto.TaskPhaseName} value so the project starts with a complete
+     * phase set. Uses "TASK_" prefix when none is provided.
      */
-    @Transactional
     public TaskProjectResponse create(TaskProjectRequest request) {
         String prefix = resolvePrefix(request.getTaskCodePrefix());
         TaskProject project = TaskProject.builder()

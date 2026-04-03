@@ -3,6 +3,8 @@ package com.demo.task;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.task.SyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -27,6 +29,12 @@ public class TestSecurityConfig {
 
     /** Fixed UUID used as the authenticated user's ID in all integration tests. */
     public static final UUID TEST_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+    /** Makes @Async methods run synchronously in tests so IT assertions don't race the background thread. */
+    @Bean
+    public TaskExecutor taskExecutor() {
+        return new SyncTaskExecutor();
+    }
 
     @Bean
     @Order(1)

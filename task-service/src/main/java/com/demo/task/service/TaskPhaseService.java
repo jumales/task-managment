@@ -8,6 +8,7 @@ import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.model.TaskPhase;
 import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskRepository;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -56,10 +57,11 @@ public class TaskPhaseService {
     }
 
     /**
-     * Creates one phase for every {@link TaskPhaseName} value under the given project.
-     * Called automatically when a project is first created so every project starts with a full phase set.
+     * Asynchronously creates one phase for every {@link TaskPhaseName} value under the given project.
+     * Runs in a background thread after project creation so it does not block the HTTP response.
      */
-    void createDefaultPhasesForProject(UUID projectId) {
+    @Async
+    public void createDefaultPhasesForProject(UUID projectId) {
         List<TaskPhase> phases = Arrays.stream(TaskPhaseName.values())
                 .map(name -> TaskPhase.builder()
                         .projectId(projectId)
