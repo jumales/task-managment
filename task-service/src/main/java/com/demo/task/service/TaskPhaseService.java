@@ -77,6 +77,7 @@ public class TaskPhaseService {
                 phase.getId(),
                 phase.getName(),
                 phase.getDescription(),
+                phase.getCustomName(),
                 phase.getProjectId());
     }
 }

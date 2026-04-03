@@ -37,5 +37,9 @@ public class TaskPhase {
 
     private String description;
 
+    /** Optional user-defined display label; when null the UI falls back to the formatted enum name. */
+    @Column(name = "custom_name")
+    private String customName;
+
     private Instant deletedAt;
 }
