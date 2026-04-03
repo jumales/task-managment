@@ -48,7 +48,7 @@ export function TaskDetailPage() {
       <Tabs
         items={[
           { key: 'timeline',     label: t('tasks.timeline'),     children: <TaskTimelineTab     {...timeline}     users={data.users} /> },
-          { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  users={data.users} taskStatus={data.task.status} /> },
+          { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskStatus={data.task.status} /> },
           { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} /> },
           { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
           { key: 'comments',     label: t('tasks.comments'),     children: <TaskCommentsTab     {...comments} /> },

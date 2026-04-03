@@ -9,7 +9,6 @@ export type WorkType = 'DEVELOPMENT' | 'TESTING' | 'CODE_REVIEW' | 'DESIGN' | 'P
 
 /** Mirrors com.demo.common.dto.TaskPlannedWorkRequest */
 export interface TaskPlannedWorkRequest {
-  userId: string;
   workType: WorkType;
   plannedHours: number;
 }

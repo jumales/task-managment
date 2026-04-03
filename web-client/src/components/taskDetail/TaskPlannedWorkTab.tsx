@@ -3,26 +3,24 @@ import { useTranslation } from 'react-i18next';
 import {
   Button, Divider, InputNumber, List, Select, Space, Tag, Typography,
 } from 'antd';
-import type { TaskStatus, UserResponse, WorkType } from '../../api/types';
+import type { TaskStatus, WorkType } from '../../api/types';
 import type { useTaskPlannedWork } from '../../hooks/useTaskPlannedWork';
 import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
 type Props = ReturnType<typeof useTaskPlannedWork> & {
   taskStatus: TaskStatus;
-  users: UserResponse[];
 };
 
 /** Renders the planned-work list and the add form (visible only when task status is TODO). */
 export function TaskPlannedWorkTab({
   plannedWork,
-  pwUserId, setPwUserId, pwType, setPwType, pwHours, setPwHours,
+  pwType, setPwType, pwHours, setPwHours,
   savingPw, handleSavePlannedWork,
-  taskStatus, users,
+  taskStatus,
 }: Props) {
   const { t } = useTranslation();
 
-  const workTypeLabels = useMemo(() => getWorkTypeLabels(t), [t]);
-  const userOptions    = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
+  const workTypeLabels  = useMemo(() => getWorkTypeLabels(t), [t]);
   const workTypeOptions = useMemo(() => {
     const usedTypes = new Set(plannedWork.map((pw) => pw.workType));
     return (Object.keys(workTypeLabels) as WorkType[])
@@ -41,7 +39,7 @@ export function TaskPlannedWorkTab({
             <Space direction="vertical" size={0}>
               <Space>
                 <Tag color="blue">{workTypeLabels[pw.workType]}</Tag>
-                <Typography.Text strong>{pw.userName ?? pw.userId}</Typography.Text>
+                <Typography.Text strong>{pw.userName ?? '—'}</Typography.Text>
               </Space>
               <Typography.Text type="secondary">
                 {t('tasks.planned')}: <strong>{pw.plannedHours}h</strong>
@@ -57,13 +55,6 @@ export function TaskPlannedWorkTab({
           <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
             <Select
               style={{ width: '100%' }}
-              placeholder={t('tasks.selectUser')}
-              value={pwUserId}
-              onChange={setPwUserId}
-              options={userOptions}
-            />
-            <Select
-              style={{ width: '100%' }}
               value={pwType}
               onChange={setPwType}
               options={workTypeOptions}
@@ -76,7 +67,7 @@ export function TaskPlannedWorkTab({
               addonAfter="h"
               style={{ width: '100%' }}
             />
-            <Button type="primary" loading={savingPw} disabled={!pwUserId} onClick={handleSavePlannedWork}>
+            <Button type="primary" loading={savingPw} onClick={handleSavePlannedWork}>
               {t('common.add')}
             </Button>
           </Space>
