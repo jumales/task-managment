@@ -328,7 +328,6 @@ public class TaskService {
      *
      * @param updatingUserId the authenticated user performing the update
      */
-    @Transactional
     public TaskFullResponse updatePlannedDates(UUID taskId, UUID updatingUserId, PlannedDatesRequest request) {
         Task task = getOrThrow(taskId);
         TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
