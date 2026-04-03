@@ -137,7 +137,13 @@ export function TasksPage() {
             setProjects(fetchedProjects);
             setUsers(fetchedUsers);
             if (fetchedProjects.length === 1) {
-                form.setFieldValue('projectId', fetchedProjects[0].id);
+                const projectId = fetchedProjects[0].id;
+                form.setFieldValue('projectId', projectId);
+                loadPhases(projectId).then(() => {
+                    const defaultPhaseId = fetchedProjects[0].defaultPhaseId;
+                    if (defaultPhaseId)
+                        form.setFieldValue('phaseId', defaultPhaseId);
+                });
             }
             if (fetchedUsers.length === 1)
                 form.setFieldValue('assignedUserId', fetchedUsers[0].id);
@@ -247,7 +253,11 @@ export function TasksPage() {
                                     { title: t('tasks.wizardStep1') },
                                     { title: t('tasks.wizardStep2') },
                                     { title: t('tasks.wizardStep3') },
-                                ] }), _jsxs(Form, { form: form, layout: "vertical", children: [_jsxs("div", { style: { display: wizardStep === 0 ? 'block' : 'none' }, children: [_jsx(Form.Item, { name: "title", label: t('tasks.title_field'), rules: [{ required: true, message: t('tasks.titleRequired') }], children: _jsx(Input, {}) }), _jsx(Form.Item, { name: "description", label: t('common.description'), children: _jsx(Input.TextArea, { rows: 3 }) })] }), _jsxs("div", { style: { display: wizardStep === 1 ? 'block' : 'none' }, children: [_jsx(Form.Item, { name: "type", label: t('tasks.type'), rules: [{ required: true, message: t('tasks.typeRequired') }], children: _jsx(Select, { options: typeOptions, placeholder: t('tasks.selectType') }) }), _jsx(Form.Item, { name: "status", label: t('common.status'), initialValue: "TODO", rules: [{ required: true }], children: _jsx(Select, { options: statusOptions }) }), _jsx(Form.Item, { name: "projectId", label: t('common.project'), rules: [{ required: true, message: t('tasks.projectRequired') }], children: _jsx(Select, { options: projects.map((p) => ({ label: p.name, value: p.id })), placeholder: t('tasks.selectProject') }) })] }), _jsxs("div", { style: { display: wizardStep === 2 ? 'block' : 'none' }, children: [_jsx(Form.Item, { name: "assignedUserId", label: t('tasks.assignedTo'), rules: [{ required: true, message: t('tasks.userRequired') }], children: _jsx(Select, { options: users.map((u) => ({ label: u.name, value: u.id })), placeholder: t('tasks.selectUser') }) }), _jsx(Form.Item, { name: "plannedStart", label: t('tasks.plannedStart'), rules: [{ required: true, message: t('tasks.plannedStartRequired') }], children: _jsx(DatePicker, { showTime: true, style: { width: '100%' }, placeholder: t('tasks.selectDate') }) }), _jsx(Form.Item, { name: "plannedEnd", label: t('tasks.plannedEnd'), dependencies: ['plannedStart'], rules: [
+                                ] }), _jsxs(Form, { form: form, layout: "vertical", children: [_jsxs("div", { style: { display: wizardStep === 0 ? 'block' : 'none' }, children: [_jsx(Form.Item, { name: "title", label: t('tasks.title_field'), rules: [{ required: true, message: t('tasks.titleRequired') }], children: _jsx(Input, {}) }), _jsx(Form.Item, { name: "description", label: t('common.description'), children: _jsx(Input.TextArea, { rows: 3 }) })] }), _jsxs("div", { style: { display: wizardStep === 1 ? 'block' : 'none' }, children: [_jsx(Form.Item, { name: "type", label: t('tasks.type'), rules: [{ required: true, message: t('tasks.typeRequired') }], children: _jsx(Select, { options: typeOptions, placeholder: t('tasks.selectType') }) }), _jsx(Form.Item, { name: "status", label: t('common.status'), initialValue: "TODO", rules: [{ required: true }], children: _jsx(Select, { options: statusOptions }) }), _jsx(Form.Item, { name: "projectId", label: t('common.project'), rules: [{ required: true, message: t('tasks.projectRequired') }], children: _jsx(Select, { options: projects.map((p) => ({ label: p.name, value: p.id })), placeholder: t('tasks.selectProject'), onChange: (projectId) => {
+                                                        form.setFieldValue('phaseId', undefined);
+                                                        setPhases([]);
+                                                        loadPhases(projectId);
+                                                    } }) }), _jsx(Form.Item, { name: "phaseId", label: t('tasks.phase'), rules: [{ required: true, message: t('tasks.phaseRequired') }], children: _jsx(Select, { options: phases.map((ph) => ({ label: resolvePhaseLabel(ph), value: ph.id })), placeholder: phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase') }) })] }), _jsxs("div", { style: { display: wizardStep === 2 ? 'block' : 'none' }, children: [_jsx(Form.Item, { name: "assignedUserId", label: t('tasks.assignedTo'), rules: [{ required: true, message: t('tasks.userRequired') }], children: _jsx(Select, { options: users.map((u) => ({ label: u.name, value: u.id })), placeholder: t('tasks.selectUser') }) }), _jsx(Form.Item, { name: "plannedStart", label: t('tasks.plannedStart'), rules: [{ required: true, message: t('tasks.plannedStartRequired') }], children: _jsx(DatePicker, { showTime: true, style: { width: '100%' }, placeholder: t('tasks.selectDate') }) }), _jsx(Form.Item, { name: "plannedEnd", label: t('tasks.plannedEnd'), dependencies: ['plannedStart'], rules: [
                                                     { required: true, message: t('tasks.plannedEndRequired') },
                                                     ({ getFieldValue }) => ({
                                                         validator(_, value) {
@@ -260,7 +270,7 @@ export function TasksPage() {
                                                 ], children: _jsx(DatePicker, { showTime: true, style: { width: '100%' }, placeholder: t('tasks.selectDate') }) })] })] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', marginTop: 8 }, children: [_jsx(Button, { disabled: wizardStep === 0, onClick: () => setWizardStep((s) => s - 1), children: t('common.back') }), _jsxs(Space, { children: [_jsx(Button, { onClick: () => { setModalOpen(false); setWizardStep(0); }, children: t('common.cancel') }), wizardStep < 2 ? (_jsx(Button, { type: "primary", onClick: () => {
                                                     const fieldsForStep = [
                                                         ['title'],
-                                                        ['type', 'status', 'projectId'],
+                                                        ['type', 'status', 'projectId', 'phaseId'],
                                                     ][wizardStep];
                                                     form.validateFields(fieldsForStep)
                                                         .then(() => setWizardStep((s) => s + 1))

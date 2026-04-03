@@ -70,10 +70,6 @@ export function updateBookedWork(taskId, bookedWorkId, request) {
 export function deleteBookedWork(taskId, bookedWorkId) {
     return apiClient.delete(`${TASKS_URL}/${taskId}/booked-work/${bookedWorkId}`);
 }
-/** Atomically updates PLANNED_START and PLANNED_END for a task (only allowed in PLANNING phase). */
-export function updatePlannedDates(taskId, request) {
-    return apiClient.put(`${TASKS_URL}/${taskId}/planned-dates`, request).then((r) => r.data);
-}
 /** Fetches all active timeline entries for a task. */
 export function getTimelines(taskId) {
     return apiClient.get(`${TASKS_URL}/${taskId}/timelines`).then((r) => r.data);
