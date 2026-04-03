@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBookedWork, updateBookedWork, deleteBookedWork } from '../api/taskApi';
 /** Manages booked work list, add/edit-form state, and CRUD handlers for a task. */
 export function useTaskBookedWork(taskId, initialData) {
     const { t } = useTranslation();
     const [bookedWork, setBookedWork] = useState(initialData);
+    useEffect(() => { setBookedWork(initialData); }, [initialData]);
     const [editingBw, setEditingBw] = useState(null);
     const [bwUserId, setBwUserId] = useState(null);
     const [bwType, setBwType] = useState('DEVELOPMENT');

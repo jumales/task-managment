@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addParticipant, removeParticipant } from '../api/taskApi';
 /** Manages participant list, add-form state, and add/remove handlers for a task. */
 export function useTaskParticipants(taskId, initialData) {
     const { t } = useTranslation();
     const [participants, setParticipants] = useState(initialData);
+    useEffect(() => { setParticipants(initialData); }, [initialData]);
     const [newPUserId, setNewPUserId] = useState(null);
     const [newPRole, setNewPRole] = useState('VIEWER');
     const [addingP, setAddingP] = useState(false);

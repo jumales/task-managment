@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addComment } from '../api/taskApi';
 /** Manages comment list, new-comment input state, and the add-comment handler for a task. */
 export function useTaskComments(taskId, initialData) {
     const { t } = useTranslation();
     const [comments, setComments] = useState(initialData);
+    useEffect(() => { setComments(initialData); }, [initialData]);
     const [newComment, setNewComment] = useState('');
     const [addingCmt, setAddingCmt] = useState(false);
     const [error, setError] = useState(null);

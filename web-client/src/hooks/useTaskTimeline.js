@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import { setTimeline, deleteTimeline } from '../api/taskApi';
@@ -6,6 +6,8 @@ import { setTimeline, deleteTimeline } from '../api/taskApi';
 export function useTaskTimeline(taskId, initialData) {
     const { t } = useTranslation();
     const [timelines, setTimelines] = useState(initialData);
+    // Sync when data loads asynchronously (initialData starts as [] before fetch completes)
+    useEffect(() => { setTimelines(initialData); }, [initialData]);
     const [tlModalOpen, setTlModalOpen] = useState(false);
     const [editingState, setEditingState] = useState(null);
     const [tlUserId, setTlUserId] = useState(null);

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPlannedWork } from '../api/taskApi';
 /** Manages planned work list, add-form state, and save handler for a task. */
 export function useTaskPlannedWork(taskId, initialData) {
     const { t } = useTranslation();
     const [plannedWork, setPlannedWork] = useState(initialData);
+    useEffect(() => { setPlannedWork(initialData); }, [initialData]);
     const [pwUserId, setPwUserId] = useState(null);
     const [pwType, setPwType] = useState('DEVELOPMENT');
     const [pwHours, setPwHours] = useState(0);
