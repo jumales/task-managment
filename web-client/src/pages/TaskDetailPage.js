@@ -32,7 +32,7 @@ export function TaskDetailPage() {
         return _jsx(Alert, { type: "error", message: error, style: { margin: 24 } });
     if (!data)
         return null;
-    return (_jsxs("div", { style: { padding: 24, maxWidth: 1000, margin: '0 auto' }, children: [_jsx(Button, { icon: _jsx(ArrowLeftOutlined, {}), onClick: () => navigate('/tasks'), style: { marginBottom: 16 }, children: t('tasks.backToTasks') }), _jsx(TaskOverviewCard, { task: data.task, timelines: data.timelines }), _jsx(Tabs, { items: [
+    return (_jsxs("div", { style: { padding: 24, maxWidth: 1000, margin: '0 auto' }, children: [_jsx(Button, { icon: _jsx(ArrowLeftOutlined, {}), onClick: () => navigate('/tasks'), style: { marginBottom: 16 }, children: t('tasks.backToTasks') }), _jsx(TaskOverviewCard, { task: data.task }), _jsx(Tabs, { items: [
                     { key: 'timeline', label: t('tasks.timeline'), children: _jsx(TaskTimelineTab, { ...timeline, users: data.users }) },
                     { key: 'plannedwork', label: t('tasks.plannedWork'), children: _jsx(TaskPlannedWorkTab, { ...plannedWork, users: data.users, taskStatus: data.task.status }) },
                     { key: 'bookedwork', label: t('tasks.bookedWork'), children: _jsx(TaskBookedWorkTab, { ...bookedWork, users: data.users }) },

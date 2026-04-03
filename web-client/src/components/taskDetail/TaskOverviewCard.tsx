@@ -1,26 +1,21 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, Descriptions, Progress, Space, Tag, Typography } from 'antd';
-import dayjs from 'dayjs';
-import type { TaskResponse, TaskTimelineResponse } from '../../api/types';
+import type { TaskResponse } from '../../api/types';
 import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 import { resolvePhaseLabel } from '../../utils/phaseUtils';
 
 interface Props {
   task: TaskResponse;
-  timelines: TaskTimelineResponse[];
 }
 
 /** Renders the task overview card: title, status/type tags, and key metadata fields. */
-export function TaskOverviewCard({ task, timelines }: Props) {
+export function TaskOverviewCard({ task }: Props) {
   const { t } = useTranslation();
 
   const typeLabels = useMemo(() => getTypeLabels(t), [t]);
 
   const assignedUser = task.participants.find((p) => p.role === 'ASSIGNEE');
-
-  const plannedStart = timelines.find((tl) => tl.state === 'PLANNED_START');
-  const plannedEnd   = timelines.find((tl) => tl.state === 'PLANNED_END');
 
   return (
     <Card style={{ marginBottom: 24 }}>
@@ -44,12 +39,6 @@ export function TaskOverviewCard({ task, timelines }: Props) {
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.assignedTo')}>
           {assignedUser?.userName ?? assignedUser?.userId ?? '—'}
-        </Descriptions.Item>
-        <Descriptions.Item label={t('tasks.plannedStart')}>
-          {plannedStart ? dayjs(plannedStart.timestamp).format('YYYY-MM-DD HH:mm') : '—'}
-        </Descriptions.Item>
-        <Descriptions.Item label={t('tasks.plannedEnd')}>
-          {plannedEnd ? dayjs(plannedEnd.timestamp).format('YYYY-MM-DD HH:mm') : '—'}
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.progress')} span={2}>
           <Progress
