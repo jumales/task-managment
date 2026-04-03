@@ -161,7 +161,11 @@
     "selectProjectFirst": "Najprije odaberi projekt",
     "selectPhase": "Odaberi fazu",
     "phaseRequired": "Faza je obavezna",
-    "failedLoadPhases": "Neuspješno učitavanje faza"
+    "failedLoadPhases": "Neuspješno učitavanje faza",
+    "plannedEndMustBeAfterStart": "Planirani završetak mora biti nakon planiranog početka",
+    "endMustBeAfterStart": "Datum završetka mora biti nakon datuma početka",
+    "startMustBeBeforeEnd": "Datum početka mora biti prije datuma završetka",
+    "deleteBlockedByRelations": "Nije moguće brisanje — zadatak ima komentare. Prvo uklonite sve komentare."
   },
   "projects": {
     "title": "Projekti",
@@ -230,6 +234,8 @@
     "failedSave": "Neuspješno spremanje predloška.",
     "failedDelete": "Neuspješno brisanje predloška.",
     "failedLoadProjects": "Neuspješno učitavanje projekata.",
+    "deletePhaseBlockedByTasks": "Nije moguće brisanje — ova faza još uvijek ima zadatke.",
+    "unknownPlaceholders": "Nepoznati placeholder(i): {{tokens}} — ostat će nepromijenjeni u obavijesti",
     "eventTypes": {
       "TASK_CREATED": "Zadatak stvoren",
       "STATUS_CHANGED": "Status promijenjen",

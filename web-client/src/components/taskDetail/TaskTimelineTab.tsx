@@ -5,7 +5,14 @@ import {
 } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { UserResponse } from '../../api/types';
+import type { TimelineState, UserResponse } from '../../api/types';
+
+const PAIR: Partial<Record<TimelineState, TimelineState>> = {
+  PLANNED_END:   'PLANNED_START',
+  REAL_END:      'REAL_START',
+  PLANNED_START: 'PLANNED_END',
+  REAL_START:    'REAL_END',
+};
 import { TIMELINE_STATES } from '../../pages/taskDetail/taskDetailConstants';
 import type { useTaskTimeline } from '../../hooks/useTaskTimeline';
 
@@ -22,6 +29,19 @@ export function TaskTimelineTab({
   const { t } = useTranslation();
 
   const userOptions = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
+
+  const orderError = useMemo(() => {
+    if (!editingState || !tlTimestamp) return null;
+    const pairedState = PAIR[editingState];
+    if (!pairedState) return null;
+    const paired = timelines.find((tl) => tl.state === pairedState);
+    if (!paired) return null;
+    const isEndState = editingState.endsWith('_END');
+    const pairedDayjs = dayjs(paired.timestamp);
+    if (isEndState && !tlTimestamp.isAfter(pairedDayjs)) return t('tasks.endMustBeAfterStart');
+    if (!isEndState && !tlTimestamp.isBefore(pairedDayjs)) return t('tasks.startMustBeBeforeEnd');
+    return null;
+  }, [editingState, tlTimestamp, timelines, t]);
 
   return (
     <>
@@ -83,7 +103,7 @@ export function TaskTimelineTab({
         onCancel={() => setTlModalOpen(false)}
         okText={t('common.save')}
         confirmLoading={savingTimeline}
-        okButtonProps={{ disabled: !tlUserId || !tlTimestamp }}
+        okButtonProps={{ disabled: !tlUserId || !tlTimestamp || !!orderError }}
       >
         <Space direction="vertical" style={{ width: '100%', marginTop: 16 }}>
           <DatePicker
@@ -93,6 +113,11 @@ export function TaskTimelineTab({
             onChange={setTlTimestamp}
             placeholder={t('tasks.selectDate')}
           />
+          {orderError && (
+            <Typography.Text type="danger" style={{ display: 'block', marginTop: 4 }}>
+              {orderError}
+            </Typography.Text>
+          )}
           <Select
             style={{ width: '100%' }}
             placeholder={t('tasks.selectUser')}

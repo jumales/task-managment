@@ -23,10 +23,12 @@ export function TaskPlannedWorkTab({
 
   const workTypeLabels = useMemo(() => getWorkTypeLabels(t), [t]);
   const userOptions    = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
-  const workTypeOptions = useMemo(
-    () => (Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w })),
-    [workTypeLabels],
-  );
+  const workTypeOptions = useMemo(() => {
+    const usedTypes = new Set(plannedWork.map((pw) => pw.workType));
+    return (Object.keys(workTypeLabels) as WorkType[])
+      .filter((w) => !usedTypes.has(w))
+      .map((w) => ({ label: workTypeLabels[w], value: w }));
+  }, [workTypeLabels, plannedWork]);
 
   return (
     <>
@@ -49,7 +51,7 @@ export function TaskPlannedWorkTab({
         )}
       />
 
-      {taskStatus === 'TODO' && (
+      {taskStatus === 'TODO' && workTypeOptions.length > 0 && (
         <>
           <Divider orientation="left" style={{ marginTop: 16 }}>{t('tasks.addPlannedWork')}</Divider>
           <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
