@@ -13,6 +13,7 @@ import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
 import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, TaskPhaseResponse, UserResponse } from '../api/types';
 import { getTypeLabels } from './taskDetail/taskDetailConstants';
+import { resolvePhaseLabel } from '../utils/phaseUtils';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -354,7 +355,7 @@ export function TasksPage() {
             </Form.Item>
             <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
               <Select
-                options={phases.map((ph) => ({ label: ph.name, value: ph.id }))}
+                options={phases.map((ph) => ({ label: resolvePhaseLabel(ph), value: ph.id }))}
                 placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
               />
             </Form.Item>
@@ -415,7 +416,7 @@ export function TasksPage() {
                 </Form.Item>
                 <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
                   <Select
-                    options={phases.map((ph) => ({ label: ph.name, value: ph.id }))}
+                    options={phases.map((ph) => ({ label: resolvePhaseLabel(ph), value: ph.id }))}
                     placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
                   />
                 </Form.Item>

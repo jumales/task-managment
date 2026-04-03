@@ -147,6 +147,11 @@ export function createPhase(request: TaskPhaseRequest) {
   return apiClient.post<TaskPhaseResponse>(PHASES_URL, request).then((r) => r.data);
 }
 
+/** Updates an existing phase (e.g. sets or clears customName). */
+export function updatePhase(id: string, request: TaskPhaseRequest) {
+  return apiClient.put<TaskPhaseResponse>(`${PHASES_URL}/${id}`, request).then((r) => r.data);
+}
+
 /** Soft-deletes a phase. */
 export function deletePhase(id: string) {
   return apiClient.delete(`${PHASES_URL}/${id}`);

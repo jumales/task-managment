@@ -170,6 +170,22 @@ class TaskProjectControllerIT {
         assertThat(second.getTaskCode()).isEqualTo("CP_2");
     }
 
+    // ── Auto-create phases on project creation ───────────────────────
+
+    @Test
+    void createProject_autoCreatesOnePhaseForEveryPhaseName() {
+        TaskProjectResponse project = createProject("Auto Phase Project", null);
+
+        ResponseEntity<TaskPhaseResponse[]> response =
+                restTemplate.getForEntity("/api/v1/phases?projectId=" + project.getId(), TaskPhaseResponse[].class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).hasSize(TaskPhaseName.values().length);
+        assertThat(response.getBody()).extracting("name")
+                .containsExactlyInAnyOrder(TaskPhaseName.values());
+        assertThat(response.getBody()).allSatisfy(p -> assertThat(p.getCustomName()).isNull());
+    }
+
     // ── PUT /api/v1/projects/{id} ────────────────────────────────────
 
     @Test

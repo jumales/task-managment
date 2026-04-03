@@ -176,7 +176,14 @@
     "failedLoad": "Failed to load projects.",
     "failedCreate": "Failed to create project.",
     "failedDelete": "Failed to delete project.",
-    "nameRequired": "Name is required"
+    "nameRequired": "Name is required",
+    "phases": "Phases",
+    "managePhases": "Manage Phases",
+    "phasesModalTitle": "Project Phases",
+    "customLabel": "Custom Label",
+    "customLabelPlaceholder": "Leave empty to use default label",
+    "failedLoadPhases": "Failed to load phases.",
+    "failedSavePhase": "Failed to save phase."
   },
   "users": {
     "title": "Users",
