@@ -138,8 +138,13 @@ function PhasesTab() {
       if (selectedProject?.defaultPhaseId === id) {
         setSelectedProject({ ...selectedProject, defaultPhaseId: null });
       }
-    } catch {
-      setError(t('configuration.failedDeletePhase'));
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        setError(t('configuration.deletePhaseBlockedByTasks'));
+      } else {
+        setError(t('configuration.failedDeletePhase'));
+      }
     } finally {
       setDeletingId(null);
     }
@@ -329,6 +334,16 @@ function TemplatesTab() {
       .finally(() => setLoadingList(false));
   }
 
+  function validatePlaceholders(_: unknown, value: string) {
+    if (!value) return Promise.resolve();
+    const knownKeys = new Set(placeholders.map((p) => p.key));
+    const unknown = [...value.matchAll(/\{(\w+)\}/g)]
+      .map((m) => m[1])
+      .filter((tok) => !knownKeys.has(tok));
+    if (unknown.length === 0) return Promise.resolve();
+    return Promise.reject(new Error(t('configuration.unknownPlaceholders', { tokens: unknown.join(', ') })));
+  }
+
   function openEdit(eventType: TaskChangeType, existing: ProjectNotificationTemplateResponse | null) {
     setEditingType(eventType);
     form.setFieldsValue({
@@ -502,14 +517,20 @@ function TemplatesTab() {
           <Form.Item
             name="subjectTemplate"
             label={t('configuration.subject')}
-            rules={[{ required: true, message: t('configuration.subjectRequired') }]}
+            rules={[
+              { required: true, message: t('configuration.subjectRequired') },
+              { validator: validatePlaceholders, warningOnly: true },
+            ]}
           >
             <Input onFocus={() => { lastFocusedField.current = 'subjectTemplate'; }} />
           </Form.Item>
           <Form.Item
             name="bodyTemplate"
             label={t('configuration.body')}
-            rules={[{ required: true, message: t('configuration.bodyRequired') }]}
+            rules={[
+              { required: true, message: t('configuration.bodyRequired') },
+              { validator: validatePlaceholders, warningOnly: true },
+            ]}
           >
             <Input.TextArea
               rows={6}

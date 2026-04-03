@@ -233,8 +233,12 @@ export function TasksPage() {
     deleteTask(id)
       .then(() => loadTasks())
       .catch((err) => {
-        const message = err?.response?.data?.message ?? err?.message ?? t('tasks.failedDelete');
-        setError(`${t('tasks.failedDelete')}: ${message}`);
+        if (err?.response?.status === 409) {
+          setError(t('tasks.deleteBlockedByRelations'));
+        } else {
+          const message = err?.response?.data?.message ?? err?.message ?? t('tasks.failedDelete');
+          setError(`${t('tasks.failedDelete')}: ${message}`);
+        }
       })
       .finally(() => setDeletingId(null));
   };
@@ -422,10 +426,24 @@ export function TasksPage() {
                 <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
                   <Select options={users.map((u) => ({ label: u.name, value: u.id }))} placeholder={t('tasks.selectUser')} />
                 </Form.Item>
-                <Form.Item name="plannedStart" label={t('tasks.plannedStart')}>
+                <Form.Item name="plannedStart" label={t('tasks.plannedStart')} rules={[{ required: true, message: t('tasks.plannedStartRequired') }]}>
                   <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
                 </Form.Item>
-                <Form.Item name="plannedEnd" label={t('tasks.plannedEnd')}>
+                <Form.Item
+                  name="plannedEnd"
+                  label={t('tasks.plannedEnd')}
+                  dependencies={['plannedStart']}
+                  rules={[
+                    { required: true, message: t('tasks.plannedEndRequired') },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const start = getFieldValue('plannedStart');
+                        if (!value || !start || value.isAfter(start)) return Promise.resolve();
+                        return Promise.reject(new Error(t('tasks.plannedEndMustBeAfterStart')));
+                      },
+                    }),
+                  ]}
+                >
                   <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
                 </Form.Item>
               </div>

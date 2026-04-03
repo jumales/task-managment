@@ -161,7 +161,11 @@
     "selectProjectFirst": "Select a project first",
     "selectPhase": "Select a phase",
     "phaseRequired": "Phase is required",
-    "failedLoadPhases": "Failed to load phases"
+    "failedLoadPhases": "Failed to load phases",
+    "plannedEndMustBeAfterStart": "Planned end must be after planned start",
+    "endMustBeAfterStart": "End date must be after the start date",
+    "startMustBeBeforeEnd": "Start date must be before the end date",
+    "deleteBlockedByRelations": "Cannot delete — this task has comments. Remove all comments first."
   },
   "projects": {
     "title": "Projects",
@@ -230,6 +234,8 @@
     "failedSave": "Failed to save template.",
     "failedDelete": "Failed to delete template.",
     "failedLoadProjects": "Failed to load projects.",
+    "deletePhaseBlockedByTasks": "Cannot delete — this phase still has tasks assigned to it.",
+    "unknownPlaceholders": "Unknown placeholder(s): {{tokens}} — these will be left as-is in the notification",
     "eventTypes": {
       "TASK_CREATED": "Task created",
       "STATUS_CHANGED": "Status changed",
