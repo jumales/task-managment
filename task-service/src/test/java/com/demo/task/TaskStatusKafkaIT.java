@@ -37,6 +37,7 @@ import org.springframework.context.annotation.Import;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -107,10 +108,8 @@ class TaskStatusKafkaIT {
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
                 .getBody().getId();
 
-        TaskPhaseRequest planningPhaseReq = new TaskPhaseRequest();
-        planningPhaseReq.setName(TaskPhaseName.PLANNING);
-        planningPhaseReq.setProjectId(projectId);
-        planningPhaseId = restTemplate.postForEntity("/api/v1/phases", planningPhaseReq, TaskPhaseResponse.class).getBody().getId();
+        // Wait for async createDefaultPhasesForProject to complete and get the auto-created PLANNING phase.
+        planningPhaseId = waitForPhase(projectId, TaskPhaseName.PLANNING);
 
         TaskPhaseRequest phaseReq = new TaskPhaseRequest();
         phaseReq.setName(TaskPhaseName.BACKLOG);
@@ -190,6 +189,27 @@ class TaskStatusKafkaIT {
     }
 
     // ── Helpers ───────────────────────────────────────────────────
+
+    /**
+     * Polls GET /api/v1/phases?projectId until a phase with the given name appears (async creation).
+     * Returns the phase ID once found; throws if not found within 5 seconds.
+     */
+    private UUID waitForPhase(UUID forProjectId, TaskPhaseName name) {
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (System.currentTimeMillis() < deadline) {
+            TaskPhaseResponse[] phases = restTemplate
+                    .getForEntity("/api/v1/phases?projectId=" + forProjectId, TaskPhaseResponse[].class)
+                    .getBody();
+            if (phases != null) {
+                java.util.Optional<TaskPhaseResponse> found = Arrays.stream(phases)
+                        .filter(p -> name.equals(p.getName()))
+                        .findFirst();
+                if (found.isPresent()) return found.get().getId();
+            }
+            try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+        }
+        throw new IllegalStateException("Phase " + name + " not found for project " + forProjectId + " within 5 s");
+    }
 
     private TaskResponse createTask(TaskStatus status) {
         return restTemplate.postForEntity("/api/v1/tasks", request(status), TaskResponse.class).getBody();

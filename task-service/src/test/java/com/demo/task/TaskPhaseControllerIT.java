@@ -30,6 +30,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.context.annotation.Import;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,8 +79,8 @@ class TaskPhaseControllerIT {
         when(userClient.getUserById(ALICE_ID))
                 .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
         projectId = createProject("Default Project").getId();
-        // Create PLANNING phase explicitly to avoid async timing issues with createDefaultPhasesForProject.
-        planningPhaseId = createPhase(TaskPhaseName.PLANNING).getId();
+        // Wait for async createDefaultPhasesForProject to complete and get the auto-created PLANNING phase.
+        planningPhaseId = waitForPhase(projectId, TaskPhaseName.PLANNING);
     }
 
     // ── GET /api/v1/phases?projectId ─────────────────────────────────
@@ -366,6 +367,27 @@ class TaskPhaseControllerIT {
         req.setName(name);
         req.setProjectId(forProjectId);
         return req;
+    }
+
+    /**
+     * Polls GET /api/v1/phases?projectId until a phase with the given name appears (async creation).
+     * Returns the phase ID once found; throws if not found within 5 seconds.
+     */
+    private UUID waitForPhase(UUID forProjectId, TaskPhaseName name) {
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (System.currentTimeMillis() < deadline) {
+            TaskPhaseResponse[] phases = restTemplate
+                    .getForEntity("/api/v1/phases?projectId=" + forProjectId, TaskPhaseResponse[].class)
+                    .getBody();
+            if (phases != null) {
+                java.util.Optional<TaskPhaseResponse> found = Arrays.stream(phases)
+                        .filter(p -> name.equals(p.getName()))
+                        .findFirst();
+                if (found.isPresent()) return found.get().getId();
+            }
+            try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+        }
+        throw new IllegalStateException("Phase " + name + " not found for project " + forProjectId + " within 5 s");
     }
 
     private TaskRequest taskRequest(TaskStatus status, UUID userId, UUID phaseId) {
