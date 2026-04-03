@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBookedWork, updateBookedWork, deleteBookedWork } from '../api/taskApi';
 import type { TaskBookedWorkResponse, WorkType } from '../api/types';
@@ -8,6 +8,7 @@ export function useTaskBookedWork(taskId: string | undefined, initialData: TaskB
   const { t } = useTranslation();
 
   const [bookedWork,   setBookedWork]   = useState<TaskBookedWorkResponse[]>(initialData);
+  useEffect(() => { setBookedWork(initialData); }, [initialData]);
   const [editingBw,    setEditingBw]    = useState<TaskBookedWorkResponse | null>(null);
   const [bwUserId,     setBwUserId]     = useState<string | null>(null);
   const [bwType,       setBwType]       = useState<WorkType>('DEVELOPMENT');

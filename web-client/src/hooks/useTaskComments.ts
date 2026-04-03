@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addComment } from '../api/taskApi';
 import type { TaskCommentResponse } from '../api/types';
@@ -8,6 +8,7 @@ export function useTaskComments(taskId: string | undefined, initialData: TaskCom
   const { t } = useTranslation();
 
   const [comments,   setComments]   = useState<TaskCommentResponse[]>(initialData);
+  useEffect(() => { setComments(initialData); }, [initialData]);
   const [newComment, setNewComment] = useState('');
   const [addingCmt,  setAddingCmt]  = useState(false);
   const [error,      setError]      = useState<string | null>(null);

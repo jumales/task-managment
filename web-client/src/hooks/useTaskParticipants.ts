@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addParticipant, removeParticipant } from '../api/taskApi';
 import type { TaskParticipantResponse, TaskParticipantRole } from '../api/types';
@@ -8,6 +8,7 @@ export function useTaskParticipants(taskId: string | undefined, initialData: Tas
   const { t } = useTranslation();
 
   const [participants, setParticipants] = useState<TaskParticipantResponse[]>(initialData);
+  useEffect(() => { setParticipants(initialData); }, [initialData]);
   const [newPUserId,   setNewPUserId]   = useState<string | null>(null);
   const [newPRole,     setNewPRole]     = useState<TaskParticipantRole>('VIEWER');
   const [addingP,      setAddingP]      = useState(false);

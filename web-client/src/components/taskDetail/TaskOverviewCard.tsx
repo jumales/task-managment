@@ -40,7 +40,7 @@ export function TaskOverviewCard({ task }: Props) {
         <Descriptions.Item label={t('tasks.assignedTo')}>
           {assignedUser?.userName ?? assignedUser?.userId ?? '—'}
         </Descriptions.Item>
-        <Descriptions.Item label={t('tasks.progress')}>
+        <Descriptions.Item label={t('tasks.progress')} span={2}>
           <Progress
             percent={task.progress}
             strokeColor={task.progress === 100 ? '#52c41a' : undefined}

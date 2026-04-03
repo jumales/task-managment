@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPlannedWork } from '../api/taskApi';
 import type { TaskPlannedWorkResponse, WorkType } from '../api/types';
@@ -8,6 +8,7 @@ export function useTaskPlannedWork(taskId: string | undefined, initialData: Task
   const { t } = useTranslation();
 
   const [plannedWork, setPlannedWork] = useState<TaskPlannedWorkResponse[]>(initialData);
+  useEffect(() => { setPlannedWork(initialData); }, [initialData]);
   const [pwUserId,    setPwUserId]    = useState<string | null>(null);
   const [pwType,      setPwType]      = useState<WorkType>('DEVELOPMENT');
   const [pwHours,     setPwHours]     = useState(0);
