@@ -438,3 +438,17 @@ private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus ne
 `@CacheEvict(allEntries = true)` is the correct choice when a cache holds both a list entry (`findAll`) and individual entries (`findById`). Evicting by key alone leaves the list cache stale. Use key-based eviction only for large caches where preserving unrelated entries matters.
 
 Do not mix `key = "#id"` and `allEntries = true` in the same `@Caching` — it is redundant.
+
+# React Best Practices
+
+When writing, reviewing, or refactoring React code, follow the Vercel React Best Practices guide stored at `.claude/react-best-practices.md`. Apply it whenever working on:
+- React components or hooks
+- Client-side data fetching
+- Bundle optimization
+- Re-render or rendering performance
+
+Key priorities (in order):
+1. **Eliminate waterfalls** — parallelize independent API calls with Promise.all
+2. **Bundle size** — avoid barrel imports, use dynamic imports for heavy components
+3. **Re-render optimization** — memoize non-primitive values, hoist static JSX, use functional setState
+4. **JS performance** — use Map/Set for O(1) lookups, combine array iterations, early returns

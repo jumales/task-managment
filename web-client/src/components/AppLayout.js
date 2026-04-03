@@ -1,0 +1,74 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAvatarBlobUrl } from '../hooks/useAvatarBlobUrl';
+import { Layout, Menu, Button, Typography, Avatar, Space, Select } from 'antd';
+import { DashboardOutlined, CheckSquareOutlined, ProjectOutlined, TeamOutlined, LogoutOutlined, UserOutlined, MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined, GlobalOutlined, } from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
+import { getMe, updateUserLanguage } from '../api/userApi';
+import i18n from '../i18n';
+const { Sider, Header, Content } = Layout;
+const LANGUAGE_OPTIONS = [
+    { value: 'en', label: 'English' },
+    { value: 'hr', label: 'Hrvatski' },
+];
+/** Main application shell with a collapsible sidebar and top header. */
+export function AppLayout({ children }) {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { name, logout } = useAuth();
+    const [collapsed, setCollapsed] = useState(false);
+    const [avatarFileId, setAvatarFileId] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [language, setLanguage] = useState(i18n.language);
+    const avatarUrl = useAvatarBlobUrl(avatarFileId);
+    // Look up the current user's profile (avatar + language) from the user-service
+    useEffect(() => {
+        getMe()
+            .then((me) => {
+            setAvatarFileId(me.avatarFileId ?? null);
+            setCurrentUserId(me.id);
+            // Apply the language stored in the backend, persisting it locally as well
+            const lang = me.language ?? 'en';
+            setLanguage(lang);
+            i18n.changeLanguage(lang);
+            localStorage.setItem('language', lang);
+        })
+            .catch(() => { });
+    }, []);
+    /** Switches the UI language, persists to localStorage and to the backend. */
+    function handleLanguageChange(lang) {
+        setLanguage(lang);
+        i18n.changeLanguage(lang);
+        localStorage.setItem('language', lang);
+        if (currentUserId) {
+            updateUserLanguage(currentUserId, lang).catch(() => { });
+        }
+    }
+    const navItems = useMemo(() => [
+        { key: '/dashboard', label: t('nav.dashboard'), icon: _jsx(DashboardOutlined, {}) },
+        { key: '/tasks', label: t('nav.tasks'), icon: _jsx(CheckSquareOutlined, {}) },
+        { key: '/projects', label: t('nav.projects'), icon: _jsx(ProjectOutlined, {}) },
+        { key: '/users', label: t('nav.users'), icon: _jsx(TeamOutlined, {}) },
+        { key: '/configuration', label: t('nav.configuration'), icon: _jsx(SettingOutlined, {}) },
+    ], [t]);
+    return (_jsxs(Layout, { style: { minHeight: '100vh' }, children: [_jsxs(Sider, { collapsible: true, collapsed: collapsed, trigger: null, width: 220, style: { boxShadow: '2px 0 8px rgba(0,0,0,0.15)' }, children: [_jsx("div", { style: {
+                            height: 64,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: collapsed ? 'center' : 'flex-start',
+                            padding: collapsed ? 0 : '0 24px',
+                            overflow: 'hidden',
+                        }, children: !collapsed && (_jsx(Typography.Text, { style: { color: 'white', fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' }, children: t('nav.appName') })) }), _jsx(Menu, { theme: "dark", mode: "inline", selectedKeys: [location.pathname], items: navItems, onClick: ({ key }) => navigate(key) })] }), _jsxs(Layout, { children: [_jsxs(Header, { style: {
+                            padding: '0 24px',
+                            background: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                        }, children: [_jsx(Button, { type: "text", icon: collapsed ? _jsx(MenuUnfoldOutlined, {}) : _jsx(MenuFoldOutlined, {}), onClick: () => setCollapsed(!collapsed), style: { fontSize: 18 } }), _jsxs(Space, { children: [_jsx(GlobalOutlined, { style: { color: '#888' } }), _jsx(Select, { value: language, onChange: handleLanguageChange, options: LANGUAGE_OPTIONS, size: "small", style: { width: 110 }, bordered: false }), avatarUrl
+                                        ? _jsx(Avatar, { src: avatarUrl, size: "small" })
+                                        : _jsx(Avatar, { icon: _jsx(UserOutlined, {}), size: "small" }), _jsx(Typography.Text, { children: name }), _jsx(Button, { icon: _jsx(LogoutOutlined, {}), onClick: logout, size: "small", children: t('common.logout') })] })] }), _jsx(Content, { style: { margin: 24, minHeight: 0 }, children: children })] })] }));
+}
