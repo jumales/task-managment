@@ -111,6 +111,7 @@ export function TasksPage() {
       .then((docs) => {
         const mapped = docs.map((d) => ({
           id: d.id,
+          taskCode: null,
           title: d.title,
           description: d.description ?? '',
           status: d.status ?? 'TODO',
@@ -245,6 +246,8 @@ export function TasksPage() {
   };
 
   const columns: ColumnsType<TaskSummaryResponse> = useMemo(() => [
+    { title: t('tasks.taskCode'), dataIndex: 'taskCode', key: 'taskCode', width: 110,
+      render: (taskCode: string | null) => taskCode ?? '—' },
     { title: t('tasks.title_field'), dataIndex: 'title',       key: 'title' },
     { title: t('common.project'),    dataIndex: 'projectName', key: 'project' },
     { title: t('tasks.assignedTo'),  key: 'user',

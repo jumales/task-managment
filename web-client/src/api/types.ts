@@ -138,6 +138,7 @@ export interface TaskFullResponse {
 /** Mirrors com.demo.common.dto.TaskSummaryResponse — lightweight list view without participants. */
 export interface TaskSummaryResponse {
   id: string;
+  taskCode: string | null;
   title: string;
   description: string;
   status: TaskStatus;
