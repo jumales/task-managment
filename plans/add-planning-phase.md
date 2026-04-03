@@ -14,6 +14,7 @@
 | **One-way exit** | Once a task's phase changes away from PLANNING, updating the phase back to PLANNING is rejected with `IllegalArgumentException` |
 | **Planned-dates lock** | `PLANNED_START` / `PLANNED_END` timeline entries may only be changed when the task is currently in PLANNING phase |
 | **New endpoint** | `PUT /api/v1/tasks/{id}/planned-dates` — accepts both dates atomically; enforces the phase lock and start < end ordering |
+| **Booked work blocked** | Booked-work entries (actual hours) may not be created or updated while the task is in PLANNING phase; attempts return `400 Bad Request` |
 
 ---
 

@@ -1208,6 +1208,7 @@
         },
         {
           "name": "Add booked-work entry",
+          "description": "Returns 400 if the task is currently in the PLANNING phase.",
           "request": {
             "method": "POST",
             "header": [
@@ -1258,6 +1259,7 @@
         },
         {
           "name": "Update booked-work entry",
+          "description": "Returns 400 if the task is currently in the PLANNING phase.",
           "request": {
             "method": "PUT",
             "header": [
