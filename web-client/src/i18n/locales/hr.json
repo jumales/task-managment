@@ -44,6 +44,7 @@
     "createTask": "Stvori zadatak",
     "editTask": "Uredi zadatak",
     "searchPlaceholder": "Pretraži zadatke…",
+    "taskCode": "Šifra",
     "title_field": "Naslov",
     "type": "Vrsta",
     "progress": "Napredak",
