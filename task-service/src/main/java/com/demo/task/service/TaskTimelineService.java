@@ -102,9 +102,8 @@ public class TaskTimelineService {
     }
 
     /**
-     * Atomically updates both PLANNED_START and PLANNED_END for the task.
-     * Validates that plannedStart is strictly before plannedEnd before writing either entry.
-     * Uses direct upsert (not setState) to avoid stale-counterpart ordering checks.
+     * Updates both PLANNED_START and PLANNED_END for the task in a single SQL statement.
+     * Validates that plannedStart is strictly before plannedEnd before writing.
      * Package-private for use by {@link TaskService}.
      */
     @Transactional
@@ -112,17 +111,7 @@ public class TaskTimelineService {
         if (!plannedStart.isBefore(plannedEnd)) {
             throw new IllegalArgumentException("plannedStart must be before plannedEnd");
         }
-
-        TaskTimeline startEntry = repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_START)
-                .map(e -> updateEntry(e, plannedStart, updatingUserId))
-                .orElseGet(() -> buildEntry(taskId, TimelineState.PLANNED_START, plannedStart, updatingUserId));
-
-        TaskTimeline endEntry = repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_END)
-                .map(e -> updateEntry(e, plannedEnd, updatingUserId))
-                .orElseGet(() -> buildEntry(taskId, TimelineState.PLANNED_END, plannedEnd, updatingUserId));
-
-        repository.save(startEntry);
-        repository.save(endEntry);
+        repository.updatePlannedTimestamps(taskId, plannedStart, plannedEnd, updatingUserId);
     }
 
     /**
@@ -166,12 +155,6 @@ public class TaskTimelineService {
     private TaskTimeline updateEntry(TaskTimeline entry, TaskTimelineRequest request) {
         entry.setTimestamp(request.getTimestamp());
         entry.setSetByUserId(request.getSetByUserId());
-        return entry;
-    }
-
-    private TaskTimeline updateEntry(TaskTimeline entry, Instant timestamp, UUID setByUserId) {
-        entry.setTimestamp(timestamp);
-        entry.setSetByUserId(setByUserId);
         return entry;
     }
 
