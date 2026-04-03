@@ -176,7 +176,14 @@
     "failedLoad": "Neuspješno učitavanje projekata.",
     "failedCreate": "Neuspješno stvaranje projekta.",
     "failedDelete": "Neuspješno brisanje projekta.",
-    "nameRequired": "Ime je obavezno"
+    "nameRequired": "Ime je obavezno",
+    "phases": "Faze",
+    "managePhases": "Upravljaj fazama",
+    "phasesModalTitle": "Faze projekta",
+    "customLabel": "Prilagođena oznaka",
+    "customLabelPlaceholder": "Ostavi prazno za zadanu oznaku",
+    "failedLoadPhases": "Neuspješno učitavanje faza.",
+    "failedSavePhase": "Neuspješno spremanje faze."
   },
   "users": {
     "title": "Korisnici",
