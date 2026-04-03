@@ -82,26 +82,27 @@ class TaskPhaseControllerIT {
     // ── GET /api/v1/phases?projectId ─────────────────────────────────
 
     @Test
-    void getPhasesForProject_whenEmpty_returnsEmptyList() {
+    void getPhasesForProject_afterProjectCreation_returnsAllSevenPhases() {
         ResponseEntity<TaskPhaseResponse[]> response =
                 restTemplate.getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEmpty();
+        assertThat(response.getBody()).hasSize(TaskPhaseName.values().length);
+        assertThat(response.getBody()).extracting("name")
+                .containsExactlyInAnyOrder(TaskPhaseName.values());
+        assertThat(response.getBody()).allSatisfy(p -> assertThat(p.getCustomName()).isNull());
     }
 
     @Test
-    void getPhasesForProject_returnsAllCreatedPhases() {
+    void getPhasesForProject_additionalPhaseCreated_appearsInList() {
+        // 7 phases auto-created on project creation; adding one more yields 8
         createPhase(TaskPhaseName.BACKLOG);
-        createPhase(TaskPhaseName.IN_REVIEW);
 
         ResponseEntity<TaskPhaseResponse[]> response =
                 restTemplate.getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
-        assertThat(response.getBody()).extracting("name")
-                .containsExactlyInAnyOrder(TaskPhaseName.BACKLOG, TaskPhaseName.IN_REVIEW);
+        assertThat(response.getBody()).hasSize(TaskPhaseName.values().length + 1);
     }
 
     // ── GET /api/v1/phases/{id} ──────────────────────────────────────
@@ -128,13 +129,14 @@ class TaskPhaseControllerIT {
 
     @Test
     void createPhase_persistsAndReturnsPhase() {
+        // 7 phases are auto-created when the project is created; adding one more yields 8
         ResponseEntity<TaskPhaseResponse> response =
                 restTemplate.postForEntity("/api/v1/phases", phaseRequest(TaskPhaseName.IN_PROGRESS), TaskPhaseResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getName()).isEqualTo(TaskPhaseName.IN_PROGRESS);
-        assertThat(phaseRepository.count()).isEqualTo(1);
+        assertThat(phaseRepository.count()).isEqualTo(TaskPhaseName.values().length + 1);
     }
 
     // ── PUT /api/v1/phases/{id} ──────────────────────────────────────
@@ -168,11 +170,12 @@ class TaskPhaseControllerIT {
 
     @Test
     void deletePhase_softDeletesPhase() {
+        // 7 auto-created + 1 manually created = 8; after deleting the manual one, 7 remain
         TaskPhaseResponse created = createPhase(TaskPhaseName.BACKLOG);
 
         restTemplate.delete("/api/v1/phases/" + created.getId());
 
-        assertThat(phaseRepository.count()).isEqualTo(0); // @SQLRestriction filters it
+        assertThat(phaseRepository.count()).isEqualTo(TaskPhaseName.values().length); // @SQLRestriction filters deleted row
         assertThat(restTemplate.getForEntity("/api/v1/phases/" + created.getId(), String.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -273,6 +276,65 @@ class TaskPhaseControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getDefaultPhaseId()).isEqualTo(phase.getId());
+    }
+
+    // ── customName ───────────────────────────────────────────────
+
+    @Test
+    void getPhaseById_customNameIsNullByDefault() {
+        TaskPhaseResponse[] phases = restTemplate
+                .getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class).getBody();
+        UUID phaseId = phases[0].getId();
+
+        ResponseEntity<TaskPhaseResponse> response =
+                restTemplate.getForEntity("/api/v1/phases/" + phaseId, TaskPhaseResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getCustomName()).isNull();
+    }
+
+    @Test
+    void updatePhase_setsCustomName() {
+        TaskPhaseResponse[] phases = restTemplate
+                .getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class).getBody();
+        TaskPhaseResponse phase = phases[0];
+
+        TaskPhaseRequest req = phaseRequest(phase.getName());
+        req.setCustomName("My Custom Label");
+
+        ResponseEntity<TaskPhaseResponse> response = restTemplate.exchange(
+                "/api/v1/phases/" + phase.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(req),
+                TaskPhaseResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getCustomName()).isEqualTo("My Custom Label");
+    }
+
+    @Test
+    void updatePhase_clearsCustomName_whenSetToNull() {
+        TaskPhaseResponse[] phases = restTemplate
+                .getForEntity("/api/v1/phases?projectId=" + projectId, TaskPhaseResponse[].class).getBody();
+        TaskPhaseResponse phase = phases[0];
+
+        // Set a custom name first
+        TaskPhaseRequest setReq = phaseRequest(phase.getName());
+        setReq.setCustomName("Temporary Label");
+        restTemplate.exchange("/api/v1/phases/" + phase.getId(), HttpMethod.PUT, new HttpEntity<>(setReq), TaskPhaseResponse.class);
+
+        // Clear it
+        TaskPhaseRequest clearReq = phaseRequest(phase.getName());
+        clearReq.setCustomName(null);
+
+        ResponseEntity<TaskPhaseResponse> response = restTemplate.exchange(
+                "/api/v1/phases/" + phase.getId(),
+                HttpMethod.PUT,
+                new HttpEntity<>(clearReq),
+                TaskPhaseResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getCustomName()).isNull();
     }
 
     // ── Helpers ───────────────────────────────────────────────────
