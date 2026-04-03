@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getPhases, updateTask } from '../api/taskApi';
+import { getPhases, updateTaskPhase } from '../api/taskApi';
 import type { TaskResponse, TaskPhaseResponse } from '../api/types';
 
 /** Manages the phase-change modal: fetches project phases, tracks selection, and persists the update. */
@@ -31,26 +31,11 @@ export function useTaskPhaseChange(
       .finally(() => setLoadingPhases(false));
   };
 
-  /** Builds the full task request from the current task, replacing only the phase. */
-  const buildRequest = (phaseId: string) => {
-    const assignee = task!.participants.find((p) => p.role === 'ASSIGNEE');
-    return {
-      title:          task!.title,
-      description:    task!.description,
-      status:         task!.status,
-      type:           task!.type,
-      progress:       task!.progress,
-      assignedUserId: assignee?.userId ?? '',
-      projectId:      task!.project.id,
-      phaseId,
-    };
-  };
-
-  /** Persists the selected phase and notifies the parent on success. */
+  /** Persists the selected phase via the dedicated PATCH endpoint and notifies the parent on success. */
   const handleSave = () => {
-    if (!taskId || !task || !selectedPhaseId) return;
+    if (!taskId || !selectedPhaseId) return;
     setSaving(true);
-    updateTask(taskId, buildRequest(selectedPhaseId))
+    updateTaskPhase(taskId, { phaseId: selectedPhaseId })
       .then((updated) => {
         onTaskUpdated(updated);
         setOpen(false);

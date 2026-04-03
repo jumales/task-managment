@@ -9,6 +9,7 @@ import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
+import com.demo.common.dto.TaskPhaseUpdateRequest;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -488,41 +489,23 @@ class TaskControllerIT {
     }
 
     @Test
-    void updateTask_moveAwayFromPlanning_succeeds() {
+    void updateTask_doesNotChangePhase() {
+        // PUT /tasks/{id} must not change the phase — use PATCH /tasks/{id}/phase for that
         TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
                 request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
 
-        TaskRequest update = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
-        update.setPhaseId(phaseId); // BACKLOG
+        assertThat(created.getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
+
+        // PUT with a different phaseId in the body — phase must stay PLANNING
+        TaskRequest update = request("Feature updated", "desc", TaskStatus.TODO, ALICE_ID);
+        update.setPhaseId(phaseId); // BACKLOG — should be ignored by update()
 
         ResponseEntity<TaskResponse> response = restTemplate.exchange(
                 "/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
                 new HttpEntity<>(update), TaskResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.BACKLOG);
-    }
-
-    @Test
-    void updateTask_returnToPlanning_returns400() {
-        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
-                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
-
-        // Move away from PLANNING first
-        TaskRequest moveAway = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
-        moveAway.setPhaseId(phaseId); // BACKLOG
-        restTemplate.exchange("/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
-                new HttpEntity<>(moveAway), TaskResponse.class);
-
-        // Attempt to return to PLANNING
-        TaskRequest returnToPlanning = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
-        returnToPlanning.setPhaseId(planningPhaseId);
-
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
-                new HttpEntity<>(returnToPlanning), String.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
     }
 
     @Test
@@ -552,11 +535,11 @@ class TaskControllerIT {
         TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
                 request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
 
-        // Move task out of PLANNING
-        TaskRequest moveAway = request("Feature", "desc", TaskStatus.TODO, ALICE_ID);
+        // Move task out of PLANNING via the dedicated phase endpoint
+        TaskPhaseUpdateRequest moveAway = new TaskPhaseUpdateRequest();
         moveAway.setPhaseId(phaseId); // BACKLOG
-        restTemplate.exchange("/api/v1/tasks/" + created.getId(), HttpMethod.PUT,
-                new HttpEntity<>(moveAway), TaskResponse.class);
+        restTemplate.exchange("/api/v1/tasks/" + created.getId() + "/phase",
+                HttpMethod.PATCH, new HttpEntity<>(moveAway), TaskResponse.class);
 
         PlannedDatesRequest datesRequest = new PlannedDatesRequest();
         datesRequest.setPlannedStart(Instant.parse("2026-05-01T08:00:00Z"));
@@ -583,6 +566,81 @@ class TaskControllerIT {
                 HttpMethod.PUT, new HttpEntity<>(datesRequest), String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    // ── PATCH /api/v1/tasks/{id}/phase ───────────────────────────────
+
+    @Test
+    void updatePhase_changesPhaseAndReturnsUpdatedTask() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        TaskPhaseUpdateRequest phaseReq = new TaskPhaseUpdateRequest();
+        phaseReq.setPhaseId(phaseId); // BACKLOG
+
+        ResponseEntity<TaskResponse> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId() + "/phase",
+                HttpMethod.PATCH,
+                new HttpEntity<>(phaseReq),
+                TaskResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.BACKLOG);
+    }
+
+    @Test
+    void updatePhase_returnToPlanning_returns400() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        // Move away from PLANNING first
+        TaskPhaseUpdateRequest toBacklog = new TaskPhaseUpdateRequest();
+        toBacklog.setPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/tasks/" + created.getId() + "/phase",
+                HttpMethod.PATCH, new HttpEntity<>(toBacklog), TaskResponse.class);
+
+        // Attempt to return to PLANNING
+        TaskPhaseUpdateRequest toPlanning = new TaskPhaseUpdateRequest();
+        toPlanning.setPhaseId(planningPhaseId);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId() + "/phase",
+                HttpMethod.PATCH,
+                new HttpEntity<>(toPlanning),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void updatePhase_withNonExistentPhase_returns404() {
+        TaskResponse created = restTemplate.postForEntity("/api/v1/tasks",
+                request("Feature", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
+
+        TaskPhaseUpdateRequest phaseReq = new TaskPhaseUpdateRequest();
+        phaseReq.setPhaseId(UUID.randomUUID());
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + created.getId() + "/phase",
+                HttpMethod.PATCH,
+                new HttpEntity<>(phaseReq),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void updatePhase_withNonExistentTask_returns404() {
+        TaskPhaseUpdateRequest phaseReq = new TaskPhaseUpdateRequest();
+        phaseReq.setPhaseId(phaseId);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + UUID.randomUUID() + "/phase",
+                HttpMethod.PATCH,
+                new HttpEntity<>(phaseReq),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     // ── Resilience ────────────────────────────────────────────────

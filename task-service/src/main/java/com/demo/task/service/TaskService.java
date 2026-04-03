@@ -214,28 +214,15 @@ public class TaskService {
         }
     }
 
-    /** Updates the task fields and writes outbox events for any status or phase change. */
+    /** Updates task fields (title, description, status, type, progress, assignee, project). Phase is unchanged — use {@code updatePhase} for that. */
     @Transactional
     public TaskResponse update(UUID id, TaskRequest request) {
         Task task = getOrThrow(id);
 
         TaskStatus oldStatus = task.getStatus();
-        UUID oldPhaseId = task.getPhaseId();
 
         if (!task.getProjectId().equals(request.getProjectId())) {
             projectService.getOrThrow(request.getProjectId());
-        }
-        if (request.getPhaseId() == null) {
-            throw new IllegalArgumentException("phaseId is required");
-        }
-        if (!request.getPhaseId().equals(oldPhaseId)) {
-            phaseService.getOrThrow(request.getPhaseId());
-            // One-way gate: once a task has left PLANNING it may never return.
-            TaskPhaseName currentPhaseName = phaseService.getOrThrow(oldPhaseId).getName();
-            TaskPhaseName newPhaseName = phaseService.getOrThrow(request.getPhaseId()).getName();
-            if (currentPhaseName != TaskPhaseName.PLANNING && newPhaseName == TaskPhaseName.PLANNING) {
-                throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
-            }
         }
 
         task.setTitle(request.getTitle());
@@ -245,11 +232,10 @@ public class TaskService {
         task.setProgress(request.getProgress());
         task.setAssignedUserId(request.getAssignedUserId());
         task.setProjectId(request.getProjectId());
-        task.setPhaseId(request.getPhaseId());
         Task saved = repository.save(task);
 
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
-        publishOutboxEvents(saved, oldStatus, request.getStatus(), oldPhaseId, request.getPhaseId());
+        publishStatusChangedEvent(saved, oldStatus, request.getStatus());
 
         // Publish lifecycle event to task-events topic so search-service keeps its index current.
         TaskProject project = projectService.getOrThrow(saved.getProjectId());
@@ -260,19 +246,45 @@ public class TaskService {
         return toResponse(saved);
     }
 
-    /** Publishes status-changed and phase-changed outbox events when the respective values differ. */
-    private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus newStatus,
-                                     UUID oldPhaseId, UUID newPhaseId) {
+    /**
+     * Changes the phase of a task and publishes a PHASE_CHANGED outbox event.
+     * Enforces the one-way gate: a task that has left PLANNING may never return to it.
+     */
+    @Transactional
+    public TaskResponse updatePhase(UUID id, UUID phaseId) {
+        Task task = getOrThrow(id);
+        UUID oldPhaseId = task.getPhaseId();
+
+        TaskPhase currentPhase = phaseService.getOrThrow(oldPhaseId);
+        TaskPhase newPhase     = phaseService.getOrThrow(phaseId);
+
+        // One-way gate: once a task has left PLANNING it may never return.
+        if (currentPhase.getName() != TaskPhaseName.PLANNING && newPhase.getName() == TaskPhaseName.PLANNING) {
+            throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
+        }
+
+        task.setPhaseId(phaseId);
+        Task saved = repository.save(task);
+
+        outboxWriter.write(TaskChangedEvent.phaseChanged(
+                saved.getId(), saved.getAssignedUserId(), saved.getProjectId(), saved.getTitle(),
+                oldPhaseId, currentPhase.getName().name(),
+                phaseId,    newPhase.getName().name()));
+
+        // Publish lifecycle event so search-service keeps its index current.
+        TaskProject project  = projectService.getOrThrow(saved.getProjectId());
+        String userName      = userClientHelper.resolveUserName(saved.getAssignedUserId());
+        writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_UPDATED,
+                project.getName(), phaseId, userName);
+
+        return toResponse(saved);
+    }
+
+    /** Publishes a STATUS_CHANGED outbox event when the status has actually changed. */
+    private void publishStatusChangedEvent(Task saved, TaskStatus oldStatus, TaskStatus newStatus) {
         if (newStatus != null && !newStatus.equals(oldStatus)) {
             outboxWriter.write(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
                     saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
-        }
-        if (!Objects.equals(oldPhaseId, newPhaseId)) {
-            // getName() returns TaskPhaseName enum; .name() converts to String for the event payload
-            String oldName = oldPhaseId != null ? phaseService.getOrThrow(oldPhaseId).getName().name() : null;
-            String newName = newPhaseId != null ? phaseService.getOrThrow(newPhaseId).getName().name() : null;
-            outboxWriter.write(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
-                    saved.getProjectId(), saved.getTitle(), oldPhaseId, oldName, newPhaseId, newName));
         }
     }
 
