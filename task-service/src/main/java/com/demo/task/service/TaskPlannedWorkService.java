@@ -3,11 +3,9 @@ package com.demo.task.service;
 import com.demo.common.dto.TaskPlannedWorkRequest;
 import com.demo.common.dto.TaskPlannedWorkResponse;
 import com.demo.common.dto.TaskStatus;
-import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.DuplicateResourceException;
 import com.demo.common.exception.ResourceNotFoundException;
-import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
 import com.demo.task.model.Task;
 import com.demo.task.model.TaskPlannedWork;
@@ -38,18 +36,15 @@ public class TaskPlannedWorkService {
 
     private final TaskPlannedWorkRepository repository;
     private final TaskRepository taskRepository;
-    private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
 
     public TaskPlannedWorkService(TaskPlannedWorkRepository repository,
                                   TaskRepository taskRepository,
-                                  UserClient userClient,
                                   UserClientHelper userClientHelper,
                                   OutboxWriter outboxWriter) {
         this.repository = repository;
         this.taskRepository = taskRepository;
-        this.userClient = userClient;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
     }
@@ -66,18 +61,19 @@ public class TaskPlannedWorkService {
      * Each work type may appear at most once per task.
      * Publishes a PLANNED_WORK_CREATED audit event.
      *
+     * @param creatorId the authenticated user who is creating this entry
      * @throws IllegalArgumentException if the task is not in TODO status
      * @throws DuplicateResourceException if a planned-work entry for the given work type already exists
      */
     @Transactional
-    public TaskPlannedWorkResponse create(UUID taskId, TaskPlannedWorkRequest request) {
+    public TaskPlannedWorkResponse create(UUID taskId, UUID creatorId, TaskPlannedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
         validatePlanningPhase(task);
         validateNoDuplicate(taskId, request);
-        UserDto user = userClient.getUserById(request.getUserId());
+        String creatorName = userClientHelper.resolveUserName(creatorId);
         TaskPlannedWork saved = repository.save(TaskPlannedWork.builder()
                 .taskId(taskId)
-                .userId(request.getUserId())
+                .userId(creatorId)
                 .workType(request.getWorkType())
                 .plannedHours(request.getPlannedHours() != null ? request.getPlannedHours().intValue() : 0)
                 .createdAt(Instant.now())
@@ -85,7 +81,7 @@ public class TaskPlannedWorkService {
         outboxWriter.write(TaskChangedEvent.plannedWorkCreated(taskId, task.getProjectId(), task.getTitle(),
                 saved.getId(), saved.getUserId(), saved.getWorkType(),
                 BigInteger.valueOf(saved.getPlannedHours())));
-        return toResponse(saved, user.getName());
+        return toResponse(saved, creatorName);
     }
 
     private Task getTaskOrThrow(UUID taskId) {

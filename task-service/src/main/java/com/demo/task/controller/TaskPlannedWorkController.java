@@ -2,11 +2,13 @@ package com.demo.task.controller;
 
 import com.demo.common.dto.TaskPlannedWorkRequest;
 import com.demo.common.dto.TaskPlannedWorkResponse;
+import com.demo.task.client.UserClientHelper;
 import com.demo.task.service.TaskPlannedWorkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +24,11 @@ import java.util.UUID;
 public class TaskPlannedWorkController {
 
     private final TaskPlannedWorkService service;
+    private final UserClientHelper userClientHelper;
 
-    public TaskPlannedWorkController(TaskPlannedWorkService service) {
+    public TaskPlannedWorkController(TaskPlannedWorkService service, UserClientHelper userClientHelper) {
         this.service = service;
+        this.userClientHelper = userClientHelper;
     }
 
     /** Returns all planned-work entries for the given task. */
@@ -42,7 +46,9 @@ public class TaskPlannedWorkController {
     @Operation(summary = "Add a planned-work entry to a task",
                description = "Allowed only while the task status is TODO (planning phase). One entry per work type per task.")
     public TaskPlannedWorkResponse create(@PathVariable UUID taskId,
-                                          @RequestBody TaskPlannedWorkRequest request) {
-        return service.create(taskId, request);
+                                          @RequestBody TaskPlannedWorkRequest request,
+                                          Authentication authentication) {
+        UUID creatorId = userClientHelper.resolveUserId(authentication);
+        return service.create(taskId, creatorId, request);
     }
 }

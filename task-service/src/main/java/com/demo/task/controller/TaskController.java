@@ -21,7 +21,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -110,24 +109,9 @@ public class TaskController {
         return service.create(request, creatorId);
     }
 
-    /**
-     * Resolves the caller's user-service UUID.
-     * For JWT tokens, looks up the user by the {@code preferred_username} claim.
-     * For non-JWT authentication (e.g. integration tests), attempts to parse the principal
-     * name directly as a UUID.
-     * Falls back to null if resolution fails or user-service is unavailable.
-     */
+    /** Resolves the caller's user-service UUID from the Spring Security authentication object. */
     private UUID resolveUserId(Authentication authentication) {
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            String username = jwtAuth.getToken().getClaimAsString("preferred_username");
-            return userClientHelper.resolveUserIdByUsername(username);
-        }
-        // Non-JWT path: principal name is already a UUID string (used in integration tests)
-        try {
-            return UUID.fromString(authentication.getName());
-        } catch (IllegalArgumentException | NullPointerException e) {
-            return null;
-        }
+        return userClientHelper.resolveUserId(authentication);
     }
 
     /** Updates the task identified by {@code id} with the values from the request body. */

@@ -1131,7 +1131,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"DEVELOPMENT\",\n  \"plannedHours\": 8\n}",
+              "raw": "{\n  \"workType\": \"DEVELOPMENT\",\n  \"plannedHours\": 8\n}",
               "options": {
                 "raw": {
                   "language": "json"

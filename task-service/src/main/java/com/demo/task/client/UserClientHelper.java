@@ -6,6 +6,8 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -28,6 +30,25 @@ public class UserClientHelper {
 
     public UserClientHelper(UserClient userClient) {
         this.userClient = userClient;
+    }
+
+    /**
+     * Resolves the authenticated user's UUID from the Spring Security {@link Authentication}.
+     * For JWT tokens, looks up the user by the {@code preferred_username} claim.
+     * For non-JWT authentication (e.g. integration tests), attempts to parse the principal name as a UUID.
+     * Returns {@code null} if resolution fails or user-service is unavailable.
+     */
+    public UUID resolveUserId(Authentication authentication) {
+        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
+            String username = jwtAuth.getToken().getClaimAsString("preferred_username");
+            return resolveUserIdByUsername(username);
+        }
+        // Non-JWT path: principal name is already a UUID string (used in integration tests)
+        try {
+            return UUID.fromString(authentication.getName());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return null;
+        }
     }
 
     /**

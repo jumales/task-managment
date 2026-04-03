@@ -1,6 +1,5 @@
 package com.demo.task;
 
-import com.demo.common.dto.TaskBookedWorkRequest;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
@@ -82,7 +81,6 @@ class TaskPlannedWorkControllerIT {
     TaskPhaseRepository phaseRepository;
 
     private static final UUID ALICE_ID = UUID.randomUUID();
-    private static final UUID BOB_ID   = UUID.randomUUID();
 
     private String taskId;
     private UUID projectId;
@@ -98,15 +96,13 @@ class TaskPlannedWorkControllerIT {
         projectRepository.deleteAll();
 
         UserDto alice     = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, null, "en");
-        UserDto bob       = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, null, "en");
         UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null, "en");
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
-        when(userClient.getUserById(BOB_ID)).thenReturn(bob);
         when(userClient.getUserById(TestSecurityConfig.TEST_USER_ID)).thenReturn(testAdmin);
         when(userClient.getUsersByIds(anyList())).thenAnswer(inv -> {
             List<UUID> ids = inv.getArgument(0);
-            return List.of(alice, bob, testAdmin).stream().filter(u -> ids.contains(u.getId())).toList();
+            return List.of(alice, testAdmin).stream().filter(u -> ids.contains(u.getId())).toList();
         });
 
         TaskProjectRequest projectReq = new TaskProjectRequest();
@@ -161,17 +157,16 @@ class TaskPlannedWorkControllerIT {
 
     @Test
     void createPlannedWork_persistsAndReturnsEntry() {
-        TaskPlannedWorkRequest request = plannedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "8");
-
         ResponseEntity<TaskPlannedWorkResponse> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/planned-work",
-                request,
+                plannedWorkRequest(WorkType.DEVELOPMENT, "8"),
                 TaskPlannedWorkResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
-        assertThat(response.getBody().getUserId()).isEqualTo(ALICE_ID);
-        assertThat(response.getBody().getUserName()).isEqualTo("Alice Johnson");
+        // creator is resolved from the authenticated test user, not from the request body
+        assertThat(response.getBody().getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
+        assertThat(response.getBody().getUserName()).isEqualTo("Test Admin");
         assertThat(response.getBody().getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
         assertThat(response.getBody().getPlannedHours()).isEqualTo(BigInteger.valueOf(8));
     }
@@ -179,9 +174,9 @@ class TaskPlannedWorkControllerIT {
     @Test
     void createPlannedWork_differentWorkTypes_areAllReturned() {
         restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/planned-work",
-                plannedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "4"), TaskPlannedWorkResponse.class);
+                plannedWorkRequest(WorkType.DEVELOPMENT, "4"), TaskPlannedWorkResponse.class);
         restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/planned-work",
-                plannedWorkRequest(BOB_ID, WorkType.TESTING, "2"), TaskPlannedWorkResponse.class);
+                plannedWorkRequest(WorkType.TESTING, "2"), TaskPlannedWorkResponse.class);
 
         ResponseEntity<TaskPlannedWorkResponse[]> response = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/planned-work",
@@ -194,11 +189,11 @@ class TaskPlannedWorkControllerIT {
     @Test
     void createPlannedWork_duplicateWorkType_returns409() {
         restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/planned-work",
-                plannedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "4"), TaskPlannedWorkResponse.class);
+                plannedWorkRequest(WorkType.DEVELOPMENT, "4"), TaskPlannedWorkResponse.class);
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/planned-work",
-                plannedWorkRequest(BOB_ID, WorkType.DEVELOPMENT, "8"),
+                plannedWorkRequest(WorkType.DEVELOPMENT, "8"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -218,7 +213,7 @@ class TaskPlannedWorkControllerIT {
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/planned-work",
-                plannedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "8"),
+                plannedWorkRequest(WorkType.DEVELOPMENT, "8"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -228,15 +223,14 @@ class TaskPlannedWorkControllerIT {
     void createPlannedWork_whenTaskNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + UUID.randomUUID() + "/planned-work",
-                plannedWorkRequest(ALICE_ID, WorkType.PLANNING, "1"),
+                plannedWorkRequest(WorkType.PLANNING, "1"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private TaskPlannedWorkRequest plannedWorkRequest(UUID userId, WorkType workType, String plannedHours) {
+    private TaskPlannedWorkRequest plannedWorkRequest(WorkType workType, String plannedHours) {
         TaskPlannedWorkRequest req = new TaskPlannedWorkRequest();
-        req.setUserId(userId);
         req.setWorkType(workType);
         req.setPlannedHours(new BigInteger(plannedHours));
         return req;
