@@ -75,6 +75,8 @@ export interface TaskPhaseResponse {
   id: string;
   name: TaskPhaseName;
   description: string | null;
+  /** User-defined display label. Null when not set — use resolvePhaseLabel() for display. */
+  customName: string | null;
   projectId: string;
 }
 
@@ -175,6 +177,8 @@ export interface TaskProjectRequest {
 export interface TaskPhaseRequest {
   name: TaskPhaseName;
   description?: string;
+  /** Optional user-defined display label. Pass null to clear an existing custom name. */
+  customName?: string | null;
   projectId: string;
 }
 

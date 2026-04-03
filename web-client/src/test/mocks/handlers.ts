@@ -25,6 +25,7 @@ export const mockPhase: TaskPhaseResponse = {
   id: 'phase-1',
   name: 'TODO',
   description: null,
+  customName: null,
   projectId: 'proj-1',
 };
 
