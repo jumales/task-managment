@@ -41,7 +41,12 @@ public class TaskProjectService {
         return toResponse(getOrThrow(id));
     }
 
-    /** Creates and persists a new project from the given request. Uses "TASK_" prefix when none is provided. */
+    /**
+     * Creates and persists a new project from the given request, then auto-creates one phase for every
+     * {@link com.demo.common.dto.TaskPhaseName} value so the project starts with a complete phase set.
+     * Uses "TASK_" prefix when none is provided.
+     */
+    @Transactional
     public TaskProjectResponse create(TaskProjectRequest request) {
         String prefix = resolvePrefix(request.getTaskCodePrefix());
         TaskProject project = TaskProject.builder()
@@ -50,7 +55,9 @@ public class TaskProjectService {
                 .taskCodePrefix(prefix)
                 .nextTaskNumber(1)
                 .build();
-        return toResponse(repository.save(project));
+        TaskProject saved = repository.save(project);
+        phaseService.createDefaultPhasesForProject(saved.getId());
+        return toResponse(saved);
     }
 
     /** Updates name, description, task code prefix, and default phase of the project identified by {@code id}. */

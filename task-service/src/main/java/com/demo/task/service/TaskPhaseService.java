@@ -2,6 +2,7 @@ package com.demo.task.service;
 
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
+import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.model.TaskPhase;
@@ -9,6 +10,7 @@ import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,6 +41,7 @@ public class TaskPhaseService {
                 .projectId(request.getProjectId())
                 .name(request.getName())
                 .description(request.getDescription())
+                .customName(request.getCustomName())
                 .build();
         return toResponse(phaseRepository.save(phase));
     }
@@ -48,7 +51,22 @@ public class TaskPhaseService {
         TaskPhase phase = getOrThrow(id);
         phase.setName(request.getName());
         phase.setDescription(request.getDescription());
+        phase.setCustomName(request.getCustomName());
         return toResponse(phaseRepository.save(phase));
+    }
+
+    /**
+     * Creates one phase for every {@link TaskPhaseName} value under the given project.
+     * Called automatically when a project is first created so every project starts with a full phase set.
+     */
+    void createDefaultPhasesForProject(UUID projectId) {
+        List<TaskPhase> phases = Arrays.stream(TaskPhaseName.values())
+                .map(name -> TaskPhase.builder()
+                        .projectId(projectId)
+                        .name(name)
+                        .build())
+                .toList();
+        phaseRepository.saveAll(phases);
     }
 
     /** Soft-deletes the phase; throws if any tasks are still assigned to it. */
