@@ -88,6 +88,7 @@ class TaskStatusKafkaIT {
     private static final UUID ALICE_ID = UUID.randomUUID();
     private UUID projectId;
     private UUID phaseId;
+    private UUID planningPhaseId;
 
     @BeforeEach
     void setUp() {
@@ -105,6 +106,11 @@ class TaskStatusKafkaIT {
         projectReq.setName("Test Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)
                 .getBody().getId();
+
+        TaskPhaseRequest planningPhaseReq = new TaskPhaseRequest();
+        planningPhaseReq.setName(TaskPhaseName.PLANNING);
+        planningPhaseReq.setProjectId(projectId);
+        planningPhaseId = restTemplate.postForEntity("/api/v1/phases", planningPhaseReq, TaskPhaseResponse.class).getBody().getId();
 
         TaskPhaseRequest phaseReq = new TaskPhaseRequest();
         phaseReq.setName(TaskPhaseName.BACKLOG);
@@ -201,7 +207,9 @@ class TaskStatusKafkaIT {
         req.setStatus(status);
         req.setAssignedUserId(ALICE_ID);
         req.setProjectId(projectId);
-        req.setPhaseId(phaseId);
+        // Use planningPhaseId so updates keep the task in PLANNING, preventing phase-change outbox events
+        // from interfering with status-change outbox event assertions.
+        req.setPhaseId(planningPhaseId);
         req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return req;
