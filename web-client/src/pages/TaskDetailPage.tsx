@@ -43,7 +43,7 @@ export function TaskDetailPage() {
         {t('tasks.backToTasks')}
       </Button>
 
-      <TaskOverviewCard task={data.task} />
+      <TaskOverviewCard task={data.task} timelines={data.timelines} />
 
       <Tabs
         items={[
