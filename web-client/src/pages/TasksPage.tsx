@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
-  Space, Popconfirm, Progress, InputNumber, DatePicker,
+  Space, Popconfirm, Progress, InputNumber, DatePicker, Steps,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
@@ -49,6 +49,7 @@ export function TasksPage() {
   const [activeSearch, setActiveSearch] = useState('');
   const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,    setModalOpen]    = useState(false);
+  const [wizardStep,   setWizardStep]   = useState(0);
   const [editingTask,  setEditingTask]  = useState<TaskSummaryResponse | null>(null);
   const [submitting,   setSubmitting]   = useState(false);
   const [deletingId,   setDeletingId]   = useState<string | null>(null);
@@ -151,6 +152,7 @@ export function TasksPage() {
   /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
   const openCreateModal = () => {
     setEditingTask(null);
+    setWizardStep(0);
     setPhases([]);
     setModalError(null);
     form.resetFields();
@@ -199,8 +201,8 @@ export function TasksPage() {
       setSubmitting(true);
       const request = {
         ...values,
-        type: values.type ?? null,
-        progress: values.progress ?? 0,
+        type:     values.type ?? null,
+        progress: editingTask ? (values.progress ?? 0) : 0,
         // plannedStart/End only on create; format dayjs to ISO string
         ...(editingTask ? {} : {
           plannedStart: values.plannedStart?.toISOString(),
@@ -311,63 +313,158 @@ export function TasksPage() {
       <Modal
         title={editingTask ? t('tasks.editTask') : t('tasks.createTask')}
         open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => { setModalOpen(false); setEditingTask(null); setModalError(null); }}
-        okText={editingTask ? t('common.save') : t('common.create')}
-        confirmLoading={submitting}
+        onCancel={() => { setModalOpen(false); setEditingTask(null); setWizardStep(0); setModalError(null); }}
+        footer={null}
+        width={560}
       >
         {modalError && <Alert type="error" message={modalError} style={{ marginBottom: 12 }} />}
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label={t('common.description')}>
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
-            <Select options={statusOptions} />
-          </Form.Item>
-          <Form.Item name="type" label={t('tasks.type')}>
-            <Select options={typeOptions} placeholder={t('tasks.selectType')} allowClear />
-          </Form.Item>
-          <Form.Item name="progress" label={t('tasks.progressPct')} initialValue={0}>
-            <InputNumber min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
-          </Form.Item>
-          <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
-            <Select
-              options={projects.map((p) => ({ label: p.name, value: p.id }))}
-              placeholder={t('tasks.selectProject')}
-              onChange={(projectId: string) => {
-                form.setFieldValue('phaseId', undefined);
-                setPhases([]);
-                loadPhases(projectId);
-              }}
+
+        {/* ── Edit mode: flat form ── */}
+        {editingTask && (
+          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="description" label={t('common.description')}>
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
+              <Select options={statusOptions} />
+            </Form.Item>
+            <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
+              <Select options={typeOptions} placeholder={t('tasks.selectType')} />
+            </Form.Item>
+            <Form.Item name="progress" label={t('tasks.progressPct')} initialValue={0}>
+              <InputNumber min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
+            </Form.Item>
+            <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
+              <Select
+                options={projects.map((p) => ({ label: p.name, value: p.id }))}
+                placeholder={t('tasks.selectProject')}
+                onChange={(projectId: string) => {
+                  form.setFieldValue('phaseId', undefined);
+                  setPhases([]);
+                  loadPhases(projectId);
+                }}
+              />
+            </Form.Item>
+            <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
+              <Select
+                options={phases.map((ph) => ({ label: ph.name, value: ph.id }))}
+                placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
+              />
+            </Form.Item>
+            <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
+              <Select options={users.map((u) => ({ label: u.name, value: u.id }))} placeholder={t('tasks.selectUser')} />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+              <Space>
+                <Button onClick={() => { setModalOpen(false); setEditingTask(null); setModalError(null); }}>{t('common.cancel')}</Button>
+                <Button type="primary" loading={submitting} onClick={handleSubmit}>{t('common.save')}</Button>
+              </Space>
+            </Form.Item>
+          </Form>
+        )}
+
+        {/* ── Create mode: 3-step wizard ── */}
+        {!editingTask && (
+          <>
+            <Steps
+              current={wizardStep}
+              size="small"
+              style={{ marginTop: 16, marginBottom: 24 }}
+              items={[
+                { title: t('tasks.wizardStep1') },
+                { title: t('tasks.wizardStep2') },
+                { title: t('tasks.wizardStep3') },
+              ]}
             />
-          </Form.Item>
-          <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
-            <Select
-              options={phases.map((ph) => ({ label: ph.name, value: ph.id }))}
-              placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
-            />
-          </Form.Item>
-          <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
-            <Select
-              options={users.map((u) => ({ label: u.name, value: u.id }))}
-              placeholder={t('tasks.selectUser')}
-            />
-          </Form.Item>
-          {/* Planned dates are only required on create */}
-          {!editingTask && (
-            <>
-              <Form.Item name="plannedStart" label={t('tasks.plannedStart')}>
-                <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
-              </Form.Item>
-              <Form.Item name="plannedEnd" label={t('tasks.plannedEnd')}>
-                <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
-              </Form.Item>
-            </>
-          )}
-        </Form>
+            <Form form={form} layout="vertical">
+              {/* Step 1 — Title & Description */}
+              <div style={{ display: wizardStep === 0 ? 'block' : 'none' }}>
+                <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="description" label={t('common.description')}>
+                  <Input.TextArea rows={3} />
+                </Form.Item>
+              </div>
+
+              {/* Step 2 — Type, Status, Project & Phase */}
+              <div style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
+                <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
+                  <Select options={typeOptions} placeholder={t('tasks.selectType')} />
+                </Form.Item>
+                <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
+                  <Select options={statusOptions} />
+                </Form.Item>
+                <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
+                  <Select
+                    options={projects.map((p) => ({ label: p.name, value: p.id }))}
+                    placeholder={t('tasks.selectProject')}
+                    onChange={(projectId: string) => {
+                      form.setFieldValue('phaseId', undefined);
+                      setPhases([]);
+                      loadPhases(projectId);
+                    }}
+                  />
+                </Form.Item>
+                <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
+                  <Select
+                    options={phases.map((ph) => ({ label: ph.name, value: ph.id }))}
+                    placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
+                  />
+                </Form.Item>
+              </div>
+
+              {/* Step 3 — Assignee & Dates */}
+              <div style={{ display: wizardStep === 2 ? 'block' : 'none' }}>
+                <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
+                  <Select options={users.map((u) => ({ label: u.name, value: u.id }))} placeholder={t('tasks.selectUser')} />
+                </Form.Item>
+                <Form.Item name="plannedStart" label={t('tasks.plannedStart')}>
+                  <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
+                </Form.Item>
+                <Form.Item name="plannedEnd" label={t('tasks.plannedEnd')}>
+                  <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
+                </Form.Item>
+              </div>
+            </Form>
+
+            {/* Wizard navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <Button
+                disabled={wizardStep === 0}
+                onClick={() => setWizardStep((s) => s - 1)}
+              >
+                {t('common.back')}
+              </Button>
+              <Space>
+                <Button onClick={() => { setModalOpen(false); setWizardStep(0); }}>{t('common.cancel')}</Button>
+                {wizardStep < 2 ? (
+                  <Button
+                    type="primary"
+                    onClick={() => {
+                      const fieldsForStep = [
+                        ['title'],
+                        ['type', 'status', 'projectId', 'phaseId'],
+                      ][wizardStep];
+                      form.validateFields(fieldsForStep)
+                        .then(() => setWizardStep((s) => s + 1))
+                        .catch(() => {});
+                    }}
+                  >
+                    {t('common.next')}
+                  </Button>
+                ) : (
+                  <Button type="primary" loading={submitting} onClick={handleSubmit}>
+                    {t('common.create')}
+                  </Button>
+                )}
+              </Space>
+            </div>
+          </>
+        )}
       </Modal>
     </>
   );
