@@ -15,6 +15,7 @@
 | **Planned-dates lock** | `PLANNED_START` / `PLANNED_END` timeline entries may only be changed when the task is currently in PLANNING phase |
 | **New endpoint** | `PUT /api/v1/tasks/{id}/planned-dates` — accepts both dates atomically; enforces the phase lock and start < end ordering |
 | **Booked work blocked** | Booked-work entries (actual hours) may not be created or updated while the task is in PLANNING phase; attempts return `400 Bad Request` |
+| **Planned work immutable** | Planned-work entries (estimated hours) are immutable once created — no update or delete operations are allowed; only `POST` and `GET` are exposed |
 
 ---
 
