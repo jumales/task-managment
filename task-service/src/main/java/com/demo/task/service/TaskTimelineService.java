@@ -102,6 +102,19 @@ public class TaskTimelineService {
     }
 
     /**
+     * Updates both PLANNED_START and PLANNED_END for the task in a single SQL statement.
+     * Validates that plannedStart is strictly before plannedEnd before writing.
+     * Package-private for use by {@link TaskService}.
+     */
+    @Transactional
+    void updatePlannedDates(UUID taskId, Instant plannedStart, Instant plannedEnd, UUID updatingUserId) {
+        if (!plannedStart.isBefore(plannedEnd)) {
+            throw new IllegalArgumentException("plannedStart must be before plannedEnd");
+        }
+        repository.updatePlannedTimestamps(taskId, plannedStart, plannedEnd, updatingUserId);
+    }
+
+    /**
      * Validates that the new timestamp preserves the start &lt; end ordering invariant.
      * Checks the counterpart state (e.g. PLANNED_END when setting PLANNED_START) if it already exists.
      */

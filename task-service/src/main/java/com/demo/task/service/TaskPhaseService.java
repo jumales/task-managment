@@ -80,6 +80,15 @@ public class TaskPhaseService {
         phaseRepository.deleteById(id);
     }
 
+    /**
+     * Returns the PLANNING phase for the given project, or throws {@link ResourceNotFoundException}.
+     * Package-private for use by TaskService during task creation.
+     */
+    TaskPhase findPlanningPhaseOrThrow(UUID projectId) {
+        return phaseRepository.findFirstByProjectIdAndName(projectId, TaskPhaseName.PLANNING)
+                .orElseThrow(() -> new ResourceNotFoundException("PLANNING phase for project", projectId));
+    }
+
     /** Returns raw entities for all given IDs; missing IDs are silently skipped. Package-private for batch loading in TaskService list responses. */
     List<TaskPhase> findAllByIds(Iterable<UUID> ids) {
         return phaseRepository.findAllById(ids);

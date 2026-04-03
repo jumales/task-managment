@@ -30,6 +30,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.context.annotation.Import;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +68,7 @@ class TaskPhaseControllerIT {
 
     private static final UUID ALICE_ID = UUID.randomUUID();
     private UUID projectId;
+    private UUID planningPhaseId;
 
     @BeforeEach
     void setUp() {
@@ -77,6 +79,8 @@ class TaskPhaseControllerIT {
         when(userClient.getUserById(ALICE_ID))
                 .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
         projectId = createProject("Default Project").getId();
+        // Wait for async createDefaultPhasesForProject to complete and get the auto-created PLANNING phase.
+        planningPhaseId = waitForPhase(projectId, TaskPhaseName.PLANNING);
     }
 
     // ── GET /api/v1/phases?projectId ─────────────────────────────────
@@ -182,12 +186,11 @@ class TaskPhaseControllerIT {
 
     @Test
     void deletePhase_withActiveTasks_returns409() {
-        TaskPhaseResponse phase = createPhase(TaskPhaseName.BACKLOG);
-        setProjectDefaultPhase(projectId, phase.getId());
-        createTask("Task", TaskStatus.TODO, ALICE_ID, phase.getId());
+        // Tasks always start in PLANNING; deleting the PLANNING phase while a task is in it must be blocked.
+        createTask("Task", TaskStatus.TODO, ALICE_ID, null);
 
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/phases/" + phase.getId(), HttpMethod.DELETE, HttpEntity.EMPTY, String.class);
+                "/api/v1/phases/" + planningPhaseId, HttpMethod.DELETE, HttpEntity.EMPTY, String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
@@ -203,46 +206,36 @@ class TaskPhaseControllerIT {
     // ── Default phase assignment on task creation ─────────────────
 
     @Test
-    void createTask_withNoPhaseId_assignsProjectDefaultPhase() {
-        TaskPhaseResponse defaultPhase = createPhase(TaskPhaseName.BACKLOG);
-        setProjectDefaultPhase(projectId, defaultPhase.getId());
-
+    void createTask_alwaysStartsInPlanningPhase() {
+        // phaseId in request is ignored — tasks always start in the PLANNING phase
         TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, null);
         ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getPhase()).isNotNull();
-        assertThat(response.getBody().getPhase().getId()).isEqualTo(defaultPhase.getId());
+        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
     }
 
     @Test
-    void createTask_withNoPhaseIdAndNoDefault_returns400() {
-        // Phase is mandatory: no phase and no project default → 400
-        TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, null);
-        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/tasks", req, String.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    }
-
-    @Test
-    void createTask_withExplicitPhaseId_usesProvidedPhase() {
-        TaskPhaseResponse defaultPhase = createPhase(TaskPhaseName.BACKLOG);
-        setProjectDefaultPhase(projectId, defaultPhase.getId());
+    void createTask_explicitPhaseIdIsIgnored_taskStartsInPlanning() {
+        // Providing an explicit phaseId has no effect; task still lands in PLANNING
         TaskPhaseResponse explicit = createPhase(TaskPhaseName.IN_REVIEW);
 
         TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, explicit.getId());
         ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody().getPhase().getId()).isEqualTo(explicit.getId());
+        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
     }
 
     @Test
-    void createTask_withNonExistentPhaseId_returns404() {
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/v1/tasks", taskRequest(TaskStatus.TODO, ALICE_ID, UUID.randomUUID()), String.class);
+    void createTask_withNonExistentPhaseId_stillStartsInPlanning() {
+        // Non-existent phaseId is silently ignored; task is assigned PLANNING phase
+        TaskRequest req = taskRequest(TaskStatus.TODO, ALICE_ID, UUID.randomUUID());
+        ResponseEntity<TaskResponse> response = restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getPhase().getName()).isEqualTo(TaskPhaseName.PLANNING);
     }
 
     // ── Project default phase ─────────────────────────────────────
@@ -374,6 +367,27 @@ class TaskPhaseControllerIT {
         req.setName(name);
         req.setProjectId(forProjectId);
         return req;
+    }
+
+    /**
+     * Polls GET /api/v1/phases?projectId until a phase with the given name appears (async creation).
+     * Returns the phase ID once found; throws if not found within 5 seconds.
+     */
+    private UUID waitForPhase(UUID forProjectId, TaskPhaseName name) {
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (System.currentTimeMillis() < deadline) {
+            TaskPhaseResponse[] phases = restTemplate
+                    .getForEntity("/api/v1/phases?projectId=" + forProjectId, TaskPhaseResponse[].class)
+                    .getBody();
+            if (phases != null) {
+                java.util.Optional<TaskPhaseResponse> found = Arrays.stream(phases)
+                        .filter(p -> name.equals(p.getName()))
+                        .findFirst();
+                if (found.isPresent()) return found.get().getId();
+            }
+            try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+        }
+        throw new IllegalStateException("Phase " + name + " not found for project " + forProjectId + " within 5 s");
     }
 
     private TaskRequest taskRequest(TaskStatus status, UUID userId, UUID phaseId) {

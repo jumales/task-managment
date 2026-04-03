@@ -4,6 +4,7 @@ import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskBookedWorkResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskParticipantResponse;
 import com.demo.common.dto.TaskPhaseResponse;
@@ -11,6 +12,7 @@ import com.demo.common.dto.TaskPlannedWorkResponse;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
+import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.TaskTimelineResponse;
@@ -170,8 +172,8 @@ public class TaskService {
         UserDto user = userClient.getUserById(request.getAssignedUserId());
         TaskProject project = projectService.getOrThrow(request.getProjectId());
 
-        // Use the explicitly requested phase, or fall back to the project's default phase.
-        UUID phaseId = resolvePhaseId(request.getPhaseId(), project);
+        // Every new task starts in the PLANNING phase; any phaseId in the request is ignored.
+        UUID phaseId = phaseService.findPlanningPhaseOrThrow(project.getId()).getId();
 
         String taskCode = projectService.nextTaskCode(request.getProjectId());
 
@@ -228,6 +230,12 @@ public class TaskService {
         }
         if (!request.getPhaseId().equals(oldPhaseId)) {
             phaseService.getOrThrow(request.getPhaseId());
+            // One-way gate: once a task has left PLANNING it may never return.
+            TaskPhaseName currentPhaseName = phaseService.getOrThrow(oldPhaseId).getName();
+            TaskPhaseName newPhaseName = phaseService.getOrThrow(request.getPhaseId()).getName();
+            if (currentPhaseName != TaskPhaseName.PLANNING && newPhaseName == TaskPhaseName.PLANNING) {
+                throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
+            }
         }
 
         task.setTitle(request.getTitle());
@@ -314,6 +322,22 @@ public class TaskService {
                 saved.getContent(), saved.getCreatedAt());
     }
 
+    /**
+     * Updates the planned start and end dates for a task.
+     * Throws {@link IllegalArgumentException} if the task is not in the PLANNING phase.
+     *
+     * @param updatingUserId the authenticated user performing the update
+     */
+    public TaskFullResponse updatePlannedDates(UUID taskId, UUID updatingUserId, PlannedDatesRequest request) {
+        Task task = getOrThrow(taskId);
+        TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
+        if (phaseName != TaskPhaseName.PLANNING) {
+            throw new IllegalArgumentException("Planned dates can only be changed while the task is in the PLANNING phase");
+        }
+        timelineService.updatePlannedDates(taskId, request.getPlannedStart(), request.getPlannedEnd(), updatingUserId);
+        return findFullById(taskId);
+    }
+
     /** Soft-deletes the task; throws if the task has any associated comments. */
     @Transactional
     public void delete(UUID id) {
@@ -371,22 +395,6 @@ public class TaskService {
     private Task getOrThrow(UUID id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task", id));
-    }
-
-    /**
-     * Returns the explicit phaseId if provided, otherwise the project's configured default phase id.
-     * Throws {@link IllegalArgumentException} when neither is available, since phase is mandatory.
-     */
-    private UUID resolvePhaseId(UUID requestedPhaseId, TaskProject project) {
-        if (requestedPhaseId != null) {
-            phaseService.getOrThrow(requestedPhaseId);
-            return requestedPhaseId;
-        }
-        if (project.getDefaultPhaseId() != null) {
-            return project.getDefaultPhaseId();
-        }
-        throw new IllegalArgumentException(
-                "phaseId is required: the project has no default phase configured");
     }
 
     /**

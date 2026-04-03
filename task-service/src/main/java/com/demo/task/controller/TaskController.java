@@ -1,6 +1,7 @@
 package com.demo.task.controller;
 
 import com.demo.common.dto.PageResponse;
+import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskFullResponse;
@@ -168,6 +169,27 @@ public class TaskController {
                                           Authentication authentication) {
         UUID authorId = resolveUserId(authentication);
         return service.addComment(id, request, authorId);
+    }
+
+    /**
+     * Updates the planned start and end dates for the task.
+     * Only allowed while the task is in the PLANNING phase; returns 400 otherwise.
+     */
+    @Operation(summary = "Update planned dates",
+               description = "Atomically sets PLANNED_START and PLANNED_END for a task. "
+                           + "Fails with 400 if the task is not in the PLANNING phase or if plannedStart is not before plannedEnd.")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Planned dates updated"),
+            @ApiResponse(responseCode = ResponseCode.BAD_REQUEST, description = "Task not in PLANNING phase or invalid date ordering"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task not found")
+    })
+    @PutMapping("/{id}/planned-dates")
+    @PreAuthorize("isAuthenticated()")
+    public TaskFullResponse updatePlannedDates(@Parameter(description = "Task UUID") @PathVariable UUID id,
+                                               @RequestBody PlannedDatesRequest request,
+                                               Authentication authentication) {
+        UUID updatingUserId = resolveUserId(authentication);
+        return service.updatePlannedDates(id, updatingUserId, request);
     }
 
     /** Soft-deletes the task identified by {@code id}. */
