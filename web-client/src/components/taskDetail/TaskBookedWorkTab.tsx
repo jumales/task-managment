@@ -3,19 +3,22 @@ import { useTranslation } from 'react-i18next';
 import {
   Button, Divider, InputNumber, List, Popconfirm, Select, Space, Tag, Typography,
 } from 'antd';
-import type { UserResponse, WorkType } from '../../api/types';
+import type { TaskPhaseName, UserResponse, WorkType } from '../../api/types';
 import type { useTaskBookedWork } from '../../hooks/useTaskBookedWork';
 import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
-type Props = ReturnType<typeof useTaskBookedWork> & { users: UserResponse[] };
+type Props = ReturnType<typeof useTaskBookedWork> & {
+  users: UserResponse[];
+  taskPhaseName: TaskPhaseName;
+};
 
-/** Renders the booked-work list and the add/edit form. */
+/** Renders the booked-work list and the add/edit form. Form is hidden in PLANNING phase. */
 export function TaskBookedWorkTab({
   bookedWork, editingBw,
   bwUserId, setBwUserId, bwType, setBwType, bwHours, setBwHours,
   savingBw, deletingBwId,
   startEditing, resetBwForm, handleSaveBookedWork, handleDeleteBookedWork,
-  users,
+  users, taskPhaseName,
 }: Props) {
   const { t } = useTranslation();
 
@@ -63,10 +66,10 @@ export function TaskBookedWorkTab({
         )}
       />
 
-      <Divider orientation="left" style={{ marginTop: 16 }}>
+      {taskPhaseName !== 'PLANNING' && <Divider orientation="left" style={{ marginTop: 16 }}>
         {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
-      </Divider>
-      <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
+      </Divider>}
+      {taskPhaseName !== 'PLANNING' && <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
         <Select
           style={{ width: '100%' }}
           placeholder={t('tasks.selectUser')}
@@ -94,7 +97,7 @@ export function TaskBookedWorkTab({
           </Button>
           {editingBw && <Button onClick={resetBwForm}>{t('common.cancel')}</Button>}
         </Space>
-      </Space>
+      </Space>}
     </>
   );
 }

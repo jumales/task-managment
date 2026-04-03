@@ -2,6 +2,7 @@ package com.demo.task.service;
 
 import com.demo.common.dto.TaskBookedWorkRequest;
 import com.demo.common.dto.TaskBookedWorkResponse;
+import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.ResourceNotFoundException;
@@ -35,17 +36,20 @@ public class TaskBookedWorkService {
 
     private final TaskBookedWorkRepository repository;
     private final TaskRepository taskRepository;
+    private final TaskPhaseService phaseService;
     private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
 
     public TaskBookedWorkService(TaskBookedWorkRepository repository,
                                  TaskRepository taskRepository,
+                                 TaskPhaseService phaseService,
                                  UserClient userClient,
                                  UserClientHelper userClientHelper,
                                  OutboxWriter outboxWriter) {
         this.repository = repository;
         this.taskRepository = taskRepository;
+        this.phaseService = phaseService;
         this.userClient = userClient;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
@@ -60,11 +64,15 @@ public class TaskBookedWorkService {
     /**
      * Creates a new booked-work entry on the task.
      * Validates that both the task and the referenced user exist.
+     * Blocked when the task is in PLANNING phase — use planned work for estimates instead.
      * Publishes a BOOKED_WORK_CREATED audit event.
+     *
+     * @throws IllegalArgumentException if the task is currently in the PLANNING phase
      */
     @Transactional
     public TaskBookedWorkResponse create(UUID taskId, TaskBookedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
+        validateNotPlanningPhase(task);
         UserDto user = userClient.getUserById(request.getUserId());
         TaskBookedWork saved = repository.save(TaskBookedWork.builder()
                 .taskId(taskId)
@@ -81,11 +89,15 @@ public class TaskBookedWorkService {
 
     /**
      * Updates userId, workType, and bookedHours of an existing booked-work entry.
+     * Blocked when the task is in PLANNING phase.
      * Publishes a BOOKED_WORK_UPDATED audit event.
+     *
+     * @throws IllegalArgumentException if the task is currently in the PLANNING phase
      */
     @Transactional
     public TaskBookedWorkResponse update(UUID taskId, UUID bookedWorkId, TaskBookedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
+        validateNotPlanningPhase(task);
         TaskBookedWork entry = getOrThrow(bookedWorkId);
         UserDto user = userClient.getUserById(request.getUserId());
         entry.setUserId(request.getUserId());
@@ -111,6 +123,15 @@ public class TaskBookedWorkService {
         repository.deleteById(bookedWorkId);
         outboxWriter.write(TaskChangedEvent.bookedWorkDeleted(taskId, task.getProjectId(), task.getTitle(),
                 bookedWorkId));
+    }
+
+    /** Throws if the task is currently in the PLANNING phase; booked work requires an active phase. */
+    private void validateNotPlanningPhase(Task task) {
+        TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
+        if (phaseName == TaskPhaseName.PLANNING) {
+            throw new IllegalArgumentException(
+                    "Booked work cannot be entered while the task is in the PLANNING phase");
+        }
     }
 
     private Task getTaskOrThrow(UUID taskId) {
