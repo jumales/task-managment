@@ -20,10 +20,6 @@ public interface TaskTimelineRepository extends JpaRepository<TaskTimeline, UUID
     /** Returns the active timeline entry for a specific task and state, if one exists. */
     Optional<TaskTimeline> findByTaskIdAndState(UUID taskId, TimelineState state);
 
-    //TODO: remove not used method
-    /** Returns true if any active timeline entry exists for the given task and state. */
-    boolean existsByTaskIdAndState(UUID taskId, TimelineState state);
-
     /**
      * Updates PLANNED_START and PLANNED_END timestamps for a task in a single SQL statement.
      * Uses a CASE expression so both states are written atomically without separate selects.

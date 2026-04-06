@@ -11,7 +11,4 @@ public interface TaskBookedWorkRepository extends JpaRepository<TaskBookedWork, 
     /** Returns all active booked-work entries for the given task, ordered by creation time. */
     List<TaskBookedWork> findByTaskIdOrderByCreatedAtAsc(UUID taskId);
 
-    //TODO: remove not used method
-    /** Returns true if any active booked-work entries exist for the given task. */
-    boolean existsByTaskId(UUID taskId);
 }
