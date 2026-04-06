@@ -20,8 +20,8 @@ public class CommentAuditRecord {
     private UUID id;
 
     private UUID taskId;
-    //TODO not assignedUserId. Id of user which created comment
-    private UUID assignedUserId;
+    /** ID of the user who created the comment (not the task assignee). */
+    private UUID commentCreatedByUserId;
     private UUID commentId;
 
     @Column(columnDefinition = "TEXT")

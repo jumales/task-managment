@@ -1,6 +1,6 @@
 package com.demo.audit;
 
-import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.StatusAuditRecord;
 import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
@@ -88,7 +88,7 @@ class AuditConsumerIT {
                         TaskStatus.TODO, TaskStatus.IN_PROGRESS));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            List<StatusAuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(1);
             assertThat(records.get(0).getFromStatus()).isEqualTo(TaskStatus.TODO);
             assertThat(records.get(0).getToStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
@@ -108,7 +108,7 @@ class AuditConsumerIT {
                         TaskStatus.IN_PROGRESS, TaskStatus.DONE));
 
         await().atMost(15, SECONDS).untilAsserted(() -> {
-            List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+            List<StatusAuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
             assertThat(records).hasSize(2);
             assertThat(records.get(0).getToStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
             assertThat(records.get(1).getToStatus()).isEqualTo(TaskStatus.DONE);
