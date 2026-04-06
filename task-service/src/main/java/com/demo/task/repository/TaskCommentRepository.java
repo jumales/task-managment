@@ -16,7 +16,7 @@ public interface TaskCommentRepository extends JpaRepository<TaskComment, UUID> 
     List<TaskComment> findByTaskIdIn(Iterable<UUID> taskIds);
     /** Returns {@code true} if the task has at least one non-deleted comment. */
     boolean existsByTaskId(UUID taskId);
-
+    //TODO: remove all unused methods in this repository
     /** Soft-deletes all comments associated with the given task. */
     @Modifying
     @Query("UPDATE TaskComment tc SET tc.deletedAt = CURRENT_TIMESTAMP WHERE tc.taskId = :taskId AND tc.deletedAt IS NULL")

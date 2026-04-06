@@ -12,6 +12,7 @@ import java.util.UUID;
 
 public interface TaskProjectRepository extends JpaRepository<TaskProject, UUID> {
 
+    //TODO: describe me this method
     /** Fetches the project with a pessimistic write lock for atomic counter increments. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM TaskProject p WHERE p.id = :id")

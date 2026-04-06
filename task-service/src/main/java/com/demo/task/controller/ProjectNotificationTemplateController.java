@@ -35,6 +35,7 @@ public class ProjectNotificationTemplateController {
         this.service = service;
     }
 
+    //TODO: remove this not needed parameter
     /** Returns all available template placeholders that can be used in subject and body templates. */
     @Operation(summary = "List all supported template placeholders",
                description = "Returns every {placeholder} token that the notification engine will substitute at send time.")
@@ -45,6 +46,7 @@ public class ProjectNotificationTemplateController {
         return Arrays.asList(TemplatePlaceholder.values());
     }
 
+    //TODO: method name is confusing
     /** Returns all active notification templates configured for the project. */
     @Operation(summary = "List all notification templates for a project")
     @ApiResponses({

@@ -129,6 +129,7 @@ public class TaskBookedWorkService {
     private void validateNotPlanningPhase(Task task) {
         TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
         if (phaseName == TaskPhaseName.PLANNING) {
+            //TODO: needs to be custom exception BissnissLogicException
             throw new IllegalArgumentException(
                     "Booked work cannot be entered while the task is in the PLANNING phase");
         }

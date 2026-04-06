@@ -14,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+//TODO rename to StatusAuditRecord
 public class AuditRecord {
 
     @Id

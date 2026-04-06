@@ -25,14 +25,18 @@ public class Task {
     @UuidGenerator(style = UuidGenerator.Style.TIME)
     private UUID id;
 
+
     private String title;
     private String description;
+    //TODO: cant be null
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
+    //TODO: cant be null
     @Enumerated(EnumType.STRING)
     private TaskType type;
     /** Completion percentage in the range 0–100. */
     private int progress;
+    //TODO: cant be null
     private UUID assignedUserId;
 
     @Column(name = "project_id", nullable = false)
@@ -41,6 +45,7 @@ public class Task {
     @Column(name = "phase_id", nullable = false)
     private UUID phaseId;
 
+    //TODO: cant be null
     /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1"). */
     @Column(name = "task_code")
     private String taskCode;

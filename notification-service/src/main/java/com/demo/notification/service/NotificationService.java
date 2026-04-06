@@ -33,6 +33,7 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository repository;
+    //TODO remove not used variables
     private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final EmailService emailService;
@@ -127,6 +128,7 @@ public class NotificationService {
      * @return two-element array: [subject, body]
      */
     private String[] buildEmailContent(TaskChangedEvent event, String userName) {
+        //TODO nested code, fix this
         if (event.getProjectId() != null) {
             String[] templated = applyProjectTemplate(event, userName);
             if (templated != null) return templated;

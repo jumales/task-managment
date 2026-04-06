@@ -103,6 +103,7 @@ public class ProjectNotificationTemplateService {
         repository.deleteById(template.getId());
     }
 
+    //TODO: remove not used method
     /** Returns the raw template entity or throws if not found. */
     Optional<ProjectNotificationTemplate> findRaw(UUID projectId, TaskChangeType eventType) {
         return repository.findByProjectIdAndEventType(projectId, eventType);

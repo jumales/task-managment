@@ -34,6 +34,7 @@ public class SecurityConfig {
         this.loggingEntryPoint = loggingEntryPoint;
     }
 
+    //TODO merge comments to one
     /**
      * Configures stateless JWT resource-server security for the reactive gateway.
      * All routes require a valid Bearer token; CSRF is disabled (stateless API).
