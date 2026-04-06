@@ -1,6 +1,6 @@
 package com.demo.e2e;
 
-import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.StatusAuditRecord;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.event.TaskChangedEvent;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ import static org.awaitility.Awaitility.await;
  *
  * <p>Publishes a {@code STATUS_CHANGED} event and asserts that:
  * <ul>
- *   <li>The audit-service consumer persists an {@link AuditRecord} in the database.</li>
+ *   <li>The audit-service consumer persists a {@link StatusAuditRecord} in the database.</li>
  *   <li>{@code GET /api/v1/audit/tasks/{id}/statuses} returns the correct history.</li>
  * </ul>
  */
@@ -38,7 +38,7 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
-        AuditRecord record = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
+        StatusAuditRecord record =auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
         assertThat(record.getTaskId()).isEqualTo(taskId);
         assertThat(record.getAssignedUserId()).isEqualTo(userId);
         assertThat(record.getFromStatus()).isEqualTo(TaskStatus.TODO);
@@ -57,7 +57,7 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(2));
 
-        List<AuditRecord> records = auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
+        List<StatusAuditRecord> records =auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent();
         assertThat(records.get(0).getToStatus()).isEqualTo(TaskStatus.IN_PROGRESS);
         assertThat(records.get(1).getToStatus()).isEqualTo(TaskStatus.DONE);
     }
@@ -70,7 +70,7 @@ class TaskStatusAuditFlowIT extends BaseE2ETest {
         await().atMost(15, SECONDS).untilAsserted(() ->
                 assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1));
 
-        ResponseEntity<List<AuditRecord>> response = restTemplate.exchange(
+        ResponseEntity<List<StatusAuditRecord>> response = restTemplate.exchange(
                 url("/api/v1/audit/tasks/" + taskId + "/statuses"),
                 HttpMethod.GET, null,
                 new ParameterizedTypeReference<>() {});

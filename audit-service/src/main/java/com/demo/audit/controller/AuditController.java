@@ -1,6 +1,6 @@
 package com.demo.audit.controller;
 
-import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.StatusAuditRecord;
 import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
@@ -52,7 +52,7 @@ public class AuditController {
                description = "Returns a paginated page of status transitions for the given task, ordered chronologically.")
     @GetMapping("/tasks/{taskId}/statuses")
     @PreAuthorize("isAuthenticated()")
-    public PageResponse<AuditRecord> getStatusHistory(
+    public PageResponse<StatusAuditRecord> getStatusHistory(
             @Parameter(description = "Task UUID") @PathVariable UUID taskId,
             @PageableDefault(size = 20, sort = "changedAt", direction = Sort.Direction.ASC) Pageable pageable) {
         return toPageResponse(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, pageable));

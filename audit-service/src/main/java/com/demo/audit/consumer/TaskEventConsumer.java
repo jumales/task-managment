@@ -1,6 +1,6 @@
 package com.demo.audit.consumer;
 
-import com.demo.audit.model.AuditRecord;
+import com.demo.audit.model.StatusAuditRecord;
 import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
 import com.demo.audit.model.PhaseAuditRecord;
@@ -63,7 +63,7 @@ public class TaskEventConsumer {
     }
 
     private void persistStatusChange(TaskChangedEvent event) {
-        auditRepository.save(AuditRecord.builder()
+        auditRepository.save(StatusAuditRecord.builder()
                 .taskId(event.getTaskId())
                 .assignedUserId(event.getAssignedUserId())
                 .fromStatus(event.getFromStatus())
@@ -76,7 +76,7 @@ public class TaskEventConsumer {
     private void persistCommentChange(TaskChangedEvent event) {
         commentAuditRepository.save(CommentAuditRecord.builder()
                 .taskId(event.getTaskId())
-                .assignedUserId(event.getAssignedUserId())
+                .commentCreatedByUserId(event.getAssignedUserId())
                 .commentId(event.getCommentId())
                 .content(event.getCommentContent())
                 .addedAt(event.getChangedAt())
@@ -87,7 +87,7 @@ public class TaskEventConsumer {
     private void persistPhaseChange(TaskChangedEvent event) {
         phaseAuditRepository.save(PhaseAuditRecord.builder()
                 .taskId(event.getTaskId())
-                .assignedUserId(event.getAssignedUserId())
+                .changedByUserId(event.getAssignedUserId())
                 .fromPhaseId(event.getFromPhaseId())
                 .fromPhaseName(event.getFromPhaseName())
                 .toPhaseId(event.getToPhaseId())
