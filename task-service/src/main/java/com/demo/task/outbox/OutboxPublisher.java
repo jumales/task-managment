@@ -24,6 +24,8 @@ public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
 
+    //TODO: discus - it's better to create TOPIC for every different action ( status, comment, phase, ... )
+    //TODO: move this public static final on place where used
     /** Kafka topic for task change events (status, comment, phase) — consumed by audit-service. */
     public static final String TOPIC = KafkaTopics.TASK_CHANGED;
 

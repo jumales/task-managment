@@ -182,6 +182,11 @@ export interface TaskPhaseRequest {
   projectId: string;
 }
 
+/** Mirrors com.demo.common.dto.TaskPhaseUpdateRequest */
+export interface TaskPhaseUpdateRequest {
+  phaseId: string;
+}
+
 export interface UserRequest {
   name: string;
   email: string;

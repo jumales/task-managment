@@ -5,7 +5,7 @@ import type {
   TaskResponse, TaskFullResponse, TaskSummaryResponse, TaskRequest,
   TaskCommentResponse,
   TaskProjectResponse, TaskProjectRequest,
-  TaskPhaseResponse, TaskPhaseRequest,
+  TaskPhaseResponse, TaskPhaseRequest, TaskPhaseUpdateRequest,
   TaskPlannedWorkRequest, TaskPlannedWorkResponse,
   TaskBookedWorkRequest, TaskBookedWorkResponse,
   TaskTimelineRequest, TaskTimelineResponse, TimelineState,
@@ -40,6 +40,11 @@ export function createTask(request: TaskRequest) {
 /** Updates an existing task. */
 export function updateTask(id: string, request: TaskRequest) {
   return apiClient.put<TaskResponse>(`${TASKS_URL}/${id}`, request).then((r) => r.data);
+}
+
+/** Changes the phase of a task. Enforces the one-way gate: cannot return to PLANNING once left. */
+export function updateTaskPhase(id: string, request: TaskPhaseUpdateRequest) {
+  return apiClient.patch<TaskResponse>(`${TASKS_URL}/${id}/phase`, request).then((r) => r.data);
 }
 
 /** Soft-deletes a task. */

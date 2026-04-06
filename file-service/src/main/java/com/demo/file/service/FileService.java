@@ -144,6 +144,7 @@ public class FileService {
      * so the logical deletion succeeded regardless.
      */
     private void removeObjectFromMinio(String bucket, String objectKey) {
+        //TODO do this asymc
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(bucket)
@@ -180,6 +181,7 @@ public class FileService {
         }
 
         List<String> allowedTypes = config.getAllowedTypes();
+        //TODO nested code, fix this
         if (!allowedTypes.isEmpty()) {
             String contentType = file.getContentType();
             if (contentType == null || !allowedTypes.contains(contentType)) {

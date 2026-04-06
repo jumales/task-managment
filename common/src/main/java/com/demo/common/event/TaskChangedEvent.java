@@ -27,6 +27,7 @@ import java.util.UUID;
  *   <li>{@link TaskChangeType#BOOKED_WORK_DELETED} — {@code workLogId} is set.</li>
  * </ul>
  */
+//TODO to complex - one class for many things. Break to smaller classes. Wrote first plan
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

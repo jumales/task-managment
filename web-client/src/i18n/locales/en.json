@@ -165,6 +165,8 @@
     "selectPhase": "Select a phase",
     "phaseRequired": "Phase is required",
     "failedLoadPhases": "Failed to load phases",
+    "changePhase": "Change Phase",
+    "failedSavePhase": "Failed to save phase.",
     "plannedEndMustBeAfterStart": "Planned end must be after planned start",
     "endMustBeAfterStart": "End date must be after the start date",
     "startMustBeBeforeEnd": "Start date must be before the end date",

@@ -5,6 +5,7 @@ import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
 import com.demo.common.dto.TaskFullResponse;
+import com.demo.common.dto.TaskPhaseUpdateRequest;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskSummaryResponse;
@@ -39,6 +40,7 @@ public class TaskController {
         this.userClientHelper = userClientHelper;
     }
 
+    //TODO: needs to split into 3 methods - to heavy for maintain
     /**
      * Returns a paginated list of tasks, with optional filtering by user, project, or status.
      * Supports {@code ?page=0&size=20&sort=title,asc} query parameters.
@@ -125,6 +127,26 @@ public class TaskController {
     public TaskResponse update(@Parameter(description = "Task UUID") @PathVariable UUID id,
                                @RequestBody TaskRequest request) {
         return service.update(id, request);
+    }
+
+    /**
+     * Changes the phase of the task identified by {@code id}.
+     * Enforces the one-way gate: a task that has left PLANNING may never return to it.
+     */
+    @Operation(summary = "Change the phase of a task",
+               description = "Updates only the phase field. "
+                           + "Fails with 400 if the phase does not belong to the task's project "
+                           + "or if the request attempts to return a task to the PLANNING phase.")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Phase updated"),
+            @ApiResponse(responseCode = ResponseCode.BAD_REQUEST, description = "Invalid phase transition"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Task or phase not found")
+    })
+    @PatchMapping("/{id}/phase")
+    @PreAuthorize("isAuthenticated()")
+    public TaskResponse updatePhase(@Parameter(description = "Task UUID") @PathVariable UUID id,
+                                    @RequestBody TaskPhaseUpdateRequest request) {
+        return service.updatePhase(id, request.getPhaseId());
     }
 
     /** Returns all comments for the task, ordered by creation time ascending. */

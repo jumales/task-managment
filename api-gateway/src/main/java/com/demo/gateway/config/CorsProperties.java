@@ -11,6 +11,7 @@ import java.util.List;
  */
 @Component
 @ConfigurationProperties(prefix = "cors")
+//TODO use lombok for getter and setter
 public class CorsProperties {
 
     private List<String> allowedOrigins = List.of();

@@ -23,6 +23,7 @@ public class PhaseAuditRecord {
     private UUID id;
 
     private UUID taskId;
+    //TODO not assignedUserId, user who changed phase
     private UUID assignedUserId;
 
     private UUID fromPhaseId;

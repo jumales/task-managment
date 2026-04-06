@@ -128,7 +128,7 @@ public class TaskService {
         TaskBaseData base = fetchBaseData(task);
         // Fetch full user profile; null when no user is assigned or user-service is unavailable.
         UserDto assignedUser = userClientHelper.fetchUser(task.getAssignedUserId());
-
+        //TODO: what is situation if timelines, plannedwork or bookedwork stoped? Will this thread block? Does we need set timeout?
         return new TaskFullResponse(
                 task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
@@ -189,6 +189,7 @@ public class TaskService {
                 .taskCode(taskCode)
                 .build();
         Task saved = repository.save(task);
+        //TODO all three items (creator, assignee, timeline) needs to be done async without blocking thread
         participantService.setCreator(saved.getId(), creatorId);
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         timelineService.createInitialTimelines(saved.getId(), request.getPlannedStart(), request.getPlannedEnd(), creatorId);
@@ -214,28 +215,15 @@ public class TaskService {
         }
     }
 
-    /** Updates the task fields and writes outbox events for any status or phase change. */
+    /** Updates task fields (title, description, status, type, progress, assignee, project). Phase is unchanged — use {@code updatePhase} for that. */
     @Transactional
     public TaskResponse update(UUID id, TaskRequest request) {
         Task task = getOrThrow(id);
 
         TaskStatus oldStatus = task.getStatus();
-        UUID oldPhaseId = task.getPhaseId();
 
         if (!task.getProjectId().equals(request.getProjectId())) {
             projectService.getOrThrow(request.getProjectId());
-        }
-        if (request.getPhaseId() == null) {
-            throw new IllegalArgumentException("phaseId is required");
-        }
-        if (!request.getPhaseId().equals(oldPhaseId)) {
-            phaseService.getOrThrow(request.getPhaseId());
-            // One-way gate: once a task has left PLANNING it may never return.
-            TaskPhaseName currentPhaseName = phaseService.getOrThrow(oldPhaseId).getName();
-            TaskPhaseName newPhaseName = phaseService.getOrThrow(request.getPhaseId()).getName();
-            if (currentPhaseName != TaskPhaseName.PLANNING && newPhaseName == TaskPhaseName.PLANNING) {
-                throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
-            }
         }
 
         task.setTitle(request.getTitle());
@@ -245,11 +233,10 @@ public class TaskService {
         task.setProgress(request.getProgress());
         task.setAssignedUserId(request.getAssignedUserId());
         task.setProjectId(request.getProjectId());
-        task.setPhaseId(request.getPhaseId());
         Task saved = repository.save(task);
 
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
-        publishOutboxEvents(saved, oldStatus, request.getStatus(), oldPhaseId, request.getPhaseId());
+        publishStatusChangedEvent(saved, oldStatus, request.getStatus());
 
         // Publish lifecycle event to task-events topic so search-service keeps its index current.
         TaskProject project = projectService.getOrThrow(saved.getProjectId());
@@ -260,19 +247,47 @@ public class TaskService {
         return toResponse(saved);
     }
 
-    /** Publishes status-changed and phase-changed outbox events when the respective values differ. */
-    private void publishOutboxEvents(Task saved, TaskStatus oldStatus, TaskStatus newStatus,
-                                     UUID oldPhaseId, UUID newPhaseId) {
+    /**
+     * Changes the phase of a task and publishes a PHASE_CHANGED outbox event.
+     * Enforces the one-way gate: a task that has left PLANNING may never return to it.
+     */
+    @Transactional
+    public TaskResponse updatePhase(UUID id, UUID phaseId) {
+        Task task = getOrThrow(id);
+        UUID oldPhaseId = task.getPhaseId();
+
+        TaskPhase currentPhase = phaseService.getOrThrow(oldPhaseId);
+        TaskPhase newPhase     = phaseService.getOrThrow(phaseId);
+
+        // One-way gate: once a task has left PLANNING it may never return.
+        // TODO use equals for comparing strings
+        if (currentPhase.getName() != TaskPhaseName.PLANNING && newPhase.getName() == TaskPhaseName.PLANNING) {
+            throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
+        }
+
+        task.setPhaseId(phaseId);
+        Task saved = repository.save(task);
+
+        outboxWriter.write(TaskChangedEvent.phaseChanged(
+                saved.getId(), saved.getAssignedUserId(), saved.getProjectId(), saved.getTitle(),
+                oldPhaseId, currentPhase.getName().name(),
+                phaseId,    newPhase.getName().name()));
+
+        // Publish lifecycle event so search-service keeps its index current.
+        TaskProject project  = projectService.getOrThrow(saved.getProjectId());
+        String userName      = userClientHelper.resolveUserName(saved.getAssignedUserId());
+        writeTaskLifecycleOutboxEvent(saved, OutboxEventType.TASK_UPDATED,
+                project.getName(), phaseId, userName);
+
+        return toResponse(saved);
+    }
+
+    /** Publishes a STATUS_CHANGED outbox event when the status has actually changed. */
+    private void publishStatusChangedEvent(Task saved, TaskStatus oldStatus, TaskStatus newStatus) {
+        //TODO rewrite on way that outboxWriter isn't in if
         if (newStatus != null && !newStatus.equals(oldStatus)) {
             outboxWriter.write(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
                     saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
-        }
-        if (!Objects.equals(oldPhaseId, newPhaseId)) {
-            // getName() returns TaskPhaseName enum; .name() converts to String for the event payload
-            String oldName = oldPhaseId != null ? phaseService.getOrThrow(oldPhaseId).getName().name() : null;
-            String newName = newPhaseId != null ? phaseService.getOrThrow(newPhaseId).getName().name() : null;
-            outboxWriter.write(TaskChangedEvent.phaseChanged(saved.getId(), saved.getAssignedUserId(),
-                    saved.getProjectId(), saved.getTitle(), oldPhaseId, oldName, newPhaseId, newName));
         }
     }
 
@@ -331,6 +346,7 @@ public class TaskService {
     public TaskFullResponse updatePlannedDates(UUID taskId, UUID updatingUserId, PlannedDatesRequest request) {
         Task task = getOrThrow(taskId);
         TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
+        //TODO use equals for compare
         if (phaseName != TaskPhaseName.PLANNING) {
             throw new IllegalArgumentException("Planned dates can only be changed while the task is in the PLANNING phase");
         }
@@ -412,8 +428,8 @@ public class TaskService {
     private TaskBaseData fetchBaseData(Task task) {
         return new TaskBaseData(
                 participantService.findByTaskId(task.getId()),
-                projectService.toResponse(projectService.getOrThrow(task.getProjectId())),
-                phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId())));
+                projectService.toResponse(projectService.getOrThrow(task.getProjectId())), //TODO make toResponse private. Create response with projectId and return project
+                phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId())));//TODO make toResponse private. Create response with phaseId and return phase
     }
 
     /** Bundles the three sub-fetches that are common to both the standard and full task responses. */
@@ -432,14 +448,17 @@ public class TaskService {
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).collect(Collectors.toSet());
 
+        //TODO: async
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
                 .collect(Collectors.toMap(TaskProject::getId, projectService::toResponse));
 
+        //TODO: async
         Map<UUID, TaskPhaseResponse> phasesById = phaseService.findAllByIds(phaseIds)
                 .stream()
                 .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
 
+        //TODO async
         // Batch-load all participants for these tasks in two queries (DB + user-service batch)
         Map<UUID, List<TaskParticipantResponse>> participantsByTaskId =
                 participantService.findByTaskIds(taskIds);
@@ -453,6 +472,7 @@ public class TaskService {
                 .toList();
     }
 
+    //TODO is used anywhere? If not, delete
     /** Converts a {@link Page} of tasks to a {@link PageResponse} with mapped response DTOs. */
     private PageResponse<TaskResponse> toPageResponse(Page<Task> page) {
         return new PageResponse<>(
@@ -475,18 +495,22 @@ public class TaskService {
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).collect(Collectors.toSet());
         Set<UUID> userIds    = tasks.stream().map(Task::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
 
+        //TODO async
         Map<UUID, TaskProject> projectsById = projectService.findAllByIds(projectIds).stream()
                 .collect(Collectors.toMap(TaskProject::getId, p -> p));
 
+        //TODO async
         Map<UUID, TaskPhase> phasesById = phaseService.findAllByIds(phaseIds).stream()
                 .collect(Collectors.toMap(TaskPhase::getId, p -> p));
 
+        //TODO async
         Map<UUID, String> userNamesById = userIds.isEmpty() ? Map.of() :
                 userClientHelper.fetchUserNames(userIds);
 
         return tasks.stream().map(task -> {
             TaskProject project = projectsById.get(task.getProjectId());
             TaskPhase phase = phasesById.get(task.getPhaseId());
+            //TODO use builder pattern
             return new TaskSummaryResponse(
                     task.getId(),
                     task.getTaskCode(),

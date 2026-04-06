@@ -165,6 +165,8 @@
     "selectPhase": "Odaberi fazu",
     "phaseRequired": "Faza je obavezna",
     "failedLoadPhases": "Neuspješno učitavanje faza",
+    "changePhase": "Promijeni fazu",
+    "failedSavePhase": "Neuspješno spremanje faze.",
     "plannedEndMustBeAfterStart": "Planirani završetak mora biti nakon planiranog početka",
     "endMustBeAfterStart": "Datum završetka mora biti nakon datuma početka",
     "startMustBeBeforeEnd": "Datum početka mora biti prije datuma završetka",

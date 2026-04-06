@@ -20,6 +20,7 @@ public class CommentAuditRecord {
     private UUID id;
 
     private UUID taskId;
+    //TODO not assignedUserId. Id of user which created comment
     private UUID assignedUserId;
     private UUID commentId;
 

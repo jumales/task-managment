@@ -60,5 +60,5 @@ export function useTaskDetailData(taskId: string | undefined) {
       .finally(() => setLoading(false));
   }, [taskId]);
 
-  return { data, loading, error };
+  return { data, setData, loading, error };
 }

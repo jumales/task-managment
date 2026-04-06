@@ -21,7 +21,7 @@ public class RateLimiterConfig {
     @Bean
     public KeyResolver principalKeyResolver() {
         return exchange -> exchange.getPrincipal()
-                .map(principal -> principal.getName())
+                .map(principal -> principal.getName())//TODO replace lambda with method reference
                 .defaultIfEmpty("anonymous");
     }
 }

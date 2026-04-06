@@ -15,6 +15,7 @@ public interface TaskPlannedWorkRepository extends JpaRepository<TaskPlannedWork
     /** Returns true if a planned-work entry already exists for the given task and work type. */
     boolean existsByTaskIdAndWorkType(UUID taskId, WorkType workType);
 
+    //TODO: remove unused method
     /** Returns true if any planned-work entries exist for the given task. */
     boolean existsByTaskId(UUID taskId);
 }

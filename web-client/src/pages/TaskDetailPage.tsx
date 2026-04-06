@@ -8,7 +8,9 @@ import { useTaskPlannedWork }  from '../hooks/useTaskPlannedWork';
 import { useTaskBookedWork }   from '../hooks/useTaskBookedWork';
 import { useTaskParticipants } from '../hooks/useTaskParticipants';
 import { useTaskComments }     from '../hooks/useTaskComments';
-import { TaskOverviewCard }    from '../components/taskDetail/TaskOverviewCard';
+import { useTaskPhaseChange }  from '../hooks/useTaskPhaseChange';
+import { TaskOverviewCard }      from '../components/taskDetail/TaskOverviewCard';
+import { TaskPhaseChangeModal }  from '../components/taskDetail/TaskPhaseChangeModal';
 import { TaskTimelineTab }     from '../components/taskDetail/TaskTimelineTab';
 import { TaskPlannedWorkTab }  from '../components/taskDetail/TaskPlannedWorkTab';
 import { TaskBookedWorkTab }   from '../components/taskDetail/TaskBookedWorkTab';
@@ -21,7 +23,11 @@ export function TaskDetailPage() {
   const navigate = useNavigate();
   const { t }    = useTranslation();
 
-  const { data, loading, error } = useTaskDetailData(id);
+  const { data, setData, loading, error } = useTaskDetailData(id);
+
+  const phaseChange = useTaskPhaseChange(id, data?.task ?? null, (updated) => {
+    setData((prev) => (prev ? { ...prev, task: updated } : null));
+  });
 
   const timeline     = useTaskTimeline(id,     data?.timelines    ?? []);
   const plannedWork  = useTaskPlannedWork(id,  data?.plannedWork  ?? []);
@@ -43,7 +49,18 @@ export function TaskDetailPage() {
         {t('tasks.backToTasks')}
       </Button>
 
-      <TaskOverviewCard task={data.task} />
+      <TaskOverviewCard task={data.task} onChangePhase={phaseChange.openModal} />
+      <TaskPhaseChangeModal
+        open={phaseChange.open}
+        onClose={() => phaseChange.setOpen(false)}
+        phases={phaseChange.phases}
+        loadingPhases={phaseChange.loadingPhases}
+        selectedPhaseId={phaseChange.selectedPhaseId}
+        onSelectPhase={phaseChange.setSelectedPhaseId}
+        saving={phaseChange.saving}
+        onSave={phaseChange.handleSave}
+        error={phaseChange.error}
+      />
 
       <Tabs
         items={[

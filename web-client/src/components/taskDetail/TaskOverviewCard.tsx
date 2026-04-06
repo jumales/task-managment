@@ -1,16 +1,18 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, Descriptions, Progress, Space, Tag, Typography } from 'antd';
+import { Button, Card, Descriptions, Progress, Space, Tag, Typography } from 'antd';
+import { SwapOutlined } from '@ant-design/icons';
 import type { TaskResponse } from '../../api/types';
 import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 import { resolvePhaseLabel } from '../../utils/phaseUtils';
 
 interface Props {
-  task: TaskResponse;
+  task:            TaskResponse;
+  onChangePhase?:  () => void;
 }
 
 /** Renders the task overview card: title, status/type tags, and key metadata fields. */
-export function TaskOverviewCard({ task }: Props) {
+export function TaskOverviewCard({ task, onChangePhase }: Props) {
   const { t } = useTranslation();
 
   const typeLabels = useMemo(() => getTypeLabels(t), [t]);
@@ -35,7 +37,20 @@ export function TaskOverviewCard({ task }: Props) {
           {task.project?.name ?? '—'}
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.phase')}>
-          {resolvePhaseLabel(task.phase)}
+          <Space>
+            {resolvePhaseLabel(task.phase)}
+            {onChangePhase && (
+              <Button
+                type="link"
+                size="small"
+                icon={<SwapOutlined />}
+                onClick={onChangePhase}
+                style={{ padding: 0, height: 'auto' }}
+              >
+                {t('tasks.changePhase')}
+              </Button>
+            )}
+          </Space>
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.assignedTo')}>
           {assignedUser?.userName ?? assignedUser?.userId ?? '—'}

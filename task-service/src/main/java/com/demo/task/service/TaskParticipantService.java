@@ -118,6 +118,7 @@ public class TaskParticipantService {
     public void setAssignee(UUID taskId, UUID userId) {
         if (userId == null) return;
         // Remove existing ASSIGNEE if present
+        //TODO: refactor - create method which delete participant by role and taskId
         repository.findByTaskId(taskId).stream()
                 .filter(p -> p.getRole() == TaskParticipantRole.ASSIGNEE)
                 .forEach(p -> repository.deleteById(p.getId()));
