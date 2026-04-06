@@ -180,15 +180,17 @@ public class FileService {
                     file.getSize(), config.getMaxSizeBytes()));
         }
 
-        List<String> allowedTypes = config.getAllowedTypes();
-        //TODO nested code, fix this
-        if (!allowedTypes.isEmpty()) {
-            String contentType = file.getContentType();
-            if (contentType == null || !allowedTypes.contains(contentType)) {
-                throw new IllegalArgumentException(String.format(
-                        "Content type '%s' is not allowed. Accepted types: %s",
-                        contentType, allowedTypes));
-            }
+        validateContentType(file, config.getAllowedTypes());
+    }
+
+    /** Throws if the file's content type is not in the allowed list; no-op when the list is empty (all types accepted). */
+    private void validateContentType(MultipartFile file, List<String> allowedTypes) {
+        if (allowedTypes.isEmpty()) return;
+        String contentType = file.getContentType();
+        if (contentType == null || !allowedTypes.contains(contentType)) {
+            throw new IllegalArgumentException(String.format(
+                    "Content type '%s' is not allowed. Accepted types: %s",
+                    contentType, allowedTypes));
         }
     }
 
