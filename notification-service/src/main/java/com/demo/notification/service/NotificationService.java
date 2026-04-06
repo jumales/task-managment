@@ -123,10 +123,9 @@ public class NotificationService {
      * @return two-element array: [subject, body]
      */
     private String[] buildEmailContent(TaskChangedEvent event, String userName) {
-        if (event.getProjectId() != null) {
-            String[] templated = applyProjectTemplate(event, userName);
-            if (templated != null) return templated;
-        }
+        if (event.getProjectId() == null) return buildDefaultContent(event);
+        String[] templated = applyProjectTemplate(event, userName);
+        if (templated != null) return templated;
         return buildDefaultContent(event);
     }
 
