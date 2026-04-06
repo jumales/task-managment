@@ -5,6 +5,7 @@ import com.demo.common.dto.TaskBookedWorkResponse;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
+import com.demo.common.dto.TaskPhaseUpdateRequest;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -135,14 +136,10 @@ class TaskBookedWorkControllerIT {
                 .getBody().getId().toString();
 
         // Tasks always start in PLANNING; move to BACKLOG so booked-work operations are allowed in all other tests.
-        TaskRequest promoteReq = new TaskRequest();
-        promoteReq.setTitle("Sample Task");
-        promoteReq.setStatus(TaskStatus.TODO);
-        promoteReq.setAssignedUserId(ALICE_ID);
-        promoteReq.setProjectId(projectId);
-        promoteReq.setPhaseId(phaseId);
-        restTemplate.exchange("/api/v1/tasks/" + taskId, HttpMethod.PUT,
-                new HttpEntity<>(promoteReq), TaskResponse.class);
+        TaskPhaseUpdateRequest phaseUpdateReq = new TaskPhaseUpdateRequest();
+        phaseUpdateReq.setPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/phase", HttpMethod.PATCH,
+                new HttpEntity<>(phaseUpdateReq), TaskResponse.class);
     }
 
     // ── GET /api/v1/tasks/{taskId}/booked-work ───────────────────────────────
