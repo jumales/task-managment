@@ -4,7 +4,6 @@ import com.demo.common.dto.ProjectNotificationTemplateResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.notification.client.TaskServiceClient;
-import com.demo.notification.client.UserClient;
 import com.demo.notification.client.UserClientHelper;
 import com.demo.common.dto.PageResponse;
 import com.demo.notification.dto.NotificationResponse;
@@ -33,8 +32,6 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository repository;
-    //TODO remove not used variables
-    private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final EmailService emailService;
     private final TaskServiceClient taskServiceClient;
@@ -43,13 +40,11 @@ public class NotificationService {
     private final String frontendUrl;
 
     public NotificationService(NotificationRepository repository,
-                                UserClient userClient,
                                 UserClientHelper userClientHelper,
                                 EmailService emailService,
                                 TaskServiceClient taskServiceClient,
                                 @Value("${app.frontend-url}") String frontendUrl) {
         this.repository = repository;
-        this.userClient = userClient;
         this.userClientHelper = userClientHelper;
         this.emailService = emailService;
         this.taskServiceClient = taskServiceClient;
@@ -128,7 +123,6 @@ public class NotificationService {
      * @return two-element array: [subject, body]
      */
     private String[] buildEmailContent(TaskChangedEvent event, String userName) {
-        //TODO nested code, fix this
         if (event.getProjectId() != null) {
             String[] templated = applyProjectTemplate(event, userName);
             if (templated != null) return templated;
