@@ -30,7 +30,7 @@ public class TaskComment {
     @Column(name = "task_id", nullable = false)
     private UUID taskId;
 
-    /** User who wrote the comment; nullable for legacy rows created before this column existed. */
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
     @Column(columnDefinition = "TEXT", nullable = false)
