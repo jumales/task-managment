@@ -8,6 +8,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangeType;
 import com.demo.task.client.UserClient;
@@ -230,6 +231,7 @@ class TaskStatusKafkaIT {
         // Use planningPhaseId so updates keep the task in PLANNING, preventing phase-change outbox events
         // from interfering with status-change outbox event assertions.
         req.setPhaseId(planningPhaseId);
+        req.setType(TaskType.FEATURE);
         req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return req;
