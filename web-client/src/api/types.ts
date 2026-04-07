@@ -275,6 +275,33 @@ export interface TaskTimelineRequest {
   timestamp: string;
 }
 
+/** Mirrors com.demo.common.dto.TaskAttachmentRequest */
+export interface TaskAttachmentRequest {
+  fileId: string;
+  fileName: string;
+  contentType: string;
+}
+
+/** Mirrors com.demo.common.dto.TaskAttachmentResponse */
+export interface TaskAttachmentResponse {
+  id: string;
+  fileId: string;
+  fileName: string;
+  contentType: string;
+  uploadedByUserId: string;
+  uploadedByUserName: string;
+  /** ISO 8601 instant string. */
+  uploadedAt: string;
+}
+
+/** Mirrors com.demo.common.dto.FileUploadResponse */
+export interface FileUploadResponse {
+  fileId: string;
+  bucket: string;
+  objectKey: string;
+  contentType: string;
+}
+
 /** Mirrors com.demo.common.event.TaskChangeType */
 export type TaskChangeType =
   | 'TASK_CREATED'
@@ -284,7 +311,9 @@ export type TaskChangeType =
   | 'PLANNED_WORK_CREATED'
   | 'BOOKED_WORK_CREATED'
   | 'BOOKED_WORK_UPDATED'
-  | 'BOOKED_WORK_DELETED';
+  | 'BOOKED_WORK_DELETED'
+  | 'ATTACHMENT_ADDED'
+  | 'ATTACHMENT_DELETED';
 
 /** Mirrors com.demo.common.dto.TemplatePlaceholder */
 export interface TemplatePlaceholder {

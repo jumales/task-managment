@@ -8,14 +8,16 @@ import { useTaskPlannedWork }  from '../hooks/useTaskPlannedWork';
 import { useTaskBookedWork }   from '../hooks/useTaskBookedWork';
 import { useTaskParticipants } from '../hooks/useTaskParticipants';
 import { useTaskComments }     from '../hooks/useTaskComments';
-import { useTaskPhaseChange }  from '../hooks/useTaskPhaseChange';
+import { useTaskPhaseChange }    from '../hooks/useTaskPhaseChange';
+import { useTaskAttachments }    from '../hooks/useTaskAttachments';
 import { TaskOverviewCard }      from '../components/taskDetail/TaskOverviewCard';
 import { TaskPhaseChangeModal }  from '../components/taskDetail/TaskPhaseChangeModal';
-import { TaskTimelineTab }     from '../components/taskDetail/TaskTimelineTab';
-import { TaskPlannedWorkTab }  from '../components/taskDetail/TaskPlannedWorkTab';
-import { TaskBookedWorkTab }   from '../components/taskDetail/TaskBookedWorkTab';
-import { TaskParticipantsTab } from '../components/taskDetail/TaskParticipantsTab';
-import { TaskCommentsTab }     from '../components/taskDetail/TaskCommentsTab';
+import { TaskTimelineTab }       from '../components/taskDetail/TaskTimelineTab';
+import { TaskPlannedWorkTab }    from '../components/taskDetail/TaskPlannedWorkTab';
+import { TaskBookedWorkTab }     from '../components/taskDetail/TaskBookedWorkTab';
+import { TaskParticipantsTab }   from '../components/taskDetail/TaskParticipantsTab';
+import { TaskCommentsTab }       from '../components/taskDetail/TaskCommentsTab';
+import { TaskAttachmentsTab }    from '../components/taskDetail/TaskAttachmentsTab';
 
 /** Full-page view for a single task: overview, timeline, work logs, participants, and comments. */
 export function TaskDetailPage() {
@@ -29,11 +31,12 @@ export function TaskDetailPage() {
     setData((prev) => (prev ? { ...prev, task: updated } : null));
   });
 
-  const timeline     = useTaskTimeline(id,     data?.timelines    ?? []);
-  const plannedWork  = useTaskPlannedWork(id,  data?.plannedWork  ?? []);
-  const bookedWork   = useTaskBookedWork(id,   data?.bookedWork   ?? []);
-  const participants = useTaskParticipants(id, data?.participants ?? []);
-  const comments     = useTaskComments(id,     data?.comments     ?? []);
+  const timeline     = useTaskTimeline(id,      data?.timelines    ?? []);
+  const plannedWork  = useTaskPlannedWork(id,   data?.plannedWork  ?? []);
+  const bookedWork   = useTaskBookedWork(id,    data?.bookedWork   ?? []);
+  const participants = useTaskParticipants(id,  data?.participants ?? []);
+  const comments     = useTaskComments(id,      data?.comments     ?? []);
+  const attachments  = useTaskAttachments(id,   data?.attachments  ?? []);
 
   if (loading) return <div style={{ textAlign: 'center', marginTop: 80 }}><Spin size="large" /></div>;
   if (error)   return <Alert type="error" message={error} style={{ margin: 24 }} />;
@@ -69,6 +72,7 @@ export function TaskDetailPage() {
           { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} /> },
           { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
           { key: 'comments',     label: t('tasks.comments'),     children: <TaskCommentsTab     {...comments} /> },
+          { key: 'attachments',  label: t('tasks.attachments'),  children: <TaskAttachmentsTab  {...attachments} /> },
         ]}
       />
     </div>
