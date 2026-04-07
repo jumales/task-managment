@@ -41,7 +41,7 @@ class TaskCommentAuditFlowIT extends BaseE2ETest {
 
         CommentAuditRecord record = commentAuditRepository.findByTaskIdOrderByAddedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
         assertThat(record.getTaskId()).isEqualTo(taskId);
-        assertThat(record.getAssignedUserId()).isEqualTo(userId);
+        assertThat(record.getCommentCreatedByUserId()).isEqualTo(userId);
         assertThat(record.getCommentId()).isEqualTo(commentId);
         assertThat(record.getContent()).isEqualTo("First comment");
         assertThat(record.getAddedAt()).isNotNull();
