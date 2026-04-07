@@ -1,6 +1,7 @@
 package com.demo.common.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.util.UUID;
@@ -11,6 +12,7 @@ import java.util.UUID;
  * the N+1 participant load that {@link TaskResponse} requires for individual task fetches.
  */
 @Getter
+@Builder
 @AllArgsConstructor
 public class TaskSummaryResponse {
     private UUID id;
