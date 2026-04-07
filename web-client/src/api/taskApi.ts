@@ -11,6 +11,7 @@ import type {
   TaskTimelineRequest, TaskTimelineResponse, TimelineState,
   ProjectNotificationTemplateResponse, ProjectNotificationTemplateRequest,
   TemplatePlaceholder, TaskChangeType,
+  TaskAttachmentRequest, TaskAttachmentResponse, FileUploadResponse,
 } from './types';
 
 const TASKS_URL    = '/api/v1/tasks';
@@ -180,4 +181,26 @@ export function upsertNotificationTemplate(projectId: string, eventType: TaskCha
 /** Soft-deletes the notification template for a project + event type. */
 export function deleteNotificationTemplate(projectId: string, eventType: TaskChangeType) {
   return apiClient.delete(`${PROJECTS_URL}/${projectId}/notification-templates/${eventType}`);
+}
+
+/** Uploads a file to the attachments bucket in file-service and returns its metadata. */
+export function uploadFile(file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return apiClient.post<FileUploadResponse>('/api/v1/files/attachments', form).then((r) => r.data);
+}
+
+/** Fetches all attachments for a task, ordered by upload time. */
+export function getAttachments(taskId: string) {
+  return apiClient.get<TaskAttachmentResponse[]>(`${TASKS_URL}/${taskId}/attachments`).then((r) => r.data);
+}
+
+/** Registers an already-uploaded file as a task attachment. */
+export function addAttachment(taskId: string, request: TaskAttachmentRequest) {
+  return apiClient.post<TaskAttachmentResponse>(`${TASKS_URL}/${taskId}/attachments`, request).then((r) => r.data);
+}
+
+/** Permanently deletes the attachment record and removes the file from storage. */
+export function deleteAttachment(taskId: string, attachmentId: string) {
+  return apiClient.delete(`${TASKS_URL}/${taskId}/attachments/${attachmentId}`);
 }

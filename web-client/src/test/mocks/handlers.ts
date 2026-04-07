@@ -80,6 +80,7 @@ export const mockTaskSummary: TaskSummaryResponse = {
   projectName: 'Alpha Project',
   phaseId: 'phase-1',
   phaseName: 'TODO',
+  taskCode: 'ALPHA-1',
 };
 
 export const mockAuditRecord: AuditRecord = {

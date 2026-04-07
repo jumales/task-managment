@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getTask, getTimelines, getPlannedWork, getBookedWork, getParticipants, getTaskComments } from '../api/taskApi';
+import { getTask, getTimelines, getPlannedWork, getBookedWork, getParticipants, getTaskComments, getAttachments } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import type {
   TaskResponse,
@@ -9,6 +9,7 @@ import type {
   TaskBookedWorkResponse,
   TaskParticipantResponse,
   TaskCommentResponse,
+  TaskAttachmentResponse,
 } from '../api/types';
 
 export interface TaskDetailData {
@@ -19,6 +20,7 @@ export interface TaskDetailData {
   bookedWork:   TaskBookedWorkResponse[];
   participants: TaskParticipantResponse[];
   comments:     TaskCommentResponse[];
+  attachments:  TaskAttachmentResponse[];
 }
 
 /**
@@ -42,8 +44,9 @@ export function useTaskDetailData(taskId: string | undefined) {
       getBookedWork(taskId),
       getParticipants(taskId),
       getTaskComments(taskId),
+      getAttachments(taskId),
     ])
-      .then(([task, usersPage, timelines, plannedWork, bookedWork, participants, comments]) => {
+      .then(([task, usersPage, timelines, plannedWork, bookedWork, participants, comments, attachments]) => {
         setData({
           task,
           users:        usersPage.content,
@@ -52,6 +55,7 @@ export function useTaskDetailData(taskId: string | undefined) {
           bookedWork,
           participants,
           comments,
+          attachments,
         });
       })
       .catch((err: unknown) => {

@@ -43,7 +43,7 @@ class TaskPhaseAuditFlowIT extends BaseE2ETest {
 
         PhaseAuditRecord record = phaseAuditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent().get(0);
         assertThat(record.getTaskId()).isEqualTo(taskId);
-        assertThat(record.getAssignedUserId()).isEqualTo(userId);
+        assertThat(record.getChangedByUserId()).isEqualTo(userId);
         assertThat(record.getFromPhaseId()).isEqualTo(fromPhaseId);
         assertThat(record.getFromPhaseName()).isEqualTo("Backlog");
         assertThat(record.getToPhaseId()).isEqualTo(toPhaseId);

@@ -9,9 +9,9 @@ CREATE TABLE audit_records (
 );
 
 CREATE TABLE comment_audit_records (
-    id                        UUID                     PRIMARY KEY,
-    task_id                   UUID                     NOT NULL,
-    comment_created_by_user_id UUID,
+    id               UUID                     PRIMARY KEY,
+    task_id          UUID                     NOT NULL,
+    assigned_user_id UUID,
     comment_id       UUID                     NOT NULL,
     content          TEXT,
     added_at         TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -19,9 +19,9 @@ CREATE TABLE comment_audit_records (
 );
 
 CREATE TABLE phase_audit_records (
-    id                UUID                     PRIMARY KEY,
-    task_id           UUID                     NOT NULL,
-    changed_by_user_id UUID,
+    id               UUID                     PRIMARY KEY,
+    task_id          UUID                     NOT NULL,
+    assigned_user_id UUID,
     from_phase_id    UUID,
     from_phase_name  VARCHAR(255),
     to_phase_id      UUID                     NOT NULL,
