@@ -33,15 +33,21 @@ public class UserClientHelper {
     }
 
     /**
-     * Resolves the authenticated user's UUID from the Spring Security {@link Authentication}.
-     * For JWT tokens, looks up the user by the {@code preferred_username} claim.
+     * Resolves the authenticated user's Keycloak UUID from the Spring Security {@link Authentication}.
+     * For JWT tokens, reads the {@code sub} claim directly — it IS the Keycloak user UUID,
+     * so no user-service call is required.
      * For non-JWT authentication (e.g. integration tests), attempts to parse the principal name as a UUID.
-     * Returns {@code null} if resolution fails or user-service is unavailable.
+     * Returns {@code null} if resolution fails.
      */
     public UUID resolveUserId(Authentication authentication) {
         if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            String username = jwtAuth.getToken().getClaimAsString("preferred_username");
-            return resolveUserIdByUsername(username);
+            // sub claim == Keycloak UUID (same value stored as assigned_user_id in task DB)
+            String sub = jwtAuth.getToken().getSubject();
+            try {
+                return UUID.fromString(sub);
+            } catch (IllegalArgumentException | NullPointerException e) {
+                return null;
+            }
         }
         // Non-JWT path: principal name is already a UUID string (used in integration tests)
         try {
@@ -53,9 +59,12 @@ public class UserClientHelper {
 
     /**
      * Resolves the user-service UUID for the given Keycloak preferred_username.
-     * Cached to avoid repeated remote calls on every task creation.
-     * Returns {@code null} if the username is not found or user-service is unavailable.
+     *
+     * @deprecated No longer called from within this service — Keycloak UUIDs are resolved
+     *             directly from the JWT {@code sub} claim via {@link #resolveUserId}.
+     *             Kept for backwards-compatible tooling or manual Postman lookups.
      */
+    @Deprecated
     @Cacheable(value = CacheConfig.USER_NAMES, key = "'username:' + #username", unless = "#result == null")
     @CircuitBreaker(name = "userService", fallbackMethod = "resolveUserIdByUsernameFallback")
     public UUID resolveUserIdByUsername(String username) {
