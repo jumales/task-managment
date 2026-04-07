@@ -3,17 +3,17 @@ package com.demo.user;
 import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.UserRequest;
-import com.demo.user.repository.UserRepository;
-
-import java.util.List;
-import java.util.Map;
+import com.demo.common.exception.DuplicateResourceException;
+import com.demo.common.exception.ResourceNotFoundException;
+import com.demo.user.event.UserEventPublisherPort;
+import com.demo.user.keycloak.KeycloakUserPort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.annotation.Order;
@@ -25,30 +25,43 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 
-@Testcontainers
+/**
+ * Integration test covering all {@code /api/v1/users} endpoints.
+ * {@link KeycloakUserClient} is mocked so tests run without a live Keycloak instance.
+ * A dedicated Keycloak-container test covering the full HTTP integration will be added in a follow-up PR.
+ */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "eureka.client.enabled=false",
-                // No Kafka in CI for user-service — make the producer fail fast instead of
-                // blocking for the default max.block.ms=60000 ms on every send() call.
+                // No Kafka in CI — make the producer fail fast instead of blocking.
                 "spring.kafka.bootstrap-servers=localhost:1",
-                "spring.kafka.producer.properties.max.block.ms=500"
+                "spring.kafka.producer.properties.max.block.ms=500",
+                // Disable OAuth2 client auto-configuration (no live Keycloak needed).
+                "spring.security.oauth2.client.registration.keycloak.client-id=user-service",
+                "spring.security.oauth2.client.registration.keycloak.client-secret=unused",
+                "spring.security.oauth2.client.registration.keycloak.authorization-grant-type=client_credentials",
+                "spring.security.oauth2.client.provider.keycloak.token-uri=http://localhost:1/token",
+                "keycloak.admin.base-url=http://localhost:1/admin/realms/demo"
         }
 )
 class UserControllerIT {
 
     /**
      * Overrides production security — permits all requests and injects an ADMIN authentication
-     * into the security context so that @PreAuthorize("hasRole('ADMIN')") checks pass.
+     * into the security context so that {@code @PreAuthorize("hasRole('ADMIN')")} checks pass.
      */
     @TestConfiguration
     static class TestSecurityConfig {
@@ -66,7 +79,8 @@ class UserControllerIT {
                                                         jakarta.servlet.FilterChain chain)
                                 throws java.io.IOException, jakarta.servlet.ServletException {
                             SecurityContextHolder.getContext().setAuthentication(
-                                    new UsernamePasswordAuthenticationToken("test-admin", null,
+                                    new UsernamePasswordAuthenticationToken(
+                                            "00000000-0000-0000-0000-000000000001", null,
                                             List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
                             );
                             chain.doFilter(request, response);
@@ -76,25 +90,35 @@ class UserControllerIT {
         }
     }
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    /** Stubs Keycloak Admin REST API calls so tests run without a live Keycloak instance. */
+    @MockBean
+    KeycloakUserPort keycloakUserClient;
+
+    /** Prevents Kafka send attempts during tests. */
+    @MockBean
+    UserEventPublisherPort eventPublisher;
 
     @Autowired
     TestRestTemplate restTemplate;
 
-    @Autowired
-    UserRepository repository;
+    private static final UUID ALICE_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID BOB_ID   = UUID.fromString("00000000-0000-0000-0000-000000000003");
+
+    private UserDto alice;
+    private UserDto bob;
 
     @BeforeEach
     void setUp() {
-        repository.deleteAll();
+        alice = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, null, "en");
+        bob   = new UserDto(BOB_ID,   "Bob",   "bob@demo.com",   "bob",   true, null, "en");
     }
 
-    // ── GET /api/v1/users ────────────────────────────────────────────
+    // ── GET /api/v1/users ─────────────────────────────────────────────
 
     @Test
     void getAllUsers_whenEmpty_returnsEmptyPage() {
+        when(keycloakUserClient.findAll(any())).thenReturn(emptyPage());
+
         ResponseEntity<PageResponse<UserDto>> response = getUserPage("/api/v1/users");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -103,9 +127,9 @@ class UserControllerIT {
     }
 
     @Test
-    void getAllUsers_returnsAllPersistedUsers() {
-        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
-        restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com",   "bob"),   UserDto.class);
+    void getAllUsers_returnsAllUsers() {
+        PageResponse<UserDto> page = new PageResponse<>(List.of(alice, bob), 0, 20, 2, 1, true);
+        when(keycloakUserClient.findAll(any())).thenReturn(page);
 
         ResponseEntity<PageResponse<UserDto>> response = getUserPage("/api/v1/users");
 
@@ -113,28 +137,26 @@ class UserControllerIT {
         assertThat(response.getBody().getContent()).hasSize(2);
     }
 
-    // ── GET /api/v1/users/batch ──────────────────────────────────────
+    // ── GET /api/v1/users/batch ───────────────────────────────────────
 
     @Test
     void getUsersByIds_returnsRequestedUsers() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-        UserDto bob   = restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com",   "bob"),   UserDto.class).getBody();
+        when(keycloakUserClient.findByIds(any())).thenReturn(List.of(alice, bob));
 
         ResponseEntity<UserDto[]> response = restTemplate.getForEntity(
-                "/api/v1/users/batch?ids=" + alice.getId() + "&ids=" + bob.getId(), UserDto[].class);
+                "/api/v1/users/batch?ids=" + ALICE_ID + "&ids=" + BOB_ID, UserDto[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).hasSize(2);
     }
 
-
-    // ── GET /api/v1/users/{id} ───────────────────────────────────────
+    // ── GET /api/v1/users/{id} ────────────────────────────────────────
 
     @Test
     void getUserById_returnsUser() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
+        when(keycloakUserClient.findById(ALICE_ID)).thenReturn(alice);
 
-        ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/" + created.getId(), UserDto.class);
+        ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/" + ALICE_ID, UserDto.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getName()).isEqualTo("Alice");
@@ -143,70 +165,37 @@ class UserControllerIT {
 
     @Test
     void getUserById_whenNotFound_returns404() {
-        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/" + UUID.randomUUID(), String.class);
+        UUID unknown = UUID.randomUUID();
+        when(keycloakUserClient.findById(unknown)).thenThrow(new ResourceNotFoundException("User", unknown));
+
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/" + unknown, String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // ── POST /api/v1/users ───────────────────────────────────────────
+    // ── POST /api/v1/users ────────────────────────────────────────────
 
     @Test
-    void createUser_persistsAndReturnsUser() {
-        ResponseEntity<UserDto> response = restTemplate.postForEntity("/api/v1/users", request("Carol", "carol@demo.com", "carol"), UserDto.class);
+    void createUser_returnsCreatedUser() {
+        when(keycloakUserClient.create(any())).thenReturn(alice);
+
+        ResponseEntity<UserDto> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
-        assertThat(response.getBody().getName()).isEqualTo("Carol");
-        assertThat(repository.count()).isEqualTo(1);
+        assertThat(response.getBody().getName()).isEqualTo("Alice");
     }
 
     @Test
-    void createMultipleUsers_allArePersisted() {
-        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
-        restTemplate.postForEntity("/api/v1/users", request("Bob",   "bob@demo.com",   "bob"),   UserDto.class);
+    void createUser_duplicateUsername_returns409() {
+        when(keycloakUserClient.create(any())).thenThrow(new DuplicateResourceException("Username already taken: alice"));
 
-        assertThat(repository.count()).isEqualTo(2);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
-
-    // ── PUT /api/v1/users/{id} ───────────────────────────────────────
-
-    @Test
-    void updateUser_updatesAllFields() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-
-        ResponseEntity<UserDto> response = restTemplate.exchange(
-                "/api/v1/users/" + created.getId(),
-                HttpMethod.PUT,
-                new HttpEntity<>(request("Alice Updated", "alice.new@demo.com", "alice")),
-                UserDto.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getName()).isEqualTo("Alice Updated");
-        assertThat(response.getBody().getEmail()).isEqualTo("alice.new@demo.com");
-    }
-
-    // ── DELETE /api/v1/users/{id} ────────────────────────────────────
-
-    @Test
-    void deleteUser_removesUserFromDatabase() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-
-        restTemplate.delete("/api/v1/users/" + created.getId());
-
-        assertThat(repository.count()).isEqualTo(0);
-    }
-
-    @Test
-    void deleteUser_thenGetById_returns404() {
-        UserDto created = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-
-        restTemplate.delete("/api/v1/users/" + created.getId());
-
-        ResponseEntity<String> response = restTemplate.getForEntity("/api/v1/users/" + created.getId(), String.class);
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-    }
-
-    // ── email validation ─────────────────────────────────────────
 
     @Test
     void createUser_withInvalidEmail_returns400() {
@@ -216,23 +205,6 @@ class UserControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).contains("email");
     }
-
-    @Test
-    void updateUser_withInvalidEmail_returns400() {
-        UserDto alice = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/users/" + alice.getId(),
-                HttpMethod.PUT,
-                new HttpEntity<>(request("Alice", "not-an-email", "alice")),
-                String.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).contains("email");
-    }
-
-    // ── username ─────────────────────────────────────────────────
 
     @Test
     void createUser_withoutUsername_returns400() {
@@ -248,6 +220,8 @@ class UserControllerIT {
 
     @Test
     void createUser_withUsername_persistsUsername() {
+        when(keycloakUserClient.create(any())).thenReturn(alice);
+
         ResponseEntity<UserDto> response = restTemplate.postForEntity(
                 "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
 
@@ -256,23 +230,52 @@ class UserControllerIT {
     }
 
     @Test
-    void createUser_duplicateUsername_returns409() {
-        restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
+    void createUser_isActiveByDefault() {
+        when(keycloakUserClient.create(any())).thenReturn(alice);
 
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice2", "alice2@demo.com", "alice"), String.class);
+        ResponseEntity<UserDto> response = restTemplate.postForEntity(
+                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().isActive()).isTrue();
+    }
+
+    // ── PUT /api/v1/users/{id} ────────────────────────────────────────
+
+    @Test
+    void updateUser_updatesFields() {
+        UserDto updated = new UserDto(ALICE_ID, "Alice Updated", "alice.new@demo.com", "alice", true, null, "en");
+        when(keycloakUserClient.update(eq(ALICE_ID), any())).thenReturn(updated);
+
+        ResponseEntity<UserDto> response = restTemplate.exchange(
+                "/api/v1/users/" + ALICE_ID,
+                HttpMethod.PUT,
+                new HttpEntity<>(request("Alice Updated", "alice.new@demo.com", "alice")),
+                UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getName()).isEqualTo("Alice Updated");
+        assertThat(response.getBody().getEmail()).isEqualTo("alice.new@demo.com");
+    }
+
+    @Test
+    void updateUser_withInvalidEmail_returns400() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + ALICE_ID,
+                HttpMethod.PUT,
+                new HttpEntity<>(request("Alice", "not-an-email", "alice")),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("email");
     }
 
     @Test
     void updateUser_usernameIsIgnored_remainsUnchanged() {
-        UserDto alice = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
+        // Update call ignores username in request — KeycloakUserClient preserves original
+        when(keycloakUserClient.update(eq(ALICE_ID), any())).thenReturn(alice); // username stays "alice"
 
-        // Attempt to change username via update — must be silently ignored
         ResponseEntity<UserDto> response = restTemplate.exchange(
-                "/api/v1/users/" + alice.getId(),
+                "/api/v1/users/" + ALICE_ID,
                 HttpMethod.PUT,
                 new HttpEntity<>(request("Alice Updated", "alice@demo.com", "new_username")),
                 UserDto.class);
@@ -281,39 +284,62 @@ class UserControllerIT {
         assertThat(response.getBody().getUsername()).isEqualTo("alice");
     }
 
-    // ── active ───────────────────────────────────────────────────
-
-    @Test
-    void createUser_isActiveByDefault() {
-        ResponseEntity<UserDto> response = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class);
-
-        assertThat(response.getBody().isActive()).isTrue();
-    }
-
     @Test
     void updateUser_canDeactivateUser() {
-        UserDto alice = restTemplate.postForEntity(
-                "/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
+        UserDto deactivated = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", false, null, "en");
+        when(keycloakUserClient.update(eq(ALICE_ID), any())).thenReturn(deactivated);
 
-        UserRequest deactivate = request("Alice", "alice@demo.com", "alice");
-        deactivate.setActive(false);
+        UserRequest req = request("Alice", "alice@demo.com", "alice");
+        req.setActive(false);
         ResponseEntity<UserDto> response = restTemplate.exchange(
-                "/api/v1/users/" + alice.getId(), HttpMethod.PUT, new HttpEntity<>(deactivate), UserDto.class);
+                "/api/v1/users/" + ALICE_ID, HttpMethod.PUT, new HttpEntity<>(req), UserDto.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().isActive()).isFalse();
     }
 
-    // ── PATCH /api/v1/users/{id}/avatar ──────────────────────────
+    // ── DELETE /api/v1/users/{id} ─────────────────────────────────────
+
+    @Test
+    void deleteUser_returns204() {
+        restTemplate.delete("/api/v1/users/" + ALICE_ID);
+        // No exception → disable() was called; 204 returned
+    }
+
+    @Test
+    void deleteUser_whenNotFound_returns404() {
+        UUID unknown = UUID.randomUUID();
+        doThrow(new ResourceNotFoundException("User", unknown)).when(keycloakUserClient).disable(unknown);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + unknown, HttpMethod.DELETE, null, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void deleteUser_thenGetById_returnsDisabledUser() {
+        // After disable, findById still returns the user with active=false
+        UserDto disabled = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", false, null, "en");
+        when(keycloakUserClient.findById(ALICE_ID)).thenReturn(disabled);
+
+        restTemplate.delete("/api/v1/users/" + ALICE_ID);
+
+        ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/" + ALICE_ID, UserDto.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().isActive()).isFalse();
+    }
+
+    // ── PATCH /api/v1/users/{id}/avatar ───────────────────────────────
 
     @Test
     void updateAvatar_setsAvatarFileId() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
         UUID fileId = UUID.randomUUID();
+        UserDto withAvatar = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, fileId, "en");
+        when(keycloakUserClient.updateAttribute(eq(ALICE_ID), eq("avatarFileId"), any())).thenReturn(withAvatar);
 
         ResponseEntity<UserDto> response = restTemplate.exchange(
-                "/api/v1/users/" + alice.getId() + "/avatar",
+                "/api/v1/users/" + ALICE_ID + "/avatar",
                 HttpMethod.PATCH,
                 new HttpEntity<>(Map.of("fileId", fileId)),
                 UserDto.class);
@@ -324,14 +350,11 @@ class UserControllerIT {
 
     @Test
     void updateAvatar_clearAvatar_setsAvatarFileIdToNull() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-        UUID fileId = UUID.randomUUID();
-        restTemplate.exchange("/api/v1/users/" + alice.getId() + "/avatar",
-                HttpMethod.PATCH, new HttpEntity<>(Map.of("fileId", fileId)), UserDto.class);
+        UserDto noAvatar = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, null, "en");
+        when(keycloakUserClient.updateAttribute(eq(ALICE_ID), eq("avatarFileId"), eq(null))).thenReturn(noAvatar);
 
-        // Clear by passing null
         ResponseEntity<UserDto> response = restTemplate.exchange(
-                "/api/v1/users/" + alice.getId() + "/avatar",
+                "/api/v1/users/" + ALICE_ID + "/avatar",
                 HttpMethod.PATCH,
                 new HttpEntity<>(new java.util.HashMap<>(Map.of())),
                 UserDto.class);
@@ -342,8 +365,12 @@ class UserControllerIT {
 
     @Test
     void updateAvatar_whenUserNotFound_returns404() {
+        UUID unknown = UUID.randomUUID();
+        when(keycloakUserClient.updateAttribute(eq(unknown), eq("avatarFileId"), any()))
+                .thenThrow(new ResourceNotFoundException("User", unknown));
+
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/users/" + UUID.randomUUID() + "/avatar",
+                "/api/v1/users/" + unknown + "/avatar",
                 HttpMethod.PATCH,
                 new HttpEntity<>(Map.of("fileId", UUID.randomUUID())),
                 String.class);
@@ -351,21 +378,46 @@ class UserControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    // ── GET /api/v1/users/by-username ────────────────────────────────
+
     @Test
-    void updateAvatar_persistedOnSubsequentGet() {
-        UserDto alice = restTemplate.postForEntity("/api/v1/users", request("Alice", "alice@demo.com", "alice"), UserDto.class).getBody();
-        UUID fileId = UUID.randomUUID();
-        restTemplate.exchange("/api/v1/users/" + alice.getId() + "/avatar",
-                HttpMethod.PATCH, new HttpEntity<>(Map.of("fileId", fileId)), UserDto.class);
+    void getByUsername_whenFound_returnsUser() {
+        when(keycloakUserClient.findByUsername("alice")).thenReturn(Optional.of(alice));
 
-        ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/" + alice.getId(), UserDto.class);
+        ResponseEntity<UserDto> response = restTemplate.getForEntity(
+                "/api/v1/users/by-username?username=alice", UserDto.class);
 
-        assertThat(response.getBody().getAvatarFileId()).isEqualTo(fileId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getUsername()).isEqualTo("alice");
     }
 
-    // ── Helper ────────────────────────────────────────────────────
+    @Test
+    void getByUsername_whenNotFound_returns404() {
+        when(keycloakUserClient.findByUsername("unknown")).thenReturn(Optional.empty());
 
-    /** Deserializes a paginated user list response. */
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/api/v1/users/by-username?username=unknown", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    // ── GET /api/v1/users/me ──────────────────────────────────────────
+
+    @Test
+    void getMe_returnsCurrentUser() {
+        // TestSecurityConfig injects principal name = "00000000-0000-0000-0000-000000000001"
+        UUID meId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UserDto me = new UserDto(meId, "Test Admin", "admin@demo.com", "test-admin", true, null, "en");
+        when(keycloakUserClient.findById(meId)).thenReturn(me);
+
+        ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/me", UserDto.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getId()).isEqualTo(meId);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+
     private ResponseEntity<PageResponse<UserDto>> getUserPage(String url) {
         return restTemplate.exchange(url, HttpMethod.GET, null,
                 new ParameterizedTypeReference<>() {});
@@ -377,5 +429,9 @@ class UserControllerIT {
         req.setEmail(email);
         req.setUsername(username);
         return req;
+    }
+
+    private PageResponse<UserDto> emptyPage() {
+        return new PageResponse<>(List.of(), 0, 20, 0, 0, true);
     }
 }

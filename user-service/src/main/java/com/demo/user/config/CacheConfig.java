@@ -22,10 +22,17 @@ import java.util.concurrent.TimeUnit;
 @EnableCaching
 public class CacheConfig {
 
-    /** Creates a Caffeine-backed cache manager. */
+    /** Cache name for single-user lookups keyed by UUID. */
+    public static final String USERS = "users";
+
+    /** Cache name for username-based lookups. */
+    public static final String USERS_BY_USERNAME = "usersByUsername";
+
+    /** Creates a Caffeine-backed cache manager with explicit cache names. */
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager manager = new CaffeineCacheManager();
+        manager.setCacheNames(java.util.List.of(USERS, USERS_BY_USERNAME));
         manager.setCaffeine(
                 Caffeine.newBuilder()
                         .maximumSize(500)
