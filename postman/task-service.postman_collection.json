@@ -1418,7 +1418,7 @@
           ]
         },
         {
-          "name": "Get all templates for project",
+          "name": "Find templates by project",
           "request": {
             "method": "GET",
             "header": [],

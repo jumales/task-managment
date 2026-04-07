@@ -1,6 +1,5 @@
 package com.demo.task.outbox;
 
-import com.demo.common.config.KafkaTopics;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.repository.OutboxRepository;
 import org.slf4j.Logger;
@@ -23,11 +22,6 @@ import java.util.List;
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
-
-    //TODO: discus - it's better to create TOPIC for every different action ( status, comment, phase, ... )
-    //TODO: move this public static final on place where used
-    /** Kafka topic for task change events (status, comment, phase) — consumed by audit-service. */
-    public static final String TOPIC = KafkaTopics.TASK_CHANGED;
 
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
