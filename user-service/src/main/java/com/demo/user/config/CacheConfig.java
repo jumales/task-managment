@@ -10,15 +10,10 @@ import org.springframework.context.annotation.Configuration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Caffeine cache configuration for roles and rights.
+ * Caffeine cache configuration for the user service.
  *
- * <p>Roles and rights are read frequently but change rarely, making them ideal candidates
- * for in-process caching. Caffeine is used as the provider — it requires no external
+ * <p>Caffeine is used as the in-process cache provider — it requires no external
  * infrastructure and offers high-performance near-optimal eviction.
- *
- * <p>Cache names are declared as {@code public static final String} constants so they can
- * be referenced in {@code @Cacheable} / {@code @CacheEvict} annotations as compile-time
- * constants (annotation attributes require constant expressions).
  *
  * <p>TTL: 10 minutes — long enough to absorb read spikes, short enough to self-heal
  * if a cache eviction is somehow missed.
@@ -27,16 +22,10 @@ import java.util.concurrent.TimeUnit;
 @EnableCaching
 public class CacheConfig {
 
-    /** Cache name for role entries (list and individual lookups). */
-    public static final String ROLES = "roles";
-
-    /** Cache name for right entries (list and individual lookups). */
-    public static final String RIGHTS = "rights";
-
-    /** Creates a Caffeine-backed cache manager pre-configured with the roles and rights caches. */
+    /** Creates a Caffeine-backed cache manager. */
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager(ROLES, RIGHTS);
+        CaffeineCacheManager manager = new CaffeineCacheManager();
         manager.setCaffeine(
                 Caffeine.newBuilder()
                         .maximumSize(500)

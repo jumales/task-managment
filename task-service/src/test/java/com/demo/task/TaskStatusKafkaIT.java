@@ -101,9 +101,9 @@ class TaskStatusKafkaIT {
         phaseRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
-                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
+                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, "en"));
         when(userClient.getUserById(TestSecurityConfig.TEST_USER_ID))
-                .thenReturn(new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, null, "en"));
+                .thenReturn(new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, "en"));
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");
         projectId = restTemplate.postForEntity("/api/v1/projects", projectReq, TaskProjectResponse.class)

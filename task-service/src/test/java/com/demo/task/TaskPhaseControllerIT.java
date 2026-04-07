@@ -78,7 +78,7 @@ class TaskPhaseControllerIT {
         phaseRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
-                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
+                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, "en"));
         projectId = createProject("Default Project").getId();
         // Wait for async createDefaultPhasesForProject to complete and get the auto-created PLANNING phase.
         planningPhaseId = waitForPhase(projectId, TaskPhaseName.PLANNING);

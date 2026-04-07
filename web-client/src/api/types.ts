@@ -194,19 +194,12 @@ export interface UserRequest {
   active: boolean;
 }
 
-export interface RoleDto {
-  id: string;
-  name: string;
-  description: string;
-}
-
 export interface UserResponse {
   id: string;
   name: string;
   email: string;
   username: string | null;
   active: boolean;
-  roles: RoleDto[];
   avatarFileId: string | null;
   /** ISO 639-1 language code for the user's preferred UI language (e.g. "en", "hr"). */
   language: string;

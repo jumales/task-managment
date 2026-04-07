@@ -81,7 +81,7 @@ class TaskProjectControllerIT {
         projectRepository.deleteAll();
         defaultPhaseByProject.clear();
         when(userClient.getUserById(ALICE_ID))
-                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, null, "en"));
+                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, "en"));
     }
 
     // ── GET /api/v1/projects ─────────────────────────────────────────

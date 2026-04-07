@@ -37,9 +37,6 @@ export const mockUser: UserResponse = {
   active: true,
   avatarFileId: null,
   language: 'en',
-  roles: [
-    { id: 'role-1', name: 'ADMIN', description: 'Administrator' },
-  ],
 };
 
 export const mockUser2: UserResponse = {
@@ -50,9 +47,6 @@ export const mockUser2: UserResponse = {
   active: true,
   avatarFileId: null,
   language: 'en',
-  roles: [
-    { id: 'role-2', name: 'DEVELOPER', description: 'Developer' },
-  ],
 };
 
 export const mockTask: TaskResponse = {

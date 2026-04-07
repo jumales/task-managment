@@ -139,7 +139,6 @@ class UserControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getName()).isEqualTo("Alice");
         assertThat(response.getBody().getEmail()).isEqualTo("alice@demo.com");
-        assertThat(response.getBody().getRoles()).isEmpty();
     }
 
     @Test
