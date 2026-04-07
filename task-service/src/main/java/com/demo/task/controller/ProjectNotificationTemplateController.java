@@ -40,7 +40,7 @@ public class ProjectNotificationTemplateController {
                description = "Returns every {placeholder} token that the notification engine will substitute at send time.")
     @ApiResponse(responseCode = ResponseCode.OK, description = "Placeholder catalogue returned")
     @GetMapping("/placeholders")
-    public List<TemplatePlaceholder> getPlaceholders(@PathVariable UUID projectId) {
+    public List<TemplatePlaceholder> getPlaceholders() {
         return Arrays.asList(TemplatePlaceholder.values());
     }
 
