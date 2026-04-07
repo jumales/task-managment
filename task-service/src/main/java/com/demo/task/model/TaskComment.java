@@ -27,15 +27,13 @@ public class TaskComment {
     @UuidGenerator(style = UuidGenerator.Style.TIME)
     private UUID id;
 
-    //TODO: cant be null
+    @Column(name = "task_id", nullable = false)
     private UUID taskId;
 
-    //TODO: cant be null
-    /** User who wrote the comment; nullable for legacy rows created before this column existed. */
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    //TODO: cant be null
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
     private Instant createdAt;

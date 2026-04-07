@@ -8,6 +8,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskPhaseRepository;
@@ -398,6 +399,7 @@ class TaskPhaseControllerIT {
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
         req.setPhaseId(phaseId);
+        req.setType(TaskType.FEATURE);
         req.setPlannedStart(java.time.Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(java.time.Instant.parse("2026-04-30T17:00:00Z"));
         return req;

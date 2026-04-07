@@ -11,6 +11,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.WorkType;
 import com.demo.task.client.UserClient;
@@ -130,6 +131,7 @@ class TaskBookedWorkControllerIT {
         taskReq.setAssignedUserId(ALICE_ID);
         taskReq.setProjectId(projectId);
         taskReq.setPhaseId(phaseId);
+        taskReq.setType(TaskType.FEATURE);
         taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
         taskReq.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
@@ -307,6 +309,7 @@ class TaskBookedWorkControllerIT {
         req.setAssignedUserId(ALICE_ID);
         req.setProjectId(projectId);
         req.setPhaseId(phaseId);
+        req.setType(TaskType.FEATURE);
         req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         return restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class)

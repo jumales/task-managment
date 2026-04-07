@@ -674,6 +674,7 @@ class TaskControllerIT {
         req.setAssignedUserId(userId);
         req.setProjectId(projectId);
         req.setPhaseId(phaseId);
+        req.setType(TaskType.FEATURE);
         req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         return req;
