@@ -42,7 +42,7 @@ public class UserController {
         return service.findAll(pageable);
     }
 
-    /** Returns the profile of the currently authenticated user, resolved from the JWT subject. */
+    /** Returns the profile of the currently authenticated user, resolved from the JWT {@code sub} claim (Keycloak UUID). */
     @Operation(summary = "Get the current user's profile")
     @ApiResponses({
             @ApiResponse(responseCode = ResponseCode.OK, description = "Current user found"),
@@ -54,7 +54,7 @@ public class UserController {
         return service.findById(UUID.fromString(authentication.getName()));
     }
 
-    /** Returns the active user with the given username; used by task-service to resolve the caller's user-service UUID from the JWT preferred_username claim. */
+    /** Returns the enabled user with the given username. */
     @Operation(summary = "Find a user by username")
     @ApiResponses({
             @ApiResponse(responseCode = ResponseCode.OK, description = "User found"),

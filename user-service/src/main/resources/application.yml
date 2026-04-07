@@ -4,24 +4,6 @@ server:
 spring:
   application:
     name: user-service
-  datasource:
-    url: jdbc:postgresql://localhost:5432/user_db
-    username: user_svc
-    password: user_svc_pass
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-  flyway:
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false  # SQL logging is available at DEBUG via logging.level.org.hibernate.SQL
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -34,6 +16,20 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/demo}
+      client:
+        registration:
+          keycloak:
+            client-id: user-service
+            client-secret: ${KEYCLOAK_USER_SERVICE_CLIENT_SECRET:user-service-secret}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/demo/protocol/openid-connect/token}
+
+keycloak:
+  admin:
+    base-url: ${KEYCLOAK_ADMIN_BASE_URL:http://localhost:8180/admin/realms/demo}
 
 eureka:
   client:
@@ -55,4 +51,3 @@ management:
 logging:
   level:
     com.demo.common.web: DEBUG        # controller param tracing + MDC filter
-    org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)
