@@ -17,17 +17,18 @@ import java.util.UUID;
  * apply per-project notification templates without an extra service call.
  *
  * <ul>
- *   <li>{@link TaskChangeType#TASK_CREATED}       — task was just created.</li>
- *   <li>{@link TaskChangeType#STATUS_CHANGED}      — {@code fromStatus} / {@code toStatus} are set.</li>
- *   <li>{@link TaskChangeType#COMMENT_ADDED}       — {@code commentId} / {@code commentContent} are set.</li>
- *   <li>{@link TaskChangeType#PHASE_CHANGED}       — {@code fromPhaseId/Name} / {@code toPhaseId/Name} are set.</li>
+ *   <li>{@link TaskChangeType#TASK_CREATED}        — task was just created.</li>
+ *   <li>{@link TaskChangeType#STATUS_CHANGED}       — {@code fromStatus} / {@code toStatus} are set.</li>
+ *   <li>{@link TaskChangeType#COMMENT_ADDED}        — {@code commentId} / {@code commentContent} are set.</li>
+ *   <li>{@link TaskChangeType#PHASE_CHANGED}        — {@code fromPhaseId/Name} / {@code toPhaseId/Name} are set.</li>
  *   <li>{@link TaskChangeType#PLANNED_WORK_CREATED} — {@code workLogId}, {@code workLogUserId}, {@code workType}, {@code plannedHours} are set.</li>
- *   <li>{@link TaskChangeType#BOOKED_WORK_CREATED} — {@code workLogId}, {@code workLogUserId}, {@code workType}, {@code bookedHours} are set.</li>
- *   <li>{@link TaskChangeType#BOOKED_WORK_UPDATED} — same fields as BOOKED_WORK_CREATED.</li>
- *   <li>{@link TaskChangeType#BOOKED_WORK_DELETED} — {@code workLogId} is set.</li>
+ *   <li>{@link TaskChangeType#BOOKED_WORK_CREATED}  — {@code workLogId}, {@code workLogUserId}, {@code workType}, {@code bookedHours} are set.</li>
+ *   <li>{@link TaskChangeType#BOOKED_WORK_UPDATED}  — same fields as BOOKED_WORK_CREATED.</li>
+ *   <li>{@link TaskChangeType#BOOKED_WORK_DELETED}  — {@code workLogId} is set.</li>
+ *   <li>{@link TaskChangeType#ATTACHMENT_ADDED}     — {@code attachmentId}, {@code fileName}, {@code assignedUserId} (uploader) are set.</li>
+ *   <li>{@link TaskChangeType#ATTACHMENT_DELETED}   — {@code attachmentId}, {@code fileName} are set.</li>
  * </ul>
  */
-//TODO to complex - one class for many things. Break to smaller classes. Wrote first plan
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -60,6 +61,10 @@ public class TaskChangedEvent {
     private WorkType workType;
     private BigInteger plannedHours;
     private BigInteger bookedHours;
+
+    // Populated when changeType == ATTACHMENT_ADDED / ATTACHMENT_DELETED
+    private UUID attachmentId;
+    private String fileName;
 
     /** Factory for task created events. */
     public static TaskChangedEvent taskCreated(UUID taskId, UUID assignedUserId,
@@ -185,6 +190,35 @@ public class TaskChangedEvent {
         e.workLogUserId = userId;
         e.workType = workType;
         e.bookedHours = bookedHours;
+        return e;
+    }
+
+    /** Factory for attachment added events. */
+    public static TaskChangedEvent attachmentAdded(UUID taskId, UUID projectId, String taskTitle,
+                                                   UUID attachmentId, String fileName, UUID uploadedByUserId) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.projectId = projectId;
+        e.taskTitle = taskTitle;
+        e.changeType = TaskChangeType.ATTACHMENT_ADDED;
+        e.changedAt = Instant.now();
+        e.attachmentId = attachmentId;
+        e.fileName = fileName;
+        e.assignedUserId = uploadedByUserId;
+        return e;
+    }
+
+    /** Factory for attachment deleted events. */
+    public static TaskChangedEvent attachmentDeleted(UUID taskId, UUID projectId, String taskTitle,
+                                                     UUID attachmentId, String fileName) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.projectId = projectId;
+        e.taskTitle = taskTitle;
+        e.changeType = TaskChangeType.ATTACHMENT_DELETED;
+        e.changedAt = Instant.now();
+        e.attachmentId = attachmentId;
+        e.fileName = fileName;
         return e;
     }
 }
