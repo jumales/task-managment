@@ -101,7 +101,7 @@ public class TaskPhaseService {
     }
 
     /** Converts a {@link TaskPhase} entity to its DTO representation. */
-    TaskPhaseResponse toResponse(TaskPhase phase) {
+    private TaskPhaseResponse toResponse(TaskPhase phase) {
         return new TaskPhaseResponse(
                 phase.getId(),
                 phase.getName(),

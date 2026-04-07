@@ -95,11 +95,11 @@ public class TaskTimelineService {
      * Called by {@link TaskService} immediately after the task is persisted.
      * Does not re-validate the task existence since it is invoked within the task creation transaction.
      */
-    //TODO it's possible do bulk insert?
     @Transactional
     void createInitialTimelines(UUID taskId, Instant plannedStart, Instant plannedEnd, UUID creatorId) {
-        repository.save(buildEntry(taskId, TimelineState.PLANNED_START, plannedStart, creatorId));
-        repository.save(buildEntry(taskId, TimelineState.PLANNED_END, plannedEnd, creatorId));
+        repository.saveAll(List.of(
+                buildEntry(taskId, TimelineState.PLANNED_START, plannedStart, creatorId),
+                buildEntry(taskId, TimelineState.PLANNED_END, plannedEnd, creatorId)));
     }
 
     /**

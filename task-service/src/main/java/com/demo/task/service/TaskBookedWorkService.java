@@ -5,6 +5,7 @@ import com.demo.common.dto.TaskBookedWorkResponse;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
+import com.demo.common.exception.BusinessLogicException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
@@ -129,8 +130,7 @@ public class TaskBookedWorkService {
     private void validateNotPlanningPhase(Task task) {
         TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
         if (phaseName == TaskPhaseName.PLANNING) {
-            //TODO: needs to be custom exception BissnissLogicException
-            throw new IllegalArgumentException(
+            throw new BusinessLogicException(
                     "Booked work cannot be entered while the task is in the PLANNING phase");
         }
     }
