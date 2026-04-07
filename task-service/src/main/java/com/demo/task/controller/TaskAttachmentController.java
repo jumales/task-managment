@@ -35,7 +35,7 @@ public class TaskAttachmentController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "List attachments for a task")
-    public List<TaskAttachmentResponse> getAll(@PathVariable UUID taskId) {
+    public List<TaskAttachmentResponse> getByTaskId(@PathVariable UUID taskId) {
         return service.findByTaskId(taskId);
     }
 
