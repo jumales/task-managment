@@ -7,7 +7,7 @@ import type { InputRef } from 'antd';
 import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar } from '../api/userApi';
 import { searchUsers } from '../api/searchApi';
 import { useAuth } from '../auth/AuthProvider';
-import type { UserResponse, RoleDto } from '../api/types';
+import type { UserResponse } from '../api/types';
 
 /** Upload button that triggers a hidden file input. */
 function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (updated: UserResponse) => void }) {
@@ -104,7 +104,6 @@ export function UsersPage() {
           email: d.email,
           username: d.username,
           active: d.active,
-          roles: [],
           avatarFileId: null,
           language: 'en',
         } as UserResponse));
@@ -183,8 +182,6 @@ export function UsersPage() {
     { title: t('common.email'),    dataIndex: 'email',    key: 'email' },
     { title: t('common.status'),   dataIndex: 'active',   key: 'active',
       render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? t('common.active') : t('common.inactive')}</Tag> },
-    { title: t('users.roles'),     dataIndex: 'roles',    key: 'roles',
-      render: (roles: RoleDto[]) => roles.map((r) => <Tag key={r.id}>{r.name}</Tag>) },
     {
       title: t('users.uploadAvatar'),
       key: 'upload',
