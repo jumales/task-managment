@@ -15,7 +15,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("User Service API")
-                        .description("Manages users, roles, and rights. Roles are collections of rights; users can be assigned one or more roles.")
+                        .description("Manages user accounts.")
                         .version("1.0.0")
                         .contact(new Contact().name("Demo Team").email("demo@example.com")));
     }

@@ -158,33 +158,4 @@ public class UserController {
         return service.updateAvatar(id, body.get("fileId"));
     }
 
-    /** Assigns the specified role to the user and returns the updated user. */
-    @Operation(summary = "Assign a role to a user")
-    @ApiResponses({
-            @ApiResponse(responseCode = ResponseCode.CREATED, description = "Role assigned"),
-            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User or role not found"),
-            @ApiResponse(responseCode = ResponseCode.CONFLICT, description = "User already has this role")
-    })
-    @PostMapping("/{userId}/roles/{roleId}")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
-    public UserDto assignRole(@Parameter(description = "User UUID") @PathVariable UUID userId,
-                              @Parameter(description = "Role UUID") @PathVariable UUID roleId,
-                              @Parameter(description = "Who is assigning the role") @RequestParam(defaultValue = "system") String assignedBy) {
-        return service.assignRole(userId, roleId, assignedBy);
-    }
-
-    /** Revokes the specified role from the user. */
-    @Operation(summary = "Revoke a role from a user")
-    @ApiResponses({
-            @ApiResponse(responseCode = ResponseCode.NO_CONTENT, description = "Role revoked"),
-            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User or role not found")
-    })
-    @DeleteMapping("/{userId}/roles/{roleId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
-    public void revokeRole(@Parameter(description = "User UUID") @PathVariable UUID userId,
-                           @Parameter(description = "Role UUID") @PathVariable UUID roleId) {
-        service.revokeRole(userId, roleId);
-    }
 }
