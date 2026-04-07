@@ -60,8 +60,29 @@
       "secret": "notification-secret",
       "redirectUris": [],
       "webOrigins": []
+    },
+    {
+      "clientId": "user-service",
+      "name": "User Service",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "user-service-secret",
+      "redirectUris": [],
+      "webOrigins": []
     }
   ],
+  "clientScopeMappings": {
+    "realm-management": [
+      {
+        "client": "user-service",
+        "roles": ["manage-users", "view-users"]
+      }
+    ]
+  },
   "users": [
     {
       "username": "admin-user",
