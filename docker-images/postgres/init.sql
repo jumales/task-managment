@@ -1,12 +1,8 @@
 -- ============================================================
 -- Microservice Demo - PostgreSQL Initialization Script
--- Creates a dedicated database and user for each service
+-- Creates a dedicated database and user for each service.
+-- Note: user-service was removed; users are now managed in Keycloak.
 -- ============================================================
-
--- ── User Service ─────────────────────────────────────────────
-CREATE USER user_svc WITH PASSWORD 'user_svc_pass';
-CREATE DATABASE user_db OWNER user_svc;
-GRANT ALL PRIVILEGES ON DATABASE user_db TO user_svc;
 
 -- ── Task Service ─────────────────────────────────────────────
 CREATE USER task_svc WITH PASSWORD 'task_svc_pass';
