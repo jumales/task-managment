@@ -21,6 +21,7 @@ public class CommentAuditRecord {
 
     private UUID taskId;
     /** ID of the user who created the comment (not the task assignee). */
+    @Column(name = "assigned_user_id")
     private UUID commentCreatedByUserId;
     private UUID commentId;
 

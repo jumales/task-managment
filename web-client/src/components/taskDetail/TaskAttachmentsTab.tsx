@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Button, List, Popconfirm, Space, Typography } from 'antd';
 import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import type { useTaskAttachments } from '../../hooks/useTaskAttachments';
+import apiClient from '../../api/client';
 
 type Props = ReturnType<typeof useTaskAttachments>;
 
@@ -10,6 +11,18 @@ type Props = ReturnType<typeof useTaskAttachments>;
 export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload, handleDelete }: Props) {
   const { t }     = useTranslation();
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const handleDownload = (fileId: string, fileName: string) => {
+    apiClient.get<Blob>(`/api/v1/files/${fileId}/download`, { responseType: 'blob' })
+      .then((response) => {
+        const url = URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+  };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -31,13 +44,13 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
           <List.Item
             key={a.id}
             actions={[
-              <a
-                href={`/api/v1/files/${a.fileId}/download`}
-                target="_blank"
-                rel="noreferrer"
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() => handleDownload(a.fileId, a.fileName)}
               >
-                <DownloadOutlined /> {t('tasks.download')}
-              </a>,
+                {t('tasks.download')}
+              </Button>,
               <Popconfirm
                 title={t('tasks.confirmDeleteAttachment')}
                 onConfirm={() => handleDelete(a.id)}

@@ -24,6 +24,7 @@ public class PhaseAuditRecord {
 
     private UUID taskId;
     /** ID of the user who performed the phase change (not the task assignee). */
+    @Column(name = "assigned_user_id")
     private UUID changedByUserId;
 
     private UUID fromPhaseId;
