@@ -232,6 +232,14 @@ public class NotificationService {
                 "Booked work removed from task",
                 "A booked-work entry was removed from task '" + title + "'."
             };
+            case ATTACHMENT_ADDED -> new String[]{
+                "Attachment added to task",
+                "A file '" + event.getFileName() + "' was attached to task '" + title + "'."
+            };
+            case ATTACHMENT_DELETED -> new String[]{
+                "Attachment removed from task",
+                "The file '" + event.getFileName() + "' was removed from task '" + title + "'."
+            };
         };
     }
 
