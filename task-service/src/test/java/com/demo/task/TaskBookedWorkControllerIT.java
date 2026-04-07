@@ -272,7 +272,7 @@ class TaskBookedWorkControllerIT {
     // ── PLANNING phase guard ─────────────────────────────────────────────────
 
     @Test
-    void createBookedWork_whenTaskInPlanningPhase_returns400() {
+    void createBookedWork_whenTaskInPlanningPhase_returns422() {
         // A freshly created task is always in PLANNING phase
         String planningTaskId = createTask("Planning Task");
 
@@ -281,13 +281,13 @@ class TaskBookedWorkControllerIT {
                 bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"),
                 String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @Test
-    void updateBookedWork_whenTaskInPlanningPhase_returns400() {
+    void updateBookedWork_whenTaskInPlanningPhase_returns422() {
         // validateNotPlanningPhase is checked before the booked-work entry is looked up,
-        // so a random ID is enough to trigger the 400 before any 404.
+        // so a random ID is enough to trigger the 422 before any 404.
         String planningTaskId = createTask("Planning Task 2");
 
         ResponseEntity<String> response = restTemplate.exchange(
@@ -296,7 +296,7 @@ class TaskBookedWorkControllerIT {
                 new HttpEntity<>(bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3")),
                 String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     /** Creates a task under the test project. The task starts in PLANNING phase. */

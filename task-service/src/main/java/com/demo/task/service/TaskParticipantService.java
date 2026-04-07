@@ -117,12 +117,8 @@ public class TaskParticipantService {
     @Transactional
     public void setAssignee(UUID taskId, UUID userId) {
         if (userId == null) return;
-        // Remove existing ASSIGNEE if present
-        //TODO: refactor - create method which delete participant by role and taskId
-        repository.findByTaskId(taskId).stream()
-                .filter(p -> p.getRole() == TaskParticipantRole.ASSIGNEE)
-                .forEach(p -> repository.deleteById(p.getId()));
-        // Flush the soft-delete UPDATE before the INSERT to avoid unique-index conflicts
+        // Remove existing ASSIGNEE if present, then flush to avoid unique-index conflicts on re-assign
+        repository.deleteByTaskIdAndRole(taskId, TaskParticipantRole.ASSIGNEE);
         repository.flush();
         repository.save(TaskParticipant.builder()
                 .taskId(taskId)

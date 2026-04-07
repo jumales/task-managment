@@ -426,10 +426,14 @@ public class TaskService {
 
     /** Fetches participants, project, and phase for a single task — shared by toResponse and findFullById. */
     private TaskBaseData fetchBaseData(Task task) {
+        TaskProject project = projectService.getOrThrow(task.getProjectId());
+        TaskPhase phase = phaseService.getOrThrow(task.getPhaseId());
         return new TaskBaseData(
                 participantService.findByTaskId(task.getId()),
-                projectService.toResponse(projectService.getOrThrow(task.getProjectId())), //TODO make toResponse private. Create response with projectId and return project
-                phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId())));//TODO make toResponse private. Create response with phaseId and return phase
+                new TaskProjectResponse(project.getId(), project.getName(), project.getDescription(),
+                        project.getTaskCodePrefix(), project.getDefaultPhaseId()),
+                new TaskPhaseResponse(phase.getId(), phase.getName(), phase.getDescription(),
+                        phase.getCustomName(), phase.getProjectId()));
     }
 
     /** Bundles the three sub-fetches that are common to both the standard and full task responses. */
@@ -451,12 +455,16 @@ public class TaskService {
         //TODO: async
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
-                .collect(Collectors.toMap(TaskProject::getId, projectService::toResponse));
+                .collect(Collectors.toMap(TaskProject::getId, p ->
+                        new TaskProjectResponse(p.getId(), p.getName(), p.getDescription(),
+                                p.getTaskCodePrefix(), p.getDefaultPhaseId())));
 
         //TODO: async
         Map<UUID, TaskPhaseResponse> phasesById = phaseService.findAllByIds(phaseIds)
                 .stream()
-                .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
+                .collect(Collectors.toMap(TaskPhase::getId, p ->
+                        new TaskPhaseResponse(p.getId(), p.getName(), p.getDescription(),
+                                p.getCustomName(), p.getProjectId())));
 
         //TODO async
         // Batch-load all participants for these tasks in two queries (DB + user-service batch)
