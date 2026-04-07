@@ -40,7 +40,6 @@ public class TaskController {
         this.userClientHelper = userClientHelper;
     }
 
-    //TODO: needs to split into 3 methods - to heavy for maintain
     /**
      * Returns a paginated list of tasks, with optional filtering by user, project, or status.
      * Supports {@code ?page=0&size=20&sort=title,asc} query parameters.

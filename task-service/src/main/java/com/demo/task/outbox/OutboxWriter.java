@@ -1,5 +1,6 @@
 package com.demo.task.outbox;
 
+import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
@@ -40,7 +41,7 @@ public class OutboxWriter {
                     .aggregateType(AGGREGATE_TYPE)
                     .aggregateId(event.getTaskId())
                     .eventType(OutboxEventType.TASK_CHANGED)
-                    .topic(OutboxPublisher.TOPIC)
+                    .topic(KafkaTopics.TASK_CHANGED)
                     .payload(objectMapper.writeValueAsString(event))
                     .published(false)
                     .createdAt(Instant.now())

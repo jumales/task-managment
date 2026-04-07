@@ -8,14 +8,14 @@ import org.hibernate.annotations.UuidGenerator;
 import java.time.Instant;
 import java.util.UUID;
 
+/** Immutable record of a status change on a task, written by the audit-service Kafka consumer. */
 @Entity
 @Table(name = "audit_records")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-//TODO rename to StatusAuditRecord
-public class AuditRecord {
+public class StatusAuditRecord {
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.TIME)

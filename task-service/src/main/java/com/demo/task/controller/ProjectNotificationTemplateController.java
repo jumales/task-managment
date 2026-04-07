@@ -35,18 +35,15 @@ public class ProjectNotificationTemplateController {
         this.service = service;
     }
 
-    //TODO: remove this not needed parameter
     /** Returns all available template placeholders that can be used in subject and body templates. */
     @Operation(summary = "List all supported template placeholders",
                description = "Returns every {placeholder} token that the notification engine will substitute at send time.")
     @ApiResponse(responseCode = ResponseCode.OK, description = "Placeholder catalogue returned")
     @GetMapping("/placeholders")
-    public List<TemplatePlaceholder> getPlaceholders(
-            @Parameter(description = "Project UUID") @PathVariable UUID projectId) {
+    public List<TemplatePlaceholder> getPlaceholders() {
         return Arrays.asList(TemplatePlaceholder.values());
     }
 
-    //TODO: method name is confusing
     /** Returns all active notification templates configured for the project. */
     @Operation(summary = "List all notification templates for a project")
     @ApiResponses({
@@ -54,7 +51,7 @@ public class ProjectNotificationTemplateController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Project not found")
     })
     @GetMapping
-    public List<ProjectNotificationTemplateResponse> getAll(
+    public List<ProjectNotificationTemplateResponse> findByProject(
             @Parameter(description = "Project UUID") @PathVariable UUID projectId) {
         return service.findByProjectId(projectId);
     }

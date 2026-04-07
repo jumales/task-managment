@@ -11,6 +11,7 @@ import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.common.dto.WorkType;
 import com.demo.task.client.UserClient;
@@ -130,6 +131,7 @@ class TaskBookedWorkControllerIT {
         taskReq.setAssignedUserId(ALICE_ID);
         taskReq.setProjectId(projectId);
         taskReq.setPhaseId(phaseId);
+        taskReq.setType(TaskType.FEATURE);
         taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
         taskReq.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         taskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
@@ -272,7 +274,7 @@ class TaskBookedWorkControllerIT {
     // ── PLANNING phase guard ─────────────────────────────────────────────────
 
     @Test
-    void createBookedWork_whenTaskInPlanningPhase_returns400() {
+    void createBookedWork_whenTaskInPlanningPhase_returns422() {
         // A freshly created task is always in PLANNING phase
         String planningTaskId = createTask("Planning Task");
 
@@ -281,13 +283,13 @@ class TaskBookedWorkControllerIT {
                 bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"),
                 String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @Test
-    void updateBookedWork_whenTaskInPlanningPhase_returns400() {
+    void updateBookedWork_whenTaskInPlanningPhase_returns422() {
         // validateNotPlanningPhase is checked before the booked-work entry is looked up,
-        // so a random ID is enough to trigger the 400 before any 404.
+        // so a random ID is enough to trigger the 422 before any 404.
         String planningTaskId = createTask("Planning Task 2");
 
         ResponseEntity<String> response = restTemplate.exchange(
@@ -296,7 +298,7 @@ class TaskBookedWorkControllerIT {
                 new HttpEntity<>(bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3")),
                 String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     /** Creates a task under the test project. The task starts in PLANNING phase. */
@@ -307,6 +309,7 @@ class TaskBookedWorkControllerIT {
         req.setAssignedUserId(ALICE_ID);
         req.setProjectId(projectId);
         req.setPhaseId(phaseId);
+        req.setType(TaskType.FEATURE);
         req.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
         req.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
         return restTemplate.postForEntity("/api/v1/tasks", req, TaskResponse.class)

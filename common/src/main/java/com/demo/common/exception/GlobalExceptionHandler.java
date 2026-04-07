@@ -45,6 +45,13 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    /** Handles {@link BusinessLogicException} (e.g., booked work in PLANNING phase) and returns a 422 error response. */
+    @ExceptionHandler(BusinessLogicException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleBusinessLogic(BusinessLogicException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
     /** Handles {@link IllegalArgumentException} (e.g., invalid enum value) and returns a 400 error response. */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)

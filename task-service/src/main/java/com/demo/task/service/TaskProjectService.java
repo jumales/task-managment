@@ -128,7 +128,7 @@ public class TaskProjectService {
     }
 
     /** Converts a {@link TaskProject} entity to its DTO representation. */
-    TaskProjectResponse toResponse(TaskProject project) {
+    private TaskProjectResponse toResponse(TaskProject project) {
         return new TaskProjectResponse(project.getId(), project.getName(), project.getDescription(),
                 project.getTaskCodePrefix(), project.getDefaultPhaseId());
     }

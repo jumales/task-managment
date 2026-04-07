@@ -260,7 +260,6 @@ public class TaskService {
         TaskPhase newPhase     = phaseService.getOrThrow(phaseId);
 
         // One-way gate: once a task has left PLANNING it may never return.
-        // TODO use equals for comparing strings
         if (currentPhase.getName() != TaskPhaseName.PLANNING && newPhase.getName() == TaskPhaseName.PLANNING) {
             throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
         }
@@ -284,11 +283,9 @@ public class TaskService {
 
     /** Publishes a STATUS_CHANGED outbox event when the status has actually changed. */
     private void publishStatusChangedEvent(Task saved, TaskStatus oldStatus, TaskStatus newStatus) {
-        //TODO rewrite on way that outboxWriter isn't in if
-        if (newStatus != null && !newStatus.equals(oldStatus)) {
-            outboxWriter.write(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
-                    saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
-        }
+        if (newStatus == null || newStatus.equals(oldStatus)) return;
+        outboxWriter.write(TaskChangedEvent.statusChanged(saved.getId(), saved.getAssignedUserId(),
+                saved.getProjectId(), saved.getTitle(), oldStatus, newStatus));
     }
 
     /**
@@ -346,7 +343,6 @@ public class TaskService {
     public TaskFullResponse updatePlannedDates(UUID taskId, UUID updatingUserId, PlannedDatesRequest request) {
         Task task = getOrThrow(taskId);
         TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
-        //TODO use equals for compare
         if (phaseName != TaskPhaseName.PLANNING) {
             throw new IllegalArgumentException("Planned dates can only be changed while the task is in the PLANNING phase");
         }
@@ -426,10 +422,14 @@ public class TaskService {
 
     /** Fetches participants, project, and phase for a single task — shared by toResponse and findFullById. */
     private TaskBaseData fetchBaseData(Task task) {
+        TaskProject project = projectService.getOrThrow(task.getProjectId());
+        TaskPhase phase = phaseService.getOrThrow(task.getPhaseId());
         return new TaskBaseData(
                 participantService.findByTaskId(task.getId()),
-                projectService.toResponse(projectService.getOrThrow(task.getProjectId())), //TODO make toResponse private. Create response with projectId and return project
-                phaseService.toResponse(phaseService.getOrThrow(task.getPhaseId())));//TODO make toResponse private. Create response with phaseId and return phase
+                new TaskProjectResponse(project.getId(), project.getName(), project.getDescription(),
+                        project.getTaskCodePrefix(), project.getDefaultPhaseId()),
+                new TaskPhaseResponse(phase.getId(), phase.getName(), phase.getDescription(),
+                        phase.getCustomName(), phase.getProjectId()));
     }
 
     /** Bundles the three sub-fetches that are common to both the standard and full task responses. */
@@ -451,12 +451,16 @@ public class TaskService {
         //TODO: async
         Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
                 .stream()
-                .collect(Collectors.toMap(TaskProject::getId, projectService::toResponse));
+                .collect(Collectors.toMap(TaskProject::getId, p ->
+                        new TaskProjectResponse(p.getId(), p.getName(), p.getDescription(),
+                                p.getTaskCodePrefix(), p.getDefaultPhaseId())));
 
         //TODO: async
         Map<UUID, TaskPhaseResponse> phasesById = phaseService.findAllByIds(phaseIds)
                 .stream()
-                .collect(Collectors.toMap(TaskPhase::getId, phaseService::toResponse));
+                .collect(Collectors.toMap(TaskPhase::getId, p ->
+                        new TaskPhaseResponse(p.getId(), p.getName(), p.getDescription(),
+                                p.getCustomName(), p.getProjectId())));
 
         //TODO async
         // Batch-load all participants for these tasks in two queries (DB + user-service batch)
@@ -470,18 +474,6 @@ public class TaskService {
                 projectsById.get(task.getProjectId()),
                 phasesById.get(task.getPhaseId())))
                 .toList();
-    }
-
-    //TODO is used anywhere? If not, delete
-    /** Converts a {@link Page} of tasks to a {@link PageResponse} with mapped response DTOs. */
-    private PageResponse<TaskResponse> toPageResponse(Page<Task> page) {
-        return new PageResponse<>(
-                toResponseList(page.getContent()),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isLast());
     }
 
     /**
@@ -510,22 +502,22 @@ public class TaskService {
         return tasks.stream().map(task -> {
             TaskProject project = projectsById.get(task.getProjectId());
             TaskPhase phase = phasesById.get(task.getPhaseId());
-            //TODO use builder pattern
-            return new TaskSummaryResponse(
-                    task.getId(),
-                    task.getTaskCode(),
-                    task.getTitle(),
-                    task.getDescription(),
-                    task.getStatus(),
-                    task.getType(),
-                    task.getProgress(),
-                    task.getAssignedUserId(),
-                    userNamesById.get(task.getAssignedUserId()),
-                    project != null ? project.getId() : null,
-                    project != null ? project.getName() : null,
-                    phase != null ? phase.getId() : null,
+            return TaskSummaryResponse.builder()
+                    .id(task.getId())
+                    .taskCode(task.getTaskCode())
+                    .title(task.getTitle())
+                    .description(task.getDescription())
+                    .status(task.getStatus())
+                    .type(task.getType())
+                    .progress(task.getProgress())
+                    .assignedUserId(task.getAssignedUserId())
+                    .assignedUserName(userNamesById.get(task.getAssignedUserId()))
+                    .projectId(project != null ? project.getId() : null)
+                    .projectName(project != null ? project.getName() : null)
+                    .phaseId(phase != null ? phase.getId() : null)
                     // getName() returns TaskPhaseName enum; .name() converts to String for the response
-                    phase != null ? phase.getName().name() : null);
+                    .phaseName(phase != null ? phase.getName().name() : null)
+                    .build();
         }).toList();
     }
 
