@@ -18,6 +18,22 @@
       {
         "name": "WEB_APP",
         "description": "Grants access to the web application API; required for all human users and internal services"
+      },
+      {
+        "name": "QA",
+        "description": "Quality assurance — full read/write access to tasks and projects"
+      },
+      {
+        "name": "DEVOPS",
+        "description": "DevOps — full read/write access to tasks and projects"
+      },
+      {
+        "name": "PM",
+        "description": "Project manager — full read/write access to tasks and projects"
+      },
+      {
+        "name": "SUPERVISOR",
+        "description": "Supervisor — read-only access across all services; write operations are blocked at the gateway"
       }
     ]
   },
@@ -129,6 +145,82 @@
       ],
       "realmRoles": [
         "DEVELOPER",
+        "WEB_APP"
+      ]
+    },
+    {
+      "username": "qa-user",
+      "email": "qa@demo.com",
+      "firstName": "QA",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "qa123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "QA",
+        "WEB_APP"
+      ]
+    },
+    {
+      "username": "devops-user",
+      "email": "devops@demo.com",
+      "firstName": "DevOps",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "devops123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "DEVOPS",
+        "WEB_APP"
+      ]
+    },
+    {
+      "username": "pm-user",
+      "email": "pm@demo.com",
+      "firstName": "PM",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "pm123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PM",
+        "WEB_APP"
+      ]
+    },
+    {
+      "username": "supervisor-user",
+      "email": "supervisor@demo.com",
+      "firstName": "Supervisor",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "supervisor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "SUPERVISOR",
         "WEB_APP"
       ]
     }

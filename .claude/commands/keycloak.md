@@ -46,11 +46,17 @@ All requests to any microservice require the `WEB_APP` realm role — this is en
 
 **Roles in the realm:**
 
-| Role | Purpose |
-|---|---|
-| `WEB_APP` | Required for all API access (human users + internal services) |
-| `ADMIN` | Full access to all resources (manage users, projects, etc.) |
-| `DEVELOPER` | Can read and write tasks |
+| Role | Purpose | Write access |
+|---|---|---|
+| `WEB_APP` | Required for all API access (human users + internal services) | — |
+| `ADMIN` | Full access to all resources (manage users, projects, etc.) | Yes |
+| `DEVELOPER` | Read and write tasks | Yes |
+| `QA` | Quality assurance — read and write tasks | Yes |
+| `DEVOPS` | DevOps — read and write tasks | Yes |
+| `PM` | Project manager — read and write tasks | Yes |
+| `SUPERVISOR` | Read-only across all services; POST/PUT/PATCH/DELETE blocked at SecurityConfig | No |
+
+Write access is enforced in `SecurityConfig` via `WRITE_ROLES = {ADMIN, DEVELOPER, QA, DEVOPS, PM}` — any role not in that list is implicitly read-only. Adding a new write-capable role requires updating that constant.
 
 ---
 
