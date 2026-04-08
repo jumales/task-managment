@@ -55,9 +55,9 @@ public class KeycloakUserClient implements KeycloakUserPort {
     }
 
     /**
-     * Returns a paginated page of enabled users that have the {@value #ROLE_WEB_APP} realm role.
+     * Returns a paginated page of enabled human users that have the {@value #ROLE_WEB_APP} realm role.
      * Uses two Keycloak calls: one for the requested page, one to count all eligible users.
-     * Service accounts and any user lacking the role are excluded.
+     * Service accounts (username prefix {@code service-account-}) and disabled users are excluded.
      */
     public PageResponse<UserDto> findAll(Pageable pageable) {
         int offset = (int) pageable.getOffset();
@@ -85,11 +85,11 @@ public class KeycloakUserClient implements KeycloakUserPort {
                 .block();
 
         List<UserDto> users = pageReps == null ? List.of() : pageReps.stream()
-                .filter(r -> Boolean.TRUE.equals(r.get("enabled")))
+                .filter(this::isHumanUser)
                 .map(this::toDto)
                 .toList();
         long totalElements = allBrief == null ? 0 : allBrief.stream()
-                .filter(r -> Boolean.TRUE.equals(r.get("enabled")))
+                .filter(this::isHumanUser)
                 .count();
         int totalPages = size == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
         boolean isLast = (offset + size) >= totalElements;
@@ -345,6 +345,17 @@ public class KeycloakUserClient implements KeycloakUserPort {
         String language = extractAttribute(attributes, ATTR_LANGUAGE).orElse(DEFAULT_LANGUAGE);
 
         return new UserDto(id, name, email, username, active, avatarFileId, language);
+    }
+
+    /**
+     * Returns true for real human users: enabled and username does not start with {@code service-account-}.
+     * Keycloak always names service accounts {@code service-account-{clientId}} — this prefix is a
+     * stable Keycloak convention and is the only reliable filter when fetching users by role
+     * (the {@code serviceAccountClientId} field is absent from role-user listings).
+     */
+    private boolean isHumanUser(Map<String, Object> rep) {
+        String username = (String) rep.get("username");
+        return Boolean.TRUE.equals(rep.get("enabled")) && username != null && !username.startsWith("service-account-");
     }
 
     /** Extracts the first value of a Keycloak user attribute list, or empty if absent. */
