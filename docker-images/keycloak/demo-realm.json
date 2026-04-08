@@ -14,6 +14,10 @@
       {
         "name": "DEVELOPER",
         "description": "Can read and write tasks"
+      },
+      {
+        "name": "WEB_APP",
+        "description": "Grants access to the web application API; required for all human users and internal services"
       }
     ]
   },
@@ -75,15 +79,21 @@
       "webOrigins": []
     }
   ],
-  "clientScopeMappings": {
-    "realm-management": [
-      {
-        "client": "user-service",
-        "roles": ["manage-users", "view-users"]
-      }
-    ]
-  },
   "users": [
+    {
+      "username": "service-account-user-service",
+      "enabled": true,
+      "serviceAccountClientId": "user-service",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users", "view-realm", "query-users"]
+      }
+    },
+    {
+      "username": "service-account-notification-service",
+      "enabled": true,
+      "serviceAccountClientId": "notification-service",
+      "realmRoles": ["WEB_APP"]
+    },
     {
       "username": "admin-user",
       "email": "admin@demo.com",
@@ -99,7 +109,8 @@
         }
       ],
       "realmRoles": [
-        "ADMIN"
+        "ADMIN",
+        "WEB_APP"
       ]
     },
     {
@@ -117,7 +128,8 @@
         }
       ],
       "realmRoles": [
-        "DEVELOPER"
+        "DEVELOPER",
+        "WEB_APP"
       ]
     }
   ]

@@ -83,7 +83,8 @@ class SearchControllerIT {
                             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                                 SecurityContextHolder.getContext().setAuthentication(
                                         new UsernamePasswordAuthenticationToken("test-user", null,
-                                                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                                                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                                                        new SimpleGrantedAuthority("ROLE_WEB_APP")))
                                 );
                             }
                             chain.doFilter(request, response);

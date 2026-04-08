@@ -17,7 +17,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +43,7 @@ public class KeycloakUserClient implements KeycloakUserPort {
     private static final String ATTR_AVATAR = "avatarFileId";
     private static final String ATTR_LANGUAGE = "language";
     private static final String DEFAULT_LANGUAGE = "en";
+    private static final String ROLE_WEB_APP = "WEB_APP";
 
     private static final ParameterizedTypeReference<List<Map<String, Object>>> USER_LIST_TYPE =
             new ParameterizedTypeReference<>() {};
@@ -55,32 +55,42 @@ public class KeycloakUserClient implements KeycloakUserPort {
     }
 
     /**
-     * Returns a paginated page of enabled users from Keycloak.
-     * Requires two Keycloak calls: one for the page, one for the total count.
+     * Returns a paginated page of enabled users that have the {@value #ROLE_WEB_APP} realm role.
+     * Uses two Keycloak calls: one for the requested page, one to count all eligible users.
+     * Service accounts and any user lacking the role are excluded.
      */
     public PageResponse<UserDto> findAll(Pageable pageable) {
         int offset = (int) pageable.getOffset();
         int size = pageable.getPageSize();
 
-        List<Map<String, Object>> reps = webClient.get()
-                .uri(u -> u.path("/users")
+        // Fetch the requested page from the WEB_APP role users endpoint.
+        List<Map<String, Object>> pageReps = webClient.get()
+                .uri(u -> u.path("/roles/" + ROLE_WEB_APP + "/users")
                         .queryParam("first", offset)
                         .queryParam("max", size)
-                        .queryParam("enabled", true)
                         .queryParam("briefRepresentation", false)
                         .build())
                 .retrieve()
                 .bodyToMono(USER_LIST_TYPE)
                 .block();
 
-        Integer total = webClient.get()
-                .uri(u -> u.path("/users/count").queryParam("enabled", true).build())
+        // Count all enabled WEB_APP users (brief representation keeps the payload small).
+        List<Map<String, Object>> allBrief = webClient.get()
+                .uri(u -> u.path("/roles/" + ROLE_WEB_APP + "/users")
+                        .queryParam("briefRepresentation", true)
+                        .queryParam("max", Integer.MAX_VALUE)
+                        .build())
                 .retrieve()
-                .bodyToMono(Integer.class)
+                .bodyToMono(USER_LIST_TYPE)
                 .block();
 
-        List<UserDto> users = reps == null ? List.of() : reps.stream().map(this::toDto).toList();
-        long totalElements = total == null ? 0 : total;
+        List<UserDto> users = pageReps == null ? List.of() : pageReps.stream()
+                .filter(r -> Boolean.TRUE.equals(r.get("enabled")))
+                .map(this::toDto)
+                .toList();
+        long totalElements = allBrief == null ? 0 : allBrief.stream()
+                .filter(r -> Boolean.TRUE.equals(r.get("enabled")))
+                .count();
         int totalPages = size == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
         boolean isLast = (offset + size) >= totalElements;
 
@@ -174,6 +184,7 @@ public class KeycloakUserClient implements KeycloakUserPort {
             // Extract UUID from Location header: .../users/{uuid}
             String location = response.getHeaders().getFirst("Location");
             UUID createdId = UUID.fromString(location.substring(location.lastIndexOf('/') + 1));
+            assignWebAppRole(createdId);
             return findByIdDirect(createdId);
         } catch (WebClientResponseException e) {
             if (e.getStatusCode() == HttpStatus.CONFLICT) {
@@ -279,6 +290,33 @@ public class KeycloakUserClient implements KeycloakUserPort {
             }
             throw e;
         }
+    }
+
+    /**
+     * Assigns the {@value #ROLE_WEB_APP} realm role to the given user.
+     * Called after every new user creation so the user can access the application.
+     */
+    private void assignWebAppRole(UUID userId) {
+        Map<String, Object> role = fetchWebAppRoleRepresentation();
+        webClient.post()
+                .uri("/users/{userId}/role-mappings/realm", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(List.of(role))
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+    }
+
+    /**
+     * Fetches the {@value #ROLE_WEB_APP} role representation from Keycloak.
+     * Used to obtain the role's UUID for role assignment calls.
+     */
+    private Map<String, Object> fetchWebAppRoleRepresentation() {
+        return webClient.get()
+                .uri("/roles/" + ROLE_WEB_APP)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .block();
     }
 
     /**

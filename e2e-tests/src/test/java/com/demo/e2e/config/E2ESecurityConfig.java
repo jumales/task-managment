@@ -67,7 +67,8 @@ public class E2ESecurityConfig {
             SecurityContextHolder.getContext().setAuthentication(
                     new UsernamePasswordAuthenticationToken(
                             "e2e-admin", null,
-                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                                    new SimpleGrantedAuthority("ROLE_WEB_APP"))));
             chain.doFilter(request, response);
         }
     }

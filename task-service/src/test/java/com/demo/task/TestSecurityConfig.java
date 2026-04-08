@@ -51,7 +51,8 @@ public class TestSecurityConfig {
                             throws java.io.IOException, jakarta.servlet.ServletException {
                         SecurityContextHolder.getContext().setAuthentication(
                                 new UsernamePasswordAuthenticationToken(TEST_USER_ID.toString(), null,
-                                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                                                new SimpleGrantedAuthority("ROLE_WEB_APP")))
                         );
                         chain.doFilter(request, response);
                     }
