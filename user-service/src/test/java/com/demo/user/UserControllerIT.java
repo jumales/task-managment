@@ -81,7 +81,8 @@ class UserControllerIT {
                             SecurityContextHolder.getContext().setAuthentication(
                                     new UsernamePasswordAuthenticationToken(
                                             "00000000-0000-0000-0000-000000000001", null,
-                                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                                                    new SimpleGrantedAuthority("ROLE_WEB_APP")))
                             );
                             chain.doFilter(request, response);
                         }

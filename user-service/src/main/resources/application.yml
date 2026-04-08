@@ -51,3 +51,4 @@ management:
 logging:
   level:
     com.demo.common.web: DEBUG        # controller param tracing + MDC filter
+    org.apache.kafka: TRACE
