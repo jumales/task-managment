@@ -205,6 +205,8 @@
     "uploadAvatar": "Upload Avatar",
     "searchPlaceholder": "Search users…",
     "roles": "Roles",
+    "selectRoles": "Select roles",
+    "failedLoadRoles": "Failed to load roles.",
     "avatarUpdated": "Avatar updated",
     "failedLoad": "Failed to load users.",
     "failedSearch": "Search failed.",

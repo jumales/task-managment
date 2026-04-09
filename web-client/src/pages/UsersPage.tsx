@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, message } from 'antd';
+import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, Select, message } from 'antd';
 import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { InputRef } from 'antd';
-import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar } from '../api/userApi';
+import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, getUserRoles, setUserRoles } from '../api/userApi';
 import { searchUsers } from '../api/searchApi';
 import { useAuth } from '../auth/AuthProvider';
-import type { UserResponse } from '../api/types';
+import type { RealmRole, UserResponse } from '../api/types';
+
+/** Assignable realm roles shown in the edit modal (WEB_APP is always auto-assigned and excluded). */
+const ASSIGNABLE_ROLE_OPTIONS = (
+  ['ADMIN', 'DEVELOPER', 'QA', 'DEVOPS', 'PM', 'SUPERVISOR'] as RealmRole[]
+).map((r) => ({ label: r, value: r }));
 
 /** Upload button that triggers a hidden file input. */
 function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (updated: UserResponse) => void }) {
@@ -70,9 +75,11 @@ export function UsersPage() {
   const [searchQuery,  setSearchQuery]  = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const searchInputRef = useRef<InputRef | null>(null);
-  const [modalOpen,   setModalOpen]   = useState(false);
-  const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
-  const [submitting,  setSubmitting]  = useState(false);
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [editingUser,  setEditingUser]  = useState<UserResponse | null>(null);
+  const [submitting,   setSubmitting]   = useState(false);
+  const [editingRoles, setEditingRoles] = useState<string[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -106,6 +113,7 @@ export function UsersPage() {
           active: d.active,
           avatarFileId: null,
           language: 'en',
+          roles: [],
         } as UserResponse));
         setUsers(mapped);
         setTotalUsers(mapped.length);
@@ -136,27 +144,39 @@ export function UsersPage() {
   /** Opens the modal in create mode. */
   const openCreateModal = () => {
     setEditingUser(null);
+    setEditingRoles([]);
     form.resetFields();
     form.setFieldValue('active', true);
     setModalOpen(true);
   };
 
-  /** Opens the modal in edit mode pre-filled with the given user's values. */
+  /** Opens the modal in edit mode, pre-filling user fields and fetching current roles in the background. */
   const openEditModal = (user: UserResponse) => {
     setEditingUser(user);
+    setEditingRoles([]);
     form.setFieldsValue({ name: user.name, email: user.email, active: user.active });
     setModalOpen(true);
+    // Load roles in background — modal opens immediately, Select shows a loading spinner
+    setRolesLoading(true);
+    getUserRoles(user.id)
+      .then(setEditingRoles)
+      .catch(() => setError(t('users.failedLoadRoles')))
+      .finally(() => setRolesLoading(false));
   };
 
-  /** Submits the form — calls createUser or updateUser based on edit mode. */
+  /** Submits the form — calls createUser or updateUser (and setUserRoles for edits) based on mode. */
   const handleSubmit = () => {
     form.validateFields().catch(() => {}).then((values) => {
       if (!values) return;
       setSubmitting(true);
-      const apiCall = editingUser
+      const userUpdate = editingUser
         ? updateUser(editingUser.id, { name: values.name, email: values.email, active: values.active })
         : createUser({ name: values.name, email: values.email, username: values.username ?? null, active: true });
-      apiCall
+      // Only set roles when editing — new users start with no manageable roles (WEB_APP is auto-assigned)
+      const roleUpdate = editingUser
+        ? setUserRoles(editingUser.id, editingRoles)
+        : Promise.resolve([]);
+      Promise.all([userUpdate, roleUpdate])
         .then(() => {
           setModalOpen(false);
           setEditingUser(null);
@@ -180,6 +200,13 @@ export function UsersPage() {
     { title: t('common.username'), dataIndex: 'username', key: 'username',
       render: (v: string | null) => v ?? '—' },
     { title: t('common.email'),    dataIndex: 'email',    key: 'email' },
+    { title: t('users.roles'),     dataIndex: 'roles',    key: 'roles',
+      render: (roles: string[]) => (
+        <Space size={[0, 4]} wrap>
+          {(roles ?? []).map((r) => <Tag key={r} color="blue">{r}</Tag>)}
+        </Space>
+      ),
+    },
     { title: t('common.status'),   dataIndex: 'active',   key: 'active',
       render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? t('common.active') : t('common.inactive')}</Tag> },
     {
@@ -261,6 +288,19 @@ export function UsersPage() {
           {editingUser && (
             <Form.Item name="active" label={t('common.active')} valuePropName="checked">
               <Switch />
+            </Form.Item>
+          )}
+          {/* Role multi-select is only shown when editing — new users start with no manageable roles */}
+          {editingUser && (
+            <Form.Item label={t('users.roles')}>
+              <Select
+                mode="multiple"
+                loading={rolesLoading}
+                value={editingRoles}
+                onChange={setEditingRoles}
+                options={ASSIGNABLE_ROLE_OPTIONS}
+                placeholder={t('users.selectRoles')}
+              />
             </Form.Item>
           )}
         </Form>
