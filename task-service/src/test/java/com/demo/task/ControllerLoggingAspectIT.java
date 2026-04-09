@@ -28,6 +28,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.context.annotation.Import;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,7 +73,7 @@ class ControllerLoggingAspectIT {
         repository.deleteAll();
         projectRepository.deleteAll();
 
-        when(userClient.getUserById(USER_ID)).thenReturn(new UserDto(USER_ID, "Alice", "alice@demo.com", null, true, null, "en"));
+        when(userClient.getUserById(USER_ID)).thenReturn(new UserDto(USER_ID, "Alice", "alice@demo.com", null, true, null, "en", List.of()));
 
         TaskProjectRequest projectReq = new TaskProjectRequest();
         projectReq.setName("Test Project");

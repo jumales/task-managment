@@ -110,8 +110,8 @@ class UserControllerIT {
 
     @BeforeEach
     void setUp() {
-        alice = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, null, "en");
-        bob   = new UserDto(BOB_ID,   "Bob",   "bob@demo.com",   "bob",   true, null, "en");
+        alice = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, null, "en", List.of());
+        bob   = new UserDto(BOB_ID,   "Bob",   "bob@demo.com",   "bob",   true, null, "en", List.of());
     }
 
     // ── GET /api/v1/users ─────────────────────────────────────────────
@@ -244,7 +244,7 @@ class UserControllerIT {
 
     @Test
     void updateUser_updatesFields() {
-        UserDto updated = new UserDto(ALICE_ID, "Alice Updated", "alice.new@demo.com", "alice", true, null, "en");
+        UserDto updated = new UserDto(ALICE_ID, "Alice Updated", "alice.new@demo.com", "alice", true, null, "en", List.of());
         when(keycloakUserClient.update(eq(ALICE_ID), any())).thenReturn(updated);
 
         ResponseEntity<UserDto> response = restTemplate.exchange(
@@ -287,7 +287,7 @@ class UserControllerIT {
 
     @Test
     void updateUser_canDeactivateUser() {
-        UserDto deactivated = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", false, null, "en");
+        UserDto deactivated = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", false, null, "en", List.of());
         when(keycloakUserClient.update(eq(ALICE_ID), any())).thenReturn(deactivated);
 
         UserRequest req = request("Alice", "alice@demo.com", "alice");
@@ -321,7 +321,7 @@ class UserControllerIT {
     @Test
     void deleteUser_thenGetById_returnsDisabledUser() {
         // After disable, findById still returns the user with active=false
-        UserDto disabled = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", false, null, "en");
+        UserDto disabled = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", false, null, "en", List.of());
         when(keycloakUserClient.findById(ALICE_ID)).thenReturn(disabled);
 
         restTemplate.delete("/api/v1/users/" + ALICE_ID);
@@ -336,7 +336,7 @@ class UserControllerIT {
     @Test
     void updateAvatar_setsAvatarFileId() {
         UUID fileId = UUID.randomUUID();
-        UserDto withAvatar = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, fileId, "en");
+        UserDto withAvatar = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, fileId, "en", List.of());
         when(keycloakUserClient.updateAttribute(eq(ALICE_ID), eq("avatarFileId"), any())).thenReturn(withAvatar);
 
         ResponseEntity<UserDto> response = restTemplate.exchange(
@@ -351,7 +351,7 @@ class UserControllerIT {
 
     @Test
     void updateAvatar_clearAvatar_setsAvatarFileIdToNull() {
-        UserDto noAvatar = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, null, "en");
+        UserDto noAvatar = new UserDto(ALICE_ID, "Alice", "alice@demo.com", "alice", true, null, "en", List.of());
         when(keycloakUserClient.updateAttribute(eq(ALICE_ID), eq("avatarFileId"), eq(null))).thenReturn(noAvatar);
 
         ResponseEntity<UserDto> response = restTemplate.exchange(
@@ -408,7 +408,7 @@ class UserControllerIT {
     void getMe_returnsCurrentUser() {
         // TestSecurityConfig injects principal name = "00000000-0000-0000-0000-000000000001"
         UUID meId = UUID.fromString("00000000-0000-0000-0000-000000000001");
-        UserDto me = new UserDto(meId, "Test Admin", "admin@demo.com", "test-admin", true, null, "en");
+        UserDto me = new UserDto(meId, "Test Admin", "admin@demo.com", "test-admin", true, null, "en", List.of());
         when(keycloakUserClient.findById(meId)).thenReturn(me);
 
         ResponseEntity<UserDto> response = restTemplate.getForEntity("/api/v1/users/me", UserDto.class);

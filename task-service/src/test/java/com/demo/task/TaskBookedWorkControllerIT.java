@@ -98,9 +98,9 @@ class TaskBookedWorkControllerIT {
         phaseRepository.deleteAll();
         projectRepository.deleteAll();
 
-        UserDto alice     = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, "en");
-        UserDto bob       = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, "en");
-        UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, "en");
+        UserDto alice     = new UserDto(ALICE_ID, "Alice Johnson", "alice@demo.com", null, true, null, "en", List.of());
+        UserDto bob       = new UserDto(BOB_ID,   "Bob Smith",     "bob@demo.com",   null, true, null, "en", List.of());
+        UserDto testAdmin = new UserDto(TestSecurityConfig.TEST_USER_ID, "Test Admin", "admin@test.com", null, true, null, "en", List.of());
 
         when(userClient.getUserById(ALICE_ID)).thenReturn(alice);
         when(userClient.getUserById(BOB_ID)).thenReturn(bob);
