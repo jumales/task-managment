@@ -333,3 +333,42 @@ export interface ProjectNotificationTemplateRequest {
   subjectTemplate: string;
   bodyTemplate: string;
 }
+
+// ─── Reporting ───────────────────────────────────────────────────────────────
+
+/** Mirrors com.demo.reporting.dto.MyTaskResponse */
+export interface MyTaskReport {
+  id: string;
+  taskCode: string | null;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  updatedAt: string;
+}
+
+/** Mirrors com.demo.reporting.dto.TaskHoursResponse */
+export interface TaskHoursRow {
+  taskId: string;
+  taskCode: string | null;
+  title: string | null;
+  plannedHours: number;
+  bookedHours: number;
+}
+
+/** Mirrors com.demo.reporting.dto.ProjectHoursResponse */
+export interface ProjectHoursRow {
+  projectId: string;
+  projectName: string | null;
+  plannedHours: number;
+  bookedHours: number;
+}
+
+/** Mirrors com.demo.reporting.dto.DetailedHoursResponse */
+export interface DetailedHoursRow {
+  userId: string;
+  workType: WorkType;
+  plannedHours: number;
+  bookedHours: number;
+}

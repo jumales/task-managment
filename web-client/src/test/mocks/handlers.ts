@@ -37,6 +37,7 @@ export const mockUser: UserResponse = {
   active: true,
   avatarFileId: null,
   language: 'en',
+  roles: [],
 };
 
 export const mockUser2: UserResponse = {
@@ -47,6 +48,7 @@ export const mockUser2: UserResponse = {
   active: true,
   avatarFileId: null,
   language: 'en',
+  roles: [],
 };
 
 export const mockTask: TaskResponse = {
