@@ -12,6 +12,7 @@ import com.demo.reporting.repository.ReportBookedWorkRepository;
 import com.demo.reporting.repository.ReportPlannedWorkRepository;
 import com.demo.reporting.repository.ReportTaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -65,6 +66,7 @@ class HoursReportIT {
     @Autowired private ReportBookedWorkRepository bookedRepository;
     @Autowired private KafkaTemplate<String, String> kafkaTemplate;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private JdbcTemplate jdbcTemplate;
 
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID TASK_ID = UUID.randomUUID();
@@ -72,9 +74,11 @@ class HoursReportIT {
 
     @BeforeEach
     void cleanUp() {
-        bookedRepository.deleteAll();
-        plannedRepository.deleteAll();
-        taskRepository.deleteAll();
+        // Physical deletes — soft-delete (@SQLDelete) would leave rows in the DB and cause
+        // duplicate-key failures when the same static TASK_ID is re-inserted in subsequent tests.
+        jdbcTemplate.execute("DELETE FROM report_booked_works");
+        jdbcTemplate.execute("DELETE FROM report_planned_works");
+        jdbcTemplate.execute("DELETE FROM report_tasks");
 
         // Seed a parent task so by-task/by-project responses can enrich code/name.
         ReportTask task = new ReportTask();
