@@ -55,6 +55,16 @@ export function updateUserAvatar(userId: string, fileId: string | null) {
     .then((r) => r.data);
 }
 
+/** Fetches the manageable realm roles currently held by the user. */
+export function getUserRoles(userId: string) {
+  return apiClient.get<string[]>(`${USERS_URL}/${userId}/roles`).then((r) => r.data);
+}
+
+/** Replaces all manageable realm roles for the user. Returns the updated role list. */
+export function setUserRoles(userId: string, roles: string[]) {
+  return apiClient.put<string[]>(`${USERS_URL}/${userId}/roles`, roles).then((r) => r.data);
+}
+
 /** Returns a short-lived presigned URL for the given fileId. */
 export function getAvatarUrl(fileId: string) {
   return apiClient
