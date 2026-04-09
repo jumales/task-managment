@@ -25,6 +25,7 @@ public class TaskEvent {
     private Instant timestamp;
 
     /** Populated for CREATED and UPDATED events. */
+    private String taskCode;
     private String title;
     private String description;
     private TaskStatus status;
@@ -34,23 +35,29 @@ public class TaskEvent {
     private String phaseName;
     private UUID assignedUserId;
     private String assignedUserName;
+    private Instant plannedStart;
+    private Instant plannedEnd;
 
     /** Factory for a task-created event carrying full task data. */
-    public static TaskEvent created(UUID taskId, String title, String description, TaskStatus status,
+    public static TaskEvent created(UUID taskId, String taskCode, String title, String description, TaskStatus status,
                                     UUID projectId, String projectName,
                                     UUID phaseId, String phaseName,
-                                    UUID assignedUserId, String assignedUserName) {
-        return full(TaskEventType.CREATED, taskId, title, description, status,
-                projectId, projectName, phaseId, phaseName, assignedUserId, assignedUserName);
+                                    UUID assignedUserId, String assignedUserName,
+                                    Instant plannedStart, Instant plannedEnd) {
+        return full(TaskEventType.CREATED, taskId, taskCode, title, description, status,
+                projectId, projectName, phaseId, phaseName, assignedUserId, assignedUserName,
+                plannedStart, plannedEnd);
     }
 
     /** Factory for a task-updated event carrying full task data. */
-    public static TaskEvent updated(UUID taskId, String title, String description, TaskStatus status,
+    public static TaskEvent updated(UUID taskId, String taskCode, String title, String description, TaskStatus status,
                                     UUID projectId, String projectName,
                                     UUID phaseId, String phaseName,
-                                    UUID assignedUserId, String assignedUserName) {
-        return full(TaskEventType.UPDATED, taskId, title, description, status,
-                projectId, projectName, phaseId, phaseName, assignedUserId, assignedUserName);
+                                    UUID assignedUserId, String assignedUserName,
+                                    Instant plannedStart, Instant plannedEnd) {
+        return full(TaskEventType.UPDATED, taskId, taskCode, title, description, status,
+                projectId, projectName, phaseId, phaseName, assignedUserId, assignedUserName,
+                plannedStart, plannedEnd);
     }
 
     /** Factory for a task-deleted event carrying only the task ID. */
@@ -62,14 +69,17 @@ public class TaskEvent {
         return e;
     }
 
-    private static TaskEvent full(TaskEventType type, UUID taskId, String title, String description,
+    private static TaskEvent full(TaskEventType type, UUID taskId, String taskCode,
+                                  String title, String description,
                                   TaskStatus status, UUID projectId, String projectName,
                                   UUID phaseId, String phaseName,
-                                  UUID assignedUserId, String assignedUserName) {
+                                  UUID assignedUserId, String assignedUserName,
+                                  Instant plannedStart, Instant plannedEnd) {
         TaskEvent e = new TaskEvent();
         e.taskId = taskId;
         e.eventType = type;
         e.timestamp = Instant.now();
+        e.taskCode = taskCode;
         e.title = title;
         e.description = description;
         e.status = status;
@@ -79,6 +89,8 @@ public class TaskEvent {
         e.phaseName = phaseName;
         e.assignedUserId = assignedUserId;
         e.assignedUserName = assignedUserName;
+        e.plannedStart = plannedStart;
+        e.plannedEnd = plannedEnd;
         return e;
     }
 }

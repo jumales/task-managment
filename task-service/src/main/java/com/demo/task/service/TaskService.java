@@ -347,6 +347,14 @@ public class TaskService {
             throw new IllegalArgumentException("Planned dates can only be changed while the task is in the PLANNING phase");
         }
         timelineService.updatePlannedDates(taskId, request.getPlannedStart(), request.getPlannedEnd(), updatingUserId);
+
+        // Republish a lifecycle event so downstream projections (search, reporting)
+        // pick up the new planned dates.
+        TaskProject project = projectService.getOrThrow(task.getProjectId());
+        String userName     = userClientHelper.resolveUserName(task.getAssignedUserId());
+        writeTaskLifecycleOutboxEvent(task, OutboxEventType.TASK_UPDATED,
+                project.getName(), task.getPhaseId(), userName);
+
         return findFullById(taskId);
     }
 
@@ -370,13 +378,19 @@ public class TaskService {
                                                String projectName, UUID phaseId, String userName) {
         // getName() returns TaskPhaseName enum; .name() converts to String for the event payload
         String phaseName = phaseId != null ? phaseService.getOrThrow(phaseId).getName().name() : null;
+        Instant plannedStart = timelineService.findPlannedStart(task.getId());
+        Instant plannedEnd   = timelineService.findPlannedEnd(task.getId());
         TaskEvent event = switch (eventType) {
-            case TASK_CREATED -> TaskEvent.created(task.getId(), task.getTitle(), task.getDescription(),
+            case TASK_CREATED -> TaskEvent.created(task.getId(), task.getTaskCode(),
+                    task.getTitle(), task.getDescription(),
                     task.getStatus(), task.getProjectId(), projectName,
-                    phaseId, phaseName, task.getAssignedUserId(), userName);
-            case TASK_UPDATED -> TaskEvent.updated(task.getId(), task.getTitle(), task.getDescription(),
+                    phaseId, phaseName, task.getAssignedUserId(), userName,
+                    plannedStart, plannedEnd);
+            case TASK_UPDATED -> TaskEvent.updated(task.getId(), task.getTaskCode(),
+                    task.getTitle(), task.getDescription(),
                     task.getStatus(), task.getProjectId(), projectName,
-                    phaseId, phaseName, task.getAssignedUserId(), userName);
+                    phaseId, phaseName, task.getAssignedUserId(), userName,
+                    plannedStart, plannedEnd);
             default -> throw new IllegalArgumentException("Unexpected lifecycle event type: " + eventType);
         };
         writeLifecycleToOutbox(task.getId(), eventType, event);

@@ -14,17 +14,66 @@
   "variable": [],
   "item": [
     {
-      "name": "Health",
+      "name": "My Tasks",
       "item": [
         {
-          "name": "Actuator health",
+          "name": "All my tasks",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/reports/health",
+              "raw": "{{baseUrl}}/api/v1/reports/my-tasks",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "reports", "health"]
+              "path": ["api", "v1", "reports", "my-tasks"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "My tasks (last 5 days)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/my-tasks?days=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports", "my-tasks"],
+              "query": [{ "key": "days", "value": "5" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "My tasks (last 30 days)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/my-tasks?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports", "my-tasks"],
+              "query": [{ "key": "days", "value": "30" }]
             }
           },
           "event": [

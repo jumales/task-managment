@@ -90,6 +90,18 @@ public class TaskTimelineService {
         repository.deleteById(entry.getId());
     }
 
+    /** Returns the active PLANNED_START timestamp for a task, or {@code null} if none is set. */
+    Instant findPlannedStart(UUID taskId) {
+        return repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_START)
+                .map(TaskTimeline::getTimestamp).orElse(null);
+    }
+
+    /** Returns the active PLANNED_END timestamp for a task, or {@code null} if none is set. */
+    Instant findPlannedEnd(UUID taskId) {
+        return repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_END)
+                .map(TaskTimeline::getTimestamp).orElse(null);
+    }
+
     /**
      * Creates the mandatory PLANNED_START and PLANNED_END timeline entries for a newly created task.
      * Called by {@link TaskService} immediately after the task is persisted.
