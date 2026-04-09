@@ -89,6 +89,16 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        - id: reporting-service-reports
+          uri: lb://reporting-service
+          predicates:
+            - Path=/api/v1/reports/**
+
+        - id: reporting-service-ws
+          uri: lb://reporting-service
+          predicates:
+            - Path=/ws/**
+
         # Rate-limited: GET /api/v1/search/** — 30 req/min per user to prevent scraping
         # replenishRate 1/2s, requestedTokens 2 → 30/min, burst up to 5
         - id: search-service-search-read

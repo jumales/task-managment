@@ -8,6 +8,7 @@
 /user-service/target/
 /search-service/target/
 /notification-service/target/
+/reporting-service/target/
 .claude/settings.local.json
 
 # IDE

@@ -10,7 +10,7 @@
 #   ./scripts/start-dev.sh --restart <service>  # kill & reopen one service terminal
 #
 # Valid service names for --restart:
-#   eureka-server | api-gateway | user-service | task-service | audit-service | file-service | search-service | web-client
+#   eureka-server | api-gateway | user-service | task-service | audit-service | file-service | search-service | notification-service | reporting-service | web-client
 
 set -euo pipefail
 
@@ -93,7 +93,7 @@ wait_for_http() {
 start_service() {
   local name="$1"
   case "$name" in
-    eureka-server|api-gateway|user-service|task-service|audit-service|file-service|search-service|notification-service)
+    eureka-server|api-gateway|user-service|task-service|audit-service|file-service|search-service|notification-service|reporting-service)
       local extra_args=""
       if [[ "$SKIP_ELK" == false ]]; then
         # Activate logstash profile and point TCP appender to localhost (Docker exposes port 5000)
@@ -108,7 +108,7 @@ start_service() {
       ;;
     *)
       warn "Unknown service '$name'."
-      echo "Valid names: eureka-server api-gateway user-service task-service audit-service file-service search-service web-client"
+      echo "Valid names: eureka-server api-gateway user-service task-service audit-service file-service search-service notification-service reporting-service web-client"
       exit 1
       ;;
   esac
@@ -229,7 +229,7 @@ wait_for_http "Eureka" "http://localhost:8761/actuator/health" 120
 
 # ── Step 4: Other microservices (parallel, all register with Eureka) ──────────
 
-for service in api-gateway user-service task-service audit-service file-service search-service notification-service; do
+for service in api-gateway user-service task-service audit-service file-service search-service notification-service reporting-service; do
   log "Starting $service ..."
   start_service "$service"
 done

@@ -26,6 +26,7 @@
         <module>file-service</module>
         <module>search-service</module>
         <module>notification-service</module>
+        <module>reporting-service</module>
         <module>e2e-tests</module>
     </modules>
 

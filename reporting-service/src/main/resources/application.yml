@@ -1,0 +1,65 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: reporting-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/reporting_db
+    username: reporting_svc
+    password: reporting_svc_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: reporting-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.demo.common.event"
+        spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/demo}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: never
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    com.demo.common.web: DEBUG          # controller param tracing + MDC filter
+    org.hibernate.SQL: DEBUG            # SQL statements (replaces show-sql: true)
+    org.apache.kafka: TRACE             # all kafka client logs at TRACE
+    org.springframework.kafka: TRACE    # all spring-kafka logs at TRACE
+    com.demo.reporting.consumer: DEBUG  # important: app-level event consumption
