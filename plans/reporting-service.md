@@ -113,12 +113,12 @@ Eureka registration is automatic via `spring-cloud-starter-netflix-eureka-client
 
 ## Delivery plan (step → PR → continue)
 
-1. **Scaffold** (this PR): new `reporting-service` module with pom, Application, `application.yml`, Flyway `V1__init.sql`, context-load IT, postgres init entry, gateway routes, start-dev entry, Postman collection, root `pom.xml` module, and plan doc in `plans/`.
-2. **Projection & my-tasks**: entities, Flyway `V2`, consumers for `TASK_EVENTS` + `TASK_CHANGED`, REST `GET /my-tasks[?days=]`, IT.
-3. **Hours report**: REST `GET /hours/by-task|by-project|detailed`, IT.
-4. **WebSocket push**: `WebSocketConfig`, `ReportPushService`, JWT STOMP interceptor, IT.
-5. **Frontend**: Reports tab, ReportsPage, HoursReport, api client, types.
-6. **Dashboard chart + real-time**: Recharts bar chart on dashboard; STOMP client wiring.
+1. ✅ **Scaffold** — PR #92: new `reporting-service` module with pom, Application, `application.yml`, Flyway `V1__init.sql`, context-load IT, postgres init entry, gateway routes, start-dev entry, Postman collection, root `pom.xml` module, and plan doc in `plans/`.
+2. ✅ **Projection & my-tasks** — PR #93: entities, Flyway `V2`, consumers for `TASK_EVENTS`, REST `GET /my-tasks[?days=]`, IT. `TaskEvent` extended with `taskCode`, `plannedStart`, `plannedEnd`.
+3. ✅ **Hours report** — PR #94: `report_planned_works` / `report_booked_works` projections, `TASK_CHANGED` consumer, REST `GET /hours/by-task|by-project|detailed`, IT.
+4. ✅ **WebSocket push** — PR #95: `WebSocketConfig`, `ReportPushService`, JWT STOMP `ChannelInterceptor`; consumers call `pushService.notifyUser()` after each write.
+5. ✅ **Frontend** — PR #96: `ReportsPage` (My Tasks tabs + Hours), `HoursReport`, `reportingApi.ts`, `reportingSocket.ts` STOMP singleton, types, sidebar nav, Recharts bar chart on Dashboard.
+6. ✅ **Infra** — this PR: full `mvn clean install` green; `reporting_db` already provisioned via `docker-images/postgres/init.sql`; no separate Docker container needed (services run via `mvn spring-boot:run`).
 
 ## Reused code
 - `common/.../config/KafkaTopics.java` — `TASK_EVENTS`, `TASK_CHANGED`.
