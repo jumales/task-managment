@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Alert, Button, Divider, Spin, Tabs } from 'antd';
@@ -31,12 +32,21 @@ export function TaskDetailPage() {
     setData((prev) => (prev ? { ...prev, task: updated } : null));
   });
 
-  const timeline     = useTaskTimeline(id,      data?.timelines    ?? []);
-  const plannedWork  = useTaskPlannedWork(id,   data?.plannedWork  ?? []);
-  const bookedWork   = useTaskBookedWork(id,    data?.bookedWork   ?? []);
-  const participants = useTaskParticipants(id,  data?.participants ?? []);
-  const comments     = useTaskComments(id,      data?.comments     ?? []);
-  const attachments  = useTaskAttachments(id,   data?.attachments  ?? []);
+  // Stabilize array references so the sync useEffect inside each hook only fires
+  // when data actually changes, not on every render due to a new [] reference.
+  const timelinesData    = useMemo(() => data?.timelines    ?? [], [data]);
+  const plannedWorkData  = useMemo(() => data?.plannedWork  ?? [], [data]);
+  const bookedWorkData   = useMemo(() => data?.bookedWork   ?? [], [data]);
+  const participantsData = useMemo(() => data?.participants ?? [], [data]);
+  const commentsData     = useMemo(() => data?.comments     ?? [], [data]);
+  const attachmentsData  = useMemo(() => data?.attachments  ?? [], [data]);
+
+  const timeline     = useTaskTimeline(id,      timelinesData);
+  const plannedWork  = useTaskPlannedWork(id,   plannedWorkData);
+  const bookedWork   = useTaskBookedWork(id,    bookedWorkData);
+  const participants = useTaskParticipants(id,  participantsData);
+  const comments     = useTaskComments(id,      commentsData);
+  const attachments  = useTaskAttachments(id,   attachmentsData);
 
   if (loading) return <div style={{ textAlign: 'center', marginTop: 80 }}><Spin size="large" /></div>;
   if (error)   return <Alert type="error" message={error} style={{ margin: 24 }} />;

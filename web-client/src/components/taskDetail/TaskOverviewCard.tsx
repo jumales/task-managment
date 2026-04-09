@@ -29,7 +29,7 @@ export function TaskOverviewCard({ task, onChangePhase }: Props) {
         </Space>
       </div>
 
-      <Descriptions column={{ xs: 1, sm: 2 }} style={{ marginTop: 16 }} size="small">
+      <Descriptions column={2} style={{ marginTop: 16 }} size="small">
         <Descriptions.Item label={t('common.description')} span={2}>
           {task.description || '—'}
         </Descriptions.Item>
@@ -52,7 +52,7 @@ export function TaskOverviewCard({ task, onChangePhase }: Props) {
             )}
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label={t('tasks.assignedTo')}>
+        <Descriptions.Item label={t('tasks.assignedTo')} span={2}>
           {assignedUser?.userName ?? assignedUser?.userId ?? '—'}
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.progress')} span={2}>
