@@ -202,21 +202,26 @@ class TaskPlannedWorkControllerIT {
     }
 
     @Test
-    void createPlannedWork_whenTaskNotInTodoStatus_returns400() {
-        // Move task to IN_PROGRESS
-        TaskRequest updateReq = new TaskRequest();
-        updateReq.setTitle("Sample Task");
-        updateReq.setStatus(TaskStatus.IN_PROGRESS);
-        updateReq.setType(TaskType.FEATURE);
-        updateReq.setAssignedUserId(ALICE_ID);
-        updateReq.setProjectId(projectId);
-        updateReq.setPhaseId(phaseId);
-        restTemplate.exchange("/api/v1/tasks/" + taskId, HttpMethod.PUT,
-                new HttpEntity<>(updateReq), TaskResponse.class);
+    void createPlannedWork_whenTaskNotInPlanningPhase_returns400() {
+        // Move task out of PLANNING phase to BACKLOG
+        com.demo.common.dto.TaskPhaseUpdateRequest phaseUpdateReq = new com.demo.common.dto.TaskPhaseUpdateRequest();
+        phaseUpdateReq.setPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/phase", HttpMethod.PATCH,
+                new HttpEntity<>(phaseUpdateReq), TaskResponse.class);
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/planned-work",
                 plannedWorkRequest(WorkType.DEVELOPMENT, "8"),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void createPlannedWork_whenPlannedHoursIsZero_returns400() {
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/planned-work",
+                plannedWorkRequest(WorkType.DEVELOPMENT, "0"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);

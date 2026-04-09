@@ -3,20 +3,20 @@ import { useTranslation } from 'react-i18next';
 import {
   Button, Divider, InputNumber, List, Select, Space, Tag, Typography,
 } from 'antd';
-import type { TaskStatus, WorkType } from '../../api/types';
+import type { TaskPhaseName, WorkType } from '../../api/types';
 import type { useTaskPlannedWork } from '../../hooks/useTaskPlannedWork';
 import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
 type Props = ReturnType<typeof useTaskPlannedWork> & {
-  taskStatus: TaskStatus;
+  taskPhaseName: TaskPhaseName;
 };
 
-/** Renders the planned-work list and the add form (visible only when task status is TODO). */
+/** Renders the planned-work list and the add form (visible only when task is in the PLANNING phase). */
 export function TaskPlannedWorkTab({
   plannedWork,
   pwType, setPwType, pwHours, setPwHours,
   savingPw, handleSavePlannedWork,
-  taskStatus,
+  taskPhaseName,
 }: Props) {
   const { t } = useTranslation();
 
@@ -49,7 +49,7 @@ export function TaskPlannedWorkTab({
         )}
       />
 
-      {taskStatus === 'TODO' && workTypeOptions.length > 0 && (
+      {taskPhaseName === 'PLANNING' && workTypeOptions.length > 0 && (
         <>
           <Divider orientation="left" style={{ marginTop: 16 }}>{t('tasks.addPlannedWork')}</Divider>
           <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
@@ -67,7 +67,7 @@ export function TaskPlannedWorkTab({
               addonAfter="h"
               style={{ width: '100%' }}
             />
-            <Button type="primary" loading={savingPw} onClick={handleSavePlannedWork}>
+            <Button type="primary" loading={savingPw} onClick={handleSavePlannedWork} disabled={pwHours <= 0}>
               {t('common.add')}
             </Button>
           </Space>

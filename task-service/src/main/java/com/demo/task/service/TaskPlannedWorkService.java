@@ -1,8 +1,8 @@
 package com.demo.task.service;
 
+import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPlannedWorkRequest;
 import com.demo.common.dto.TaskPlannedWorkResponse;
-import com.demo.common.dto.TaskStatus;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.DuplicateResourceException;
 import com.demo.common.exception.ResourceNotFoundException;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * Manages planned-work entries for tasks, tracking estimated hours per work type.
  * Each work type can have at most one planned-work entry per task.
- * Entries are immutable once created and may only be added while the task status is TODO.
+ * Entries are immutable once created and may only be added while the task is in the PLANNING phase.
  * Publishes an audit event to the outbox on every create.
  */
 @Service
@@ -36,15 +36,18 @@ public class TaskPlannedWorkService {
 
     private final TaskPlannedWorkRepository repository;
     private final TaskRepository taskRepository;
+    private final TaskPhaseService phaseService;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
 
     public TaskPlannedWorkService(TaskPlannedWorkRepository repository,
                                   TaskRepository taskRepository,
+                                  TaskPhaseService phaseService,
                                   UserClientHelper userClientHelper,
                                   OutboxWriter outboxWriter) {
         this.repository = repository;
         this.taskRepository = taskRepository;
+        this.phaseService = phaseService;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
     }
@@ -57,18 +60,19 @@ public class TaskPlannedWorkService {
 
     /**
      * Creates a new planned-work entry on the task.
-     * Only allowed when the task status is TODO (planning phase).
+     * Only allowed while the task is in the PLANNING phase.
      * Each work type may appear at most once per task.
      * Publishes a PLANNED_WORK_CREATED audit event.
      *
      * @param creatorId the authenticated user who is creating this entry
-     * @throws IllegalArgumentException if the task is not in TODO status
+     * @throws IllegalArgumentException if the task is not in the PLANNING phase
      * @throws DuplicateResourceException if a planned-work entry for the given work type already exists
      */
     @Transactional
     public TaskPlannedWorkResponse create(UUID taskId, UUID creatorId, TaskPlannedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
         validatePlanningPhase(task);
+        validateHours(request);
         validateNoDuplicate(taskId, request);
         String creatorName = userClientHelper.resolveUserName(creatorId);
         TaskPlannedWork saved = repository.save(TaskPlannedWork.builder()
@@ -89,11 +93,19 @@ public class TaskPlannedWorkService {
                 .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
     }
 
-    /** Throws if the task is not in TODO status (planning phase). */
+    /** Throws if planned hours are not a positive integer. */
+    private void validateHours(TaskPlannedWorkRequest request) {
+        if (request.getPlannedHours() == null || request.getPlannedHours().intValue() <= 0) {
+            throw new IllegalArgumentException("Planned hours must be greater than 0");
+        }
+    }
+
+    /** Throws if the task is not in the PLANNING phase. */
     private void validatePlanningPhase(Task task) {
-        if (task.getStatus() != TaskStatus.TODO) {
+        TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
+        if (phaseName != TaskPhaseName.PLANNING) {
             throw new IllegalArgumentException(
-                    "Planned work can only be created when task status is TODO (planning phase)");
+                    "Planned work can only be created while the task is in the PLANNING phase");
         }
     }
 
