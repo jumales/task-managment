@@ -4,6 +4,7 @@ import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskEvent;
 import com.demo.reporting.model.ReportTask;
 import com.demo.reporting.repository.ReportTaskRepository;
+import com.demo.reporting.service.ReportPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import java.time.Instant;
  * Consumes task lifecycle events from the {@code task-events} topic and maintains the
  * reporting read-model ({@link ReportTask}). Uses the same JSON-over-String pattern as
  * search-service so the listener is decoupled from any spring-kafka default-type config.
+ * After each successful write the assigned user is notified via WebSocket push.
  */
 @Component
 public class TaskEventProjectionConsumer {
@@ -24,10 +26,14 @@ public class TaskEventProjectionConsumer {
 
     private final ReportTaskRepository repository;
     private final ObjectMapper objectMapper;
+    private final ReportPushService pushService;
 
-    public TaskEventProjectionConsumer(ReportTaskRepository repository, ObjectMapper objectMapper) {
+    public TaskEventProjectionConsumer(ReportTaskRepository repository,
+                                       ObjectMapper objectMapper,
+                                       ReportPushService pushService) {
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.pushService = pushService;
     }
 
     /** Upserts / soft-deletes a {@link ReportTask} row based on the incoming event type. */
@@ -63,9 +69,13 @@ public class TaskEventProjectionConsumer {
         existing.setPlannedEnd(event.getPlannedEnd());
         existing.setUpdatedAt(event.getTimestamp() != null ? event.getTimestamp() : Instant.now());
         repository.save(existing);
+        pushService.notifyUser(event.getAssignedUserId());
     }
 
     private void softDelete(TaskEvent event) {
-        repository.findById(event.getTaskId()).ifPresent(t -> repository.delete(t));
+        repository.findById(event.getTaskId()).ifPresent(task -> {
+            repository.delete(task);
+            pushService.notifyUser(task.getAssignedUserId());
+        });
     }
 }
