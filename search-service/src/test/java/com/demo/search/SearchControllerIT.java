@@ -111,12 +111,14 @@ class SearchControllerIT {
     void setUp() throws InterruptedException {
         // Index a task document directly (bypasses Kafka for speed)
         TaskEvent taskEvent = TaskEvent.created(TASK_ID,
+                "TASK_1",
                 "Implement login feature",
                 "Build the authentication flow with OAuth2",
                 TaskStatus.IN_PROGRESS,
                 PROJECT_ID, "Alpha Project",
                 null, null,
-                UUID.randomUUID(), "Alice Smith");
+                UUID.randomUUID(), "Alice Smith",
+                null, null);
         taskIndexService.index(taskEvent);
 
         // Index a user document directly
