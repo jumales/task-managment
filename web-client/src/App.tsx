@@ -6,6 +6,7 @@ import { TaskDetailPage } from './pages/TaskDetailPage';
 import { UsersPage } from './pages/UsersPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ConfigurationPage } from './pages/ConfigurationPage';
+import { ReportsPage } from './pages/ReportsPage';
 
 /** Root router — all routes are protected by AuthProvider in main.tsx. */
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/projects"      element={<ProjectsPage />} />
           <Route path="/users"         element={<UsersPage />} />
           <Route path="/configuration" element={<ConfigurationPage />} />
+          <Route path="/reports"       element={<ReportsPage />} />
           <Route path="*"              element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AppLayout>

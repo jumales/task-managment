@@ -13,6 +13,7 @@ import {
   MenuUnfoldOutlined,
   SettingOutlined,
   GlobalOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -69,6 +70,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { key: '/tasks',         label: t('nav.tasks'),         icon: <CheckSquareOutlined /> },
     { key: '/projects',      label: t('nav.projects'),      icon: <ProjectOutlined /> },
     { key: '/users',         label: t('nav.users'),         icon: <TeamOutlined /> },
+    { key: '/reports',       label: t('nav.reports'),       icon: <BarChartOutlined /> },
     { key: '/configuration', label: t('nav.configuration'), icon: <SettingOutlined /> },
   ], [t]);
 
