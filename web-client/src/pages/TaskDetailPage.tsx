@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Spin, Tabs } from 'antd';
+import { Alert, Button, Divider, Spin, Tabs } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useTaskDetailData } from '../hooks/useTaskDetailData';
 import { useTaskTimeline }     from '../hooks/useTaskTimeline';
@@ -67,12 +67,21 @@ export function TaskDetailPage() {
 
       <Tabs
         items={[
+          {
+            key: 'comments',
+            label: t('tasks.comments'),
+            children: (
+              <>
+                <TaskCommentsTab {...comments} />
+                <Divider />
+                <TaskAttachmentsTab {...attachments} />
+              </>
+            ),
+          },
           { key: 'timeline',     label: t('tasks.timeline'),     children: <TaskTimelineTab     {...timeline}     users={data.users} /> },
           { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskStatus={data.task.status} /> },
           { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} /> },
           { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
-          { key: 'comments',     label: t('tasks.comments'),     children: <TaskCommentsTab     {...comments} /> },
-          { key: 'attachments',  label: t('tasks.attachments'),  children: <TaskAttachmentsTab  {...attachments} /> },
         ]}
       />
     </div>
