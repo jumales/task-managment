@@ -1,5 +1,6 @@
 package com.demo.task.service;
 
+import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskTimelineRequest;
 import com.demo.common.dto.TaskTimelineResponse;
 import com.demo.common.dto.TimelineState;
@@ -36,17 +37,23 @@ public class TaskTimelineService {
             TimelineState.REAL_END,      TimelineState.REAL_START
     );
 
+    private static final java.util.Set<TimelineState> PLANNED_STATES =
+            java.util.Set.of(TimelineState.PLANNED_START, TimelineState.PLANNED_END);
+
     private final TaskTimelineRepository repository;
     private final TaskRepository taskRepository;
+    private final TaskPhaseService phaseService;
     private final UserClient userClient;
     private final UserClientHelper userClientHelper;
 
     public TaskTimelineService(TaskTimelineRepository repository,
                                TaskRepository taskRepository,
+                               TaskPhaseService phaseService,
                                UserClient userClient,
                                UserClientHelper userClientHelper) {
         this.repository = repository;
         this.taskRepository = taskRepository;
+        this.phaseService = phaseService;
         this.userClient = userClient;
         this.userClientHelper = userClientHelper;
     }
@@ -66,7 +73,8 @@ public class TaskTimelineService {
      */
     @Transactional
     public TaskTimelineResponse setState(UUID taskId, TimelineState state, TaskTimelineRequest request) {
-        getTaskOrThrow(taskId);
+        Task task = getTaskOrThrow(taskId);
+        validatePlannedStateAllowed(task, state);
         UserDto user = userClient.getUserById(request.getSetByUserId());
         validateOrdering(taskId, state, request.getTimestamp());
 
@@ -84,7 +92,8 @@ public class TaskTimelineService {
      */
     @Transactional
     public void deleteState(UUID taskId, TimelineState state) {
-        getTaskOrThrow(taskId);
+        Task task = getTaskOrThrow(taskId);
+        validatePlannedStateAllowed(task, state);
         TaskTimeline entry = repository.findByTaskIdAndState(taskId, state)
                 .orElseThrow(() -> new ResourceNotFoundException("TaskTimeline state " + state + " on task", taskId));
         repository.deleteById(entry.getId());
@@ -144,6 +153,19 @@ public class TaskTimelineService {
                         counterpart + " must be before " + state + " (" + newTimestamp + ")");
             }
         });
+    }
+
+    /**
+     * Throws if the given state is a planned date (PLANNED_START or PLANNED_END) and
+     * the task's current phase is not PLANNING. Real dates are not phase-restricted.
+     */
+    private void validatePlannedStateAllowed(Task task, TimelineState state) {
+        if (!PLANNED_STATES.contains(state)) return;
+        TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
+        if (phaseName != TaskPhaseName.PLANNING) {
+            throw new IllegalArgumentException(
+                    "Planned dates can only be changed while the task is in the PLANNING phase");
+        }
     }
 
     private Task getTaskOrThrow(UUID taskId) {

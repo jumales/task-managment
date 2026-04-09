@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { TimelineState, UserResponse } from '../../api/types';
+import type { TaskPhaseName, TimelineState, UserResponse } from '../../api/types';
 
 const PAIR: Partial<Record<TimelineState, TimelineState>> = {
   PLANNED_END:   'PLANNED_START',
@@ -16,7 +16,12 @@ const PAIR: Partial<Record<TimelineState, TimelineState>> = {
 import { TIMELINE_STATES } from '../../pages/taskDetail/taskDetailConstants';
 import type { useTaskTimeline } from '../../hooks/useTaskTimeline';
 
-type Props = ReturnType<typeof useTaskTimeline> & { users: UserResponse[] };
+type Props = ReturnType<typeof useTaskTimeline> & {
+  users: UserResponse[];
+  taskPhaseName: TaskPhaseName;
+};
+
+const PLANNED_STATES = new Set<TimelineState>(['PLANNED_START', 'PLANNED_END']);
 
 /** Renders the timeline cards for all four timeline states plus the set/edit modal. */
 export function TaskTimelineTab({
@@ -24,7 +29,7 @@ export function TaskTimelineTab({
   tlModalOpen, setTlModalOpen, editingState,
   tlUserId, setTlUserId, tlTimestamp, setTlTimestamp,
   savingTimeline, handleSaveTimeline,
-  users,
+  users, taskPhaseName,
 }: Props) {
   const { t } = useTranslation();
 
@@ -59,23 +64,26 @@ export function TaskTimelineTab({
                   </Space>
                 }
                 extra={
-                  <Space size="small">
-                    <Button size="small" onClick={() => openTlModal(state)}>
-                      {entry ? t('common.edit') : t('tasks.setDate')}
-                    </Button>
-                    {entry && (
-                      <Popconfirm
-                        title={t('tasks.clearTimelineConfirm')}
-                        onConfirm={() => handleDeleteTimeline(state)}
-                        okText={t('common.delete')}
-                        okButtonProps={{ danger: true }}
-                      >
-                        <Button danger size="small" loading={deletingTlState === state}>
-                          {t('tasks.clearDate')}
-                        </Button>
-                      </Popconfirm>
-                    )}
-                  </Space>
+                  // Planned dates are locked once the task leaves the PLANNING phase
+                  (!PLANNED_STATES.has(state) || taskPhaseName === 'PLANNING') && (
+                    <Space size="small">
+                      <Button size="small" onClick={() => openTlModal(state)}>
+                        {entry ? t('common.edit') : t('tasks.setDate')}
+                      </Button>
+                      {entry && (
+                        <Popconfirm
+                          title={t('tasks.clearTimelineConfirm')}
+                          onConfirm={() => handleDeleteTimeline(state)}
+                          okText={t('common.delete')}
+                          okButtonProps={{ danger: true }}
+                        >
+                          <Button danger size="small" loading={deletingTlState === state}>
+                            {t('tasks.clearDate')}
+                          </Button>
+                        </Popconfirm>
+                      )}
+                    </Space>
+                  )
                 }
               >
                 {entry ? (
