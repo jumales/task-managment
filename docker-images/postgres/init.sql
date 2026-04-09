@@ -34,3 +34,10 @@ CREATE DATABASE notification_db OWNER notification_svc;
 GRANT ALL PRIVILEGES ON DATABASE notification_db TO notification_svc;
 \c notification_db
 GRANT ALL ON SCHEMA public TO notification_svc;
+
+-- ── Reporting Service ──────────────────────────────────────────
+CREATE USER reporting_svc WITH PASSWORD 'reporting_svc_pass';
+CREATE DATABASE reporting_db OWNER reporting_svc;
+GRANT ALL PRIVILEGES ON DATABASE reporting_db TO reporting_svc;
+\c reporting_db
+GRANT ALL ON SCHEMA public TO reporting_svc;
