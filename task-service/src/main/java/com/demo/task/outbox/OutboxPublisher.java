@@ -40,8 +40,9 @@ public class OutboxPublisher {
         List<OutboxEvent> published = new ArrayList<>();
         for (OutboxEvent event : pending) {
             try {
-                // Forward the raw JSON payload to the topic recorded when the event was written.
-                kafkaTemplate.send(event.getTopic(), event.getAggregateId().toString(), event.getPayload());
+                // Block until Kafka confirms the message was written to the broker.
+                // This ensures we only mark the event as published after successful delivery.
+                kafkaTemplate.send(event.getTopic(), event.getAggregateId().toString(), event.getPayload()).get();
                 event.setPublished(true);
                 published.add(event);
                 log.info("Published {} event {} for aggregate {}", event.getEventType(), event.getId(), event.getAggregateId());

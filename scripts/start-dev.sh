@@ -147,7 +147,7 @@ done
 
 # Stop Docker infrastructure (ignore errors if already down)
 log "Stopping Docker infrastructure ..."
-docker compose -f "$PROJECT_ROOT/docker-compose.yml" down 2>/dev/null || true
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" -f "$PROJECT_ROOT/docker-compose.override.yml" down 2>/dev/null || true
 
 sleep 2
 log "All stopped. Starting fresh ..."
@@ -162,7 +162,7 @@ else
   log "Starting Docker infrastructure (ELK skipped) ..."
 fi
 
-docker compose -f "$PROJECT_ROOT/docker-compose.yml" up -d $INFRA_SERVICES
+docker compose -f "$PROJECT_ROOT/docker-compose.yml" -f "$PROJECT_ROOT/docker-compose.override.yml" up -d $INFRA_SERVICES
 
 # ── Step 2: Wait for critical infrastructure ──────────────────────────────────
 
