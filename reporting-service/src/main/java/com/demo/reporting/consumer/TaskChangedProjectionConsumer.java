@@ -69,7 +69,7 @@ public class TaskChangedProjectionConsumer {
         row.setPlannedHours(toLong(event.getPlannedHours()));
         row.setUpdatedAt(event.getChangedAt() != null ? event.getChangedAt() : Instant.now());
         plannedRepository.save(row);
-        pushService.notifyUser(event.getAssignedUserId());
+        pushService.notifyUser(event.getWorkLogUserId());
     }
 
     private void upsertBookedWork(TaskChangedEvent event) {
@@ -82,13 +82,13 @@ public class TaskChangedProjectionConsumer {
         row.setBookedHours(toLong(event.getBookedHours()));
         row.setUpdatedAt(event.getChangedAt() != null ? event.getChangedAt() : Instant.now());
         bookedRepository.save(row);
-        pushService.notifyUser(event.getAssignedUserId());
+        pushService.notifyUser(event.getWorkLogUserId());
     }
 
     private void softDeleteBookedWork(TaskChangedEvent event) {
         bookedRepository.findById(event.getWorkLogId()).ifPresent(row -> {
             bookedRepository.delete(row);
-            pushService.notifyUser(event.getAssignedUserId());
+            pushService.notifyUser(event.getWorkLogUserId());
         });
     }
 

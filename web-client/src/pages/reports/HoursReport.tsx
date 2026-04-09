@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Table, Tabs, Alert, Spin, Input } from 'antd';
+import { useEffect, useState, useCallback } from 'react';
+import { Table, Tabs, Alert, Spin, Input, Button } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 import { getHoursByTask, getHoursByProject } from '../../api/reportingApi';
 import type { TaskHoursRow, ProjectHoursRow } from '../../api/types';
 
@@ -21,13 +22,20 @@ function HoursByTask() {
   const [error, setError] = useState<string | null>(null);
   const [projectFilter, setProjectFilter] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
     getHoursByTask()
       .then(setRows)
       .catch(() => setError('Failed to load hours by task'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+    const handler = () => load();
+    window.addEventListener('report-updated', handler);
+    return () => window.removeEventListener('report-updated', handler);
+  }, [load]);
 
   if (error) return <Alert type="error" message={error} />;
 
@@ -38,13 +46,16 @@ function HoursByTask() {
 
   return (
     <Spin spinning={loading}>
-      <Input.Search
-        placeholder="Filter by task code or title"
-        value={projectFilter}
-        onChange={(e) => setProjectFilter(e.target.value)}
-        style={{ maxWidth: 320, marginBottom: 16 }}
-        allowClear
-      />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Input.Search
+          placeholder="Filter by task code or title"
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          style={{ maxWidth: 320 }}
+          allowClear
+        />
+        <Button icon={<ReloadOutlined />} size="small" onClick={load}>Refresh</Button>
+      </div>
       <Table
         dataSource={filtered}
         rowKey="taskId"
@@ -77,7 +88,7 @@ function HoursByProject() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
     getHoursByProject()
       .then(setRows)
@@ -85,10 +96,20 @@ function HoursByProject() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    load();
+    const handler = () => load();
+    window.addEventListener('report-updated', handler);
+    return () => window.removeEventListener('report-updated', handler);
+  }, [load]);
+
   if (error) return <Alert type="error" message={error} />;
 
   return (
     <Spin spinning={loading}>
+      <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button icon={<ReloadOutlined />} size="small" onClick={load}>Refresh</Button>
+      </div>
       <Table
         dataSource={rows}
         rowKey="projectId"
