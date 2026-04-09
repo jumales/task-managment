@@ -8,12 +8,14 @@ import './i18n';
 
 // Initialize Keycloak BEFORE React renders to avoid double-init from StrictMode.
 // onLoad: 'login-required' redirects to Keycloak login if not authenticated.
-createRoot(document.getElementById('root')!).render(<Spin fullscreen tip="Authenticating..." />);
+// Reuse the same root — React 18.3 throws if createRoot is called twice on the same element.
+const root = createRoot(document.getElementById('root')!);
+root.render(<Spin fullscreen tip="Authenticating..." />);
 
 keycloak
   .init({ onLoad: 'login-required', pkceMethod: 'S256' })
   .then(() => {
-    createRoot(document.getElementById('root')!).render(
+    root.render(
       <StrictMode>
         <AuthProvider>
           <App />

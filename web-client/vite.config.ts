@@ -4,6 +4,10 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // sockjs-client references the Node.js global — polyfill it for browsers
+    global: 'globalThis',
+  },
   server: {
     port: 3000,
   },

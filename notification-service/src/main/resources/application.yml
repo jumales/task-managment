@@ -103,6 +103,7 @@ logging:
   level:
     com.demo.common.web: DEBUG
     org.hibernate.SQL: DEBUG
-    org.apache.kafka: TRACE                # all kafka client logs at TRACE
-    org.springframework.kafka: TRACE       # all spring-kafka logs at TRACE
     com.demo.notification.consumer: DEBUG  # important: app-level event consumption
+    org.apache.kafka: WARN
+    org.springframework.kafka: WARN
+    org.hibernate: WARN

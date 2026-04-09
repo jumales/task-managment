@@ -131,7 +131,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               options={LANGUAGE_OPTIONS}
               size="small"
               style={{ width: 110 }}
-              bordered={false}
+              variant="borderless"
             />
             {avatarUrl
               ? <Avatar src={avatarUrl} size="small" />
