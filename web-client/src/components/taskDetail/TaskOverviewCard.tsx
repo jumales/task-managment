@@ -53,7 +53,7 @@ export function TaskOverviewCard({ task, onChangePhase }: Props) {
           </Space>
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.assignedTo')} span={2}>
-          {assignedUser?.userName ?? assignedUser?.userId ?? '—'}
+          {assignedUser?.userName ?? assignedUser?.userEmail ?? '—'}
         </Descriptions.Item>
         <Descriptions.Item label={t('tasks.progress')} span={2}>
           <Progress

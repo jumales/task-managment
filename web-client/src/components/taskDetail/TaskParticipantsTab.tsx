@@ -43,7 +43,7 @@ export function TaskParticipantsTab({
           >
             <Space>
               <Tag color="blue">{p.role}</Tag>
-              {p.userName ?? p.userId}
+              {p.userName ?? p.userEmail ?? '—'}
             </Space>
           </List.Item>
         )}
