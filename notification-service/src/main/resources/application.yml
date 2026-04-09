@@ -105,5 +105,6 @@ logging:
     org.hibernate.SQL: DEBUG
     com.demo.notification.consumer: DEBUG  # important: app-level event consumption
     org.apache.kafka: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
     org.springframework.kafka: WARN
     org.hibernate: WARN

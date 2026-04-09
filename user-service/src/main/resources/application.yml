@@ -53,5 +53,6 @@ logging:
     com.demo.common.web: DEBUG        # controller param tracing + MDC filter
     com.demo.user.event: DEBUG        # important: app-level kafka publish events
     org.apache.kafka: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
     org.springframework.kafka: WARN
     org.hibernate: WARN

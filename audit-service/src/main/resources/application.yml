@@ -65,5 +65,6 @@ logging:
     org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)
     com.demo.audit.consumer: DEBUG    # important: app-level event consumption
     org.apache.kafka: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
     org.springframework.kafka: WARN
     org.hibernate: WARN
