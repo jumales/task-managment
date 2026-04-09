@@ -105,7 +105,7 @@ class TaskAttachmentControllerIT {
         phaseRepository.deleteAll();
         projectRepository.deleteAll();
 
-        UserDto testUser = new UserDto(TEST_USER_ID, TEST_USER_NAME, "admin@test.com", null, true, null, "en");
+        UserDto testUser = new UserDto(TEST_USER_ID, TEST_USER_NAME, "admin@test.com", null, true, null, "en", List.of());
         when(userClient.getUserById(TEST_USER_ID)).thenReturn(testUser);
         when(userClient.getUsersByIds(anyList())).thenAnswer(inv -> {
             List<UUID> ids = inv.getArgument(0);

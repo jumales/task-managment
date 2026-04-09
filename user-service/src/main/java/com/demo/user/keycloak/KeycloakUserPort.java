@@ -39,4 +39,14 @@ public interface KeycloakUserPort {
 
     /** Updates a single Keycloak user attribute; pass {@code null} value to remove it. */
     UserDto updateAttribute(UUID id, String key, String value);
+
+    /** Returns the manageable realm roles currently held by the user, excluding WEB_APP. */
+    List<String> getUserRoles(UUID userId);
+
+    /**
+     * Replaces all manageable realm roles for the user; WEB_APP is always preserved.
+     *
+     * @throws IllegalArgumentException if any supplied role name is not a known manageable role
+     */
+    void setUserRoles(UUID userId, List<String> roleNames);
 }

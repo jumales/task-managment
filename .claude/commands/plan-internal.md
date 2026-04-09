@@ -31,10 +31,38 @@ After writing the file, display its contents and ask:
 
 ## Execution rules (apply when the user says 'start' or 'continue')
 
+### Plans with 2 or fewer chunks (simple flow)
+
 - **Create a branch first** — run `git checkout -b <branch_name>` before writing any code
-- **Commit the plan file in the first chunk** — include `plans/<topic-slug>.md` in the first chunk's commit so it is tracked in version control from the start
-- **Open a PR after the first chunk** — as soon as the first chunk is committed and pushed, create a PR so the user can review progress; subsequent chunks are pushed to the same branch/PR
-- **Never proceed to the next chunk automatically** — after each chunk is committed, stop and wait for the user to say 'continue' (or similar); this gives the user control over pacing and review
+- **Commit the plan file in the first chunk** — include `plans/<topic-slug>.md` in the first chunk's commit
+- **Open a PR after the first chunk** — push and create a PR to `main`; subsequent chunks push to the same branch/PR
+- **Never proceed to the next chunk automatically** — stop after each commit and wait for the user to say 'continue'
+
+### Plans with more than 2 chunks (feature-branch flow)
+
+When the plan has 3 or more chunks, use isolated chunk branches so each piece of work can be reviewed and approved before the next begins.
+
+**Setup (before Chunk 1):**
+1. Create a long-lived feature branch from `main`: `git checkout -b <feature_branch_name>` (same snake_case name as the plan's **Branch** field)
+2. Push the feature branch immediately: `git push -u origin <feature_branch_name>`
+
+**For each chunk:**
+1. From the feature branch, create a chunk branch: `git checkout -b <feature_branch_name>_chunk_<N>` (e.g., `add_keycloak_role_management_ui_chunk_1`)
+2. Implement the chunk
+3. Run `mvn clean install -DskipTests=true` and confirm it passes
+4. Commit (include `plans/<topic-slug>.md` in Chunk 1's commit)
+5. Push the chunk branch and open a PR **targeting the feature branch** (not `main`):
+   ```
+   gh pr create --base <feature_branch_name> --title "Chunk N — <label>" --body "..."
+   ```
+6. **Stop and wait** — do not proceed to the next chunk until the user explicitly approves (says 'continue', 'approved', 'merge', or similar)
+7. Once approved, merge the chunk PR into the feature branch, then delete the chunk branch
+
+**After all chunks are approved and merged:**
+- Open a final PR from the feature branch to `main` summarising the full set of changes
+
+**Why this flow?**
+Each chunk PR is small and focused, making review fast. Pausing between chunks lets the user catch issues early before they compound across later chunks.
 
 ---
 
@@ -83,7 +111,7 @@ Each chunk is one atomic unit of work and one git commit.
 
 ## Reminders (from CLAUDE.md)
 
-- Create a branch before starting: `git checkout -b <branch_name>`
-- One PR per task — open it after the **first** chunk is committed (not the last)
-- Run `mvn clean install -DskipTests=true` before pushing
+- **≤ 2 chunks**: one branch, PR to `main` after Chunk 1
+- **> 2 chunks**: feature branch first, then one chunk branch + chunk PR (targeting feature branch) per chunk; wait for approval before proceeding; final PR from feature branch to `main`
+- Run `mvn clean install -DskipTests=true` before every push
 - Check CI with `gh run watch` after pushing

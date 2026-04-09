@@ -32,6 +32,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.context.annotation.Import;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,7 +79,7 @@ class TaskPhaseControllerIT {
         phaseRepository.deleteAll();
         projectRepository.deleteAll();
         when(userClient.getUserById(ALICE_ID))
-                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, "en"));
+                .thenReturn(new UserDto(ALICE_ID, "Alice", "alice@demo.com", null, true, null, "en", List.of()));
         projectId = createProject("Default Project").getId();
         // Wait for async createDefaultPhasesForProject to complete and get the auto-created PLANNING phase.
         planningPhaseId = waitForPhase(projectId, TaskPhaseName.PLANNING);

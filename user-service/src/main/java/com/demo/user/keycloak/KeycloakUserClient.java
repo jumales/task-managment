@@ -17,11 +17,14 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -44,8 +47,20 @@ public class KeycloakUserClient implements KeycloakUserPort {
     private static final String ATTR_LANGUAGE = "language";
     private static final String DEFAULT_LANGUAGE = "en";
     private static final String ROLE_WEB_APP = "WEB_APP";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_DEVELOPER = "DEVELOPER";
+    private static final String ROLE_QA = "QA";
+    private static final String ROLE_DEVOPS = "DEVOPS";
+    private static final String ROLE_PM = "PM";
+    private static final String ROLE_SUPERVISOR = "SUPERVISOR";
+
+    /** The set of realm roles that can be managed via the API; WEB_APP is excluded (always auto-assigned). */
+    private static final Set<String> MANAGEABLE_ROLES = Set.of(
+            ROLE_ADMIN, ROLE_DEVELOPER, ROLE_QA, ROLE_DEVOPS, ROLE_PM, ROLE_SUPERVISOR);
 
     private static final ParameterizedTypeReference<List<Map<String, Object>>> USER_LIST_TYPE =
+            new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<List<Map<String, Object>>> ROLE_LIST_TYPE =
             new ParameterizedTypeReference<>() {};
 
     private final WebClient webClient;
@@ -293,11 +308,79 @@ public class KeycloakUserClient implements KeycloakUserPort {
     }
 
     /**
+     * Returns the manageable realm roles currently held by the user, excluding {@value #ROLE_WEB_APP}.
+     */
+    public List<String> getUserRoles(UUID userId) {
+        List<Map<String, Object>> roleMappings = webClient.get()
+                .uri("/users/{userId}/role-mappings/realm", userId)
+                .retrieve()
+                .bodyToMono(ROLE_LIST_TYPE)
+                .block();
+
+        if (roleMappings == null) return List.of();
+        return roleMappings.stream()
+                .map(r -> (String) r.get("name"))
+                .filter(MANAGEABLE_ROLES::contains)
+                .toList();
+    }
+
+    /**
+     * Replaces all manageable realm roles for the user. {@value #ROLE_WEB_APP} is always preserved.
+     * Validates that all supplied role names are in {@link #MANAGEABLE_ROLES}.
+     *
+     * @throws IllegalArgumentException if any supplied role name is not a known manageable role
+     */
+    @CacheEvict(value = {CacheConfig.USERS, CacheConfig.USERS_BY_USERNAME}, allEntries = true)
+    public void setUserRoles(UUID userId, List<String> roleNames) {
+        for (String name : roleNames) {
+            if (!MANAGEABLE_ROLES.contains(name)) {
+                throw new IllegalArgumentException("Unknown or non-manageable role: " + name);
+            }
+        }
+
+        Set<String> desired = new HashSet<>(roleNames);
+        Set<String> current = new HashSet<>(getUserRoles(userId));
+
+        Set<String> toAdd = new HashSet<>(desired);
+        toAdd.removeAll(current);
+
+        Set<String> toRemove = new HashSet<>(current);
+        toRemove.removeAll(desired);
+
+        if (!toAdd.isEmpty()) {
+            List<Map<String, Object>> addRepresentations = toAdd.stream()
+                    .map(this::fetchRoleRepresentation)
+                    .toList();
+            webClient.post()
+                    .uri("/users/{userId}/role-mappings/realm", userId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(addRepresentations)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+        }
+
+        if (!toRemove.isEmpty()) {
+            // Keycloak DELETE role-mappings requires full role representation objects, not just names
+            List<Map<String, Object>> removeRepresentations = toRemove.stream()
+                    .map(this::fetchRoleRepresentation)
+                    .toList();
+            webClient.method(org.springframework.http.HttpMethod.DELETE)
+                    .uri("/users/{userId}/role-mappings/realm", userId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(removeRepresentations)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+        }
+    }
+
+    /**
      * Assigns the {@value #ROLE_WEB_APP} realm role to the given user.
      * Called after every new user creation so the user can access the application.
      */
     private void assignWebAppRole(UUID userId) {
-        Map<String, Object> role = fetchWebAppRoleRepresentation();
+        Map<String, Object> role = fetchRoleRepresentation(ROLE_WEB_APP);
         webClient.post()
                 .uri("/users/{userId}/role-mappings/realm", userId)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -308,12 +391,12 @@ public class KeycloakUserClient implements KeycloakUserPort {
     }
 
     /**
-     * Fetches the {@value #ROLE_WEB_APP} role representation from Keycloak.
-     * Used to obtain the role's UUID for role assignment calls.
+     * Fetches the Keycloak representation for the given realm role by name.
+     * Used to obtain the role's UUID for role assignment and removal calls.
      */
-    private Map<String, Object> fetchWebAppRoleRepresentation() {
+    private Map<String, Object> fetchRoleRepresentation(String roleName) {
         return webClient.get()
-                .uri("/roles/" + ROLE_WEB_APP)
+                .uri("/roles/{roleName}", roleName)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .block();
@@ -321,13 +404,15 @@ public class KeycloakUserClient implements KeycloakUserPort {
 
     /**
      * Fetches a user by ID bypassing the cache, used after create/update to return fresh data.
+     * Includes the user's current manageable roles.
      */
     private UserDto findByIdDirect(UUID id) {
-        return toDto(fetchRaw(id));
+        return toDtoWithRoles(fetchRaw(id));
     }
 
     /**
-     * Maps a raw Keycloak {@code UserRepresentation} JSON map to a {@link UserDto}.
+     * Maps a raw Keycloak {@code UserRepresentation} to a {@link UserDto} without fetching roles.
+     * Used by list endpoints to avoid N+1 Keycloak calls; {@code roles} field will be empty.
      */
     @SuppressWarnings("unchecked")
     UserDto toDto(Map<String, Object> rep) {
@@ -344,7 +429,18 @@ public class KeycloakUserClient implements KeycloakUserPort {
                 .orElse(null);
         String language = extractAttribute(attributes, ATTR_LANGUAGE).orElse(DEFAULT_LANGUAGE);
 
-        return new UserDto(id, name, email, username, active, avatarFileId, language);
+        return new UserDto(id, name, email, username, active, avatarFileId, language, List.of());
+    }
+
+    /**
+     * Maps a raw Keycloak {@code UserRepresentation} to a {@link UserDto}, also fetching the user's roles.
+     * Used only by single-user lookups ({@link #findByIdDirect}) to keep the roles field populated.
+     */
+    private UserDto toDtoWithRoles(Map<String, Object> rep) {
+        UserDto dto = toDto(rep);
+        UUID id = UUID.fromString((String) rep.get("id"));
+        return new UserDto(dto.getId(), dto.getName(), dto.getEmail(), dto.getUsername(),
+                dto.isActive(), dto.getAvatarFileId(), dto.getLanguage(), getUserRoles(id));
     }
 
     /**

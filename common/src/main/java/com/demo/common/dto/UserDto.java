@@ -2,6 +2,7 @@ package com.demo.common.dto;
 
 import lombok.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -18,4 +19,7 @@ public class UserDto {
 
     /** ISO 639-1 language code for the user's preferred UI language (e.g. "en", "hr"). */
     private String language;
+
+    /** Manageable Keycloak realm roles held by this user (excludes WEB_APP). Empty for list endpoints. */
+    private List<String> roles;
 }

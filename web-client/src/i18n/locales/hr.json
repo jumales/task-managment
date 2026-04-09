@@ -205,6 +205,8 @@
     "uploadAvatar": "Prenesi avatar",
     "searchPlaceholder": "Pretraži korisnike…",
     "roles": "Uloge",
+    "selectRoles": "Odaberi uloge",
+    "failedLoadRoles": "Neuspješno učitavanje uloga.",
     "avatarUpdated": "Avatar ažuriran",
     "failedLoad": "Neuspješno učitavanje korisnika.",
     "failedSearch": "Pretraživanje neuspješno.",

@@ -110,6 +110,37 @@ public class UserController {
         return service.update(id, request);
     }
 
+    /** Returns the manageable realm roles held by the user identified by {@code id}, excluding WEB_APP. */
+    @Operation(summary = "Get roles for a user")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Roles returned"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found")
+    })
+    @GetMapping("/{id}/roles")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<String> getRoles(@Parameter(description = "User UUID") @PathVariable UUID id) {
+        return service.getUserRoles(id);
+    }
+
+    /**
+     * Replaces all manageable realm roles for the user identified by {@code id}; WEB_APP is preserved.
+     * Returns the updated role list so callers can refresh without a follow-up GET.
+     */
+    @Operation(summary = "Set roles for a user")
+    @ApiResponses({
+            @ApiResponse(responseCode = ResponseCode.OK, description = "Roles updated"),
+            @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "User not found"),
+            @ApiResponse(responseCode = ResponseCode.BAD_REQUEST, description = "Invalid role name")
+    })
+    @PutMapping("/{id}/roles")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<String> setRoles(
+            @Parameter(description = "User UUID") @PathVariable UUID id,
+            @RequestBody List<String> roleNames) {
+        service.setUserRoles(id, roleNames);
+        return service.getUserRoles(id);
+    }
+
     /** Soft-deletes the user identified by {@code id}. */
     @Operation(summary = "Delete a user")
     @ApiResponses({

@@ -141,7 +141,7 @@ class NotificationConsumerIT {
         mailhogClient().delete(mailhogApiUrl() + "/api/v1/messages");
         // Default mock: return a user with a valid email
         when(userClient.getUserById(any(UUID.class)))
-                .thenReturn(new UserDto(UUID.randomUUID(), TEST_NAME, TEST_EMAIL, "testuser", true, null, "en"));
+                .thenReturn(new UserDto(UUID.randomUUID(), TEST_NAME, TEST_EMAIL, "testuser", true, null, "en", List.of()));
         // Default mock: no project template configured
         when(taskServiceClient.getTemplate(any(UUID.class), any(TaskChangeType.class)))
                 .thenThrow(new RuntimeException("404 not found"));

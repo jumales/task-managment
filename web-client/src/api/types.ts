@@ -194,6 +194,9 @@ export interface UserRequest {
   active: boolean;
 }
 
+/** Assignable Keycloak realm roles (WEB_APP is always held and excluded from management). */
+export type RealmRole = 'ADMIN' | 'DEVELOPER' | 'QA' | 'DEVOPS' | 'PM' | 'SUPERVISOR';
+
 export interface UserResponse {
   id: string;
   name: string;
@@ -203,6 +206,8 @@ export interface UserResponse {
   avatarFileId: string | null;
   /** ISO 639-1 language code for the user's preferred UI language (e.g. "en", "hr"). */
   language: string;
+  /** Manageable Keycloak realm roles. Empty for list endpoints; populated for single-user lookups. */
+  roles: string[];
 }
 
 export interface FileUploadResponse {

@@ -91,6 +91,20 @@ public class UserService {
         return keycloakUserClient.updateAttribute(userId, "avatarFileId", value);
     }
 
+    /** Returns the manageable realm roles currently held by the given user, excluding WEB_APP. */
+    public List<String> getUserRoles(UUID userId) {
+        return keycloakUserClient.getUserRoles(userId);
+    }
+
+    /**
+     * Replaces all manageable realm roles for the user; WEB_APP is always preserved.
+     *
+     * @throws IllegalArgumentException if any supplied role name is not a known manageable role
+     */
+    public void setUserRoles(UUID userId, List<String> roleNames) {
+        keycloakUserClient.setUserRoles(userId, roleNames);
+    }
+
     /**
      * Disables the user in Keycloak ({@code enabled=false}), effectively a soft-delete.
      * Publishes a DELETED event.
