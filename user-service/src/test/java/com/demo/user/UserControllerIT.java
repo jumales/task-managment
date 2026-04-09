@@ -417,6 +417,74 @@ class UserControllerIT {
         assertThat(response.getBody().getId()).isEqualTo(meId);
     }
 
+    // ── GET /api/v1/users/{id}/roles ─────────────────────────────────
+
+    @Test
+    void getRoles_returnsRoleList() {
+        when(keycloakUserClient.getUserRoles(ALICE_ID)).thenReturn(List.of("DEVELOPER", "QA"));
+
+        ResponseEntity<List<String>> response = restTemplate.exchange(
+                "/api/v1/users/" + ALICE_ID + "/roles", HttpMethod.GET, null,
+                new ParameterizedTypeReference<>() {});
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).containsExactlyInAnyOrder("DEVELOPER", "QA");
+    }
+
+    @Test
+    void getRoles_whenUserNotFound_returns404() {
+        when(keycloakUserClient.getUserRoles(ALICE_ID))
+                .thenThrow(new ResourceNotFoundException("User", ALICE_ID));
+
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "/api/v1/users/" + ALICE_ID + "/roles", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    // ── PUT /api/v1/users/{id}/roles ──────────────────────────────────
+
+    @Test
+    void setRoles_replacesRoles_returnsUpdatedList() {
+        List<String> newRoles = List.of("ADMIN");
+        when(keycloakUserClient.getUserRoles(ALICE_ID)).thenReturn(newRoles);
+
+        HttpEntity<List<String>> request = new HttpEntity<>(newRoles);
+        ResponseEntity<List<String>> response = restTemplate.exchange(
+                "/api/v1/users/" + ALICE_ID + "/roles", HttpMethod.PUT, request,
+                new ParameterizedTypeReference<>() {});
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).containsExactly("ADMIN");
+    }
+
+    @Test
+    void setRoles_withInvalidRole_returns400() {
+        List<String> badRoles = List.of("HACKER");
+        doThrow(new IllegalArgumentException("Unknown or non-manageable role: HACKER"))
+                .when(keycloakUserClient).setUserRoles(eq(ALICE_ID), any());
+
+        HttpEntity<List<String>> request = new HttpEntity<>(badRoles);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/users/" + ALICE_ID + "/roles", HttpMethod.PUT, request,
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void setRoles_emptyList_removesAllRoles() {
+        when(keycloakUserClient.getUserRoles(ALICE_ID)).thenReturn(List.of());
+
+        HttpEntity<List<String>> request = new HttpEntity<>(List.of());
+        ResponseEntity<List<String>> response = restTemplate.exchange(
+                "/api/v1/users/" + ALICE_ID + "/roles", HttpMethod.PUT, request,
+                new ParameterizedTypeReference<>() {});
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEmpty();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────
 
     private ResponseEntity<PageResponse<UserDto>> getUserPage(String url) {
