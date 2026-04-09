@@ -94,10 +94,22 @@ spring:
           predicates:
             - Path=/api/v1/reports/**
 
+        # WebSocket route for SockJS/STOMP push notifications from reporting-service.
+        # lb:ws:// (not lb://) is required so Spring Cloud Gateway uses its WebSocket
+        # routing filter and properly proxies the Upgrade handshake to the downstream service.
+        # DedupeResponseHeader removes duplicate CORS headers: the gateway's CorsWebFilter
+        # already adds Access-Control-Allow-Origin for the configured allowed origins, and
+        # the reporting-service's WebSocketConfig.setAllowedOriginPatterns("*") adds its own
+        # copy. Without deduplication the browser sees two Access-Control-Allow-Origin values
+        # and rejects the response. RETAIN_FIRST keeps the gateway's specific-origin value
+        # (e.g. http://localhost:3000) and discards the wildcard from downstream, which is
+        # also required when withCredentials is true (wildcards are not allowed).
         - id: reporting-service-ws
-          uri: lb://reporting-service
+          uri: lb:ws://reporting-service
           predicates:
             - Path=/ws/**
+          filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
 
         # Rate-limited: GET /api/v1/search/** — 30 req/min per user to prevent scraping
         # replenishRate 1/2s, requestedTokens 2 → 30/min, burst up to 5

@@ -74,5 +74,6 @@ logging:
     org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)
     com.demo.task.outbox: DEBUG       # important: outbox publish lifecycle
     org.apache.kafka: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
     org.springframework.kafka: WARN
     org.hibernate: WARN
