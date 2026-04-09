@@ -6,6 +6,7 @@ import com.demo.reporting.model.ReportBookedWork;
 import com.demo.reporting.model.ReportPlannedWork;
 import com.demo.reporting.repository.ReportBookedWorkRepository;
 import com.demo.reporting.repository.ReportPlannedWorkRepository;
+import com.demo.reporting.service.ReportPushService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import java.time.Instant;
  * Consumes {@link TaskChangedEvent} messages from the {@code task-changed} topic and maintains
  * the reporting planned/booked work projections. Uses JSON-over-String so it shares the same
  * {@code StringDeserializer} container factory as {@link TaskEventProjectionConsumer}.
+ * After each successful write the task's assigned user is notified via WebSocket push.
  */
 @Component
 public class TaskChangedProjectionConsumer {
@@ -28,13 +30,16 @@ public class TaskChangedProjectionConsumer {
     private final ReportPlannedWorkRepository plannedRepository;
     private final ReportBookedWorkRepository bookedRepository;
     private final ObjectMapper objectMapper;
+    private final ReportPushService pushService;
 
     public TaskChangedProjectionConsumer(ReportPlannedWorkRepository plannedRepository,
                                          ReportBookedWorkRepository bookedRepository,
-                                         ObjectMapper objectMapper) {
+                                         ObjectMapper objectMapper,
+                                         ReportPushService pushService) {
         this.plannedRepository = plannedRepository;
         this.bookedRepository = bookedRepository;
         this.objectMapper = objectMapper;
+        this.pushService = pushService;
     }
 
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "reporting-group", concurrency = "3")
@@ -64,6 +69,7 @@ public class TaskChangedProjectionConsumer {
         row.setPlannedHours(toLong(event.getPlannedHours()));
         row.setUpdatedAt(event.getChangedAt() != null ? event.getChangedAt() : Instant.now());
         plannedRepository.save(row);
+        pushService.notifyUser(event.getAssignedUserId());
     }
 
     private void upsertBookedWork(TaskChangedEvent event) {
@@ -76,10 +82,14 @@ public class TaskChangedProjectionConsumer {
         row.setBookedHours(toLong(event.getBookedHours()));
         row.setUpdatedAt(event.getChangedAt() != null ? event.getChangedAt() : Instant.now());
         bookedRepository.save(row);
+        pushService.notifyUser(event.getAssignedUserId());
     }
 
     private void softDeleteBookedWork(TaskChangedEvent event) {
-        bookedRepository.findById(event.getWorkLogId()).ifPresent(bookedRepository::delete);
+        bookedRepository.findById(event.getWorkLogId()).ifPresent(row -> {
+            bookedRepository.delete(row);
+            pushService.notifyUser(event.getAssignedUserId());
+        });
     }
 
     private static long toLong(BigInteger value) {
