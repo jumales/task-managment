@@ -66,3 +66,6 @@ logging:
   level:
     com.demo.common.web: DEBUG        # controller param tracing + MDC filter
     org.springframework.data.elasticsearch: DEBUG
+    org.apache.kafka: TRACE           # all kafka client logs at TRACE
+    org.springframework.kafka: TRACE  # all spring-kafka logs at TRACE
+    com.demo.search.consumer: DEBUG   # important: app-level event consumption

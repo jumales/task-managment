@@ -72,3 +72,6 @@ logging:
   level:
     com.demo.common.web: DEBUG        # controller param tracing + MDC filter
     org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)
+    org.apache.kafka: TRACE           # all kafka client logs at TRACE
+    org.springframework.kafka: TRACE  # all spring-kafka logs at TRACE
+    com.demo.task.outbox: DEBUG       # important: outbox publish lifecycle
