@@ -1,6 +1,10 @@
 package com.demo.reporting.controller;
 
+import com.demo.reporting.dto.DetailedHoursResponse;
 import com.demo.reporting.dto.MyTaskResponse;
+import com.demo.reporting.dto.ProjectHoursResponse;
+import com.demo.reporting.dto.TaskHoursResponse;
+import com.demo.reporting.service.HoursReportService;
 import com.demo.reporting.service.MyTasksService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,17 +20,19 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * REST endpoints for the reporting-service. Currently exposes the "My Tasks" view;
- * hours reports are added in a follow-up PR.
+ * REST endpoints for the reporting-service: "My Tasks" view plus planned-vs-booked hours
+ * reports at task, project, and per user × work-type level.
  */
 @RestController
 @RequestMapping("/api/v1/reports")
 public class ReportingController {
 
     private final MyTasksService myTasksService;
+    private final HoursReportService hoursReportService;
 
-    public ReportingController(MyTasksService myTasksService) {
+    public ReportingController(MyTasksService myTasksService, HoursReportService hoursReportService) {
         this.myTasksService = myTasksService;
+        this.hoursReportService = hoursReportService;
     }
 
     /**
@@ -42,6 +48,34 @@ public class ReportingController {
             @RequestParam(required = false) Integer days,
             Authentication authentication) {
         return myTasksService.findMyTasks(resolveUserId(authentication), days);
+    }
+
+    /** Planned vs booked hours per task, optionally filtered by {@code projectId}. */
+    @Operation(summary = "Hours by task", description = "Planned vs booked hours per task, optionally scoped to a project.")
+    @GetMapping("/hours/by-task")
+    @PreAuthorize("isAuthenticated()")
+    public List<TaskHoursResponse> getHoursByTask(
+            @Parameter(description = "Restrict the result to tasks belonging to this project.")
+            @RequestParam(required = false) UUID projectId) {
+        return hoursReportService.byTask(projectId);
+    }
+
+    /** Planned vs booked hours per project (summed across all project tasks). */
+    @Operation(summary = "Hours by project", description = "Planned vs booked hours totalled per project.")
+    @GetMapping("/hours/by-project")
+    @PreAuthorize("isAuthenticated()")
+    public List<ProjectHoursResponse> getHoursByProject() {
+        return hoursReportService.byProject();
+    }
+
+    /** Planned vs booked hours for a single task broken down by user and work type. */
+    @Operation(summary = "Hours detailed", description = "Planned vs booked hours for a task broken down by user and work type.")
+    @GetMapping("/hours/detailed")
+    @PreAuthorize("isAuthenticated()")
+    public List<DetailedHoursResponse> getHoursDetailed(
+            @Parameter(description = "Task to break down.", required = true)
+            @RequestParam UUID taskId) {
+        return hoursReportService.detailed(taskId);
     }
 
     /**
