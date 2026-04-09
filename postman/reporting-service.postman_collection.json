@@ -89,6 +89,76 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Hours Report",
+      "item": [
+        {
+          "name": "Hours by task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/hours/by-task?projectId={{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports", "hours", "by-task"],
+              "query": [{ "key": "projectId", "value": "{{projectId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hours by project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/hours/by-project",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports", "hours", "by-project"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hours detailed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/hours/detailed?taskId={{taskId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports", "hours", "detailed"],
+              "query": [{ "key": "taskId", "value": "{{taskId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
