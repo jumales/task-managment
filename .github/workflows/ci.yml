@@ -154,10 +154,34 @@ jobs:
           path: notification-service/target/surefire-reports/*.txt
           retention-days: 7
 
+  reporting-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pre-pull images
+        run: |
+          docker pull postgres:16-alpine
+          docker pull confluentinc/cp-kafka:7.6.1
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+      - name: Test
+        run: mvn verify -pl common,reporting-service --also-make
+      - name: Upload surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reporting-service
+          path: reporting-service/target/surefire-reports/*.txt
+          retention-days: 7
+
   # Gate job — branch protection rules can require this single job instead of
   # listing every service job individually.
   ci-passed:
-    needs: [ task-service, user-service, audit-service, file-service, search-service, notification-service ]
+    needs: [ task-service, user-service, audit-service, file-service, search-service, notification-service, reporting-service ]
     runs-on: ubuntu-latest
     if: always()
     steps:
