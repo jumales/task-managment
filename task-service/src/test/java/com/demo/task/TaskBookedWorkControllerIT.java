@@ -169,7 +169,7 @@ class TaskBookedWorkControllerIT {
 
     @Test
     void createBookedWork_persistsAndReturnsEntry() {
-        TaskBookedWorkRequest request = bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "5");
+        TaskBookedWorkRequest request = bookedWorkRequest(WorkType.DEVELOPMENT, "5");
 
         ResponseEntity<TaskBookedWorkResponse> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/booked-work",
@@ -178,8 +178,8 @@ class TaskBookedWorkControllerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
-        assertThat(response.getBody().getUserId()).isEqualTo(ALICE_ID);
-        assertThat(response.getBody().getUserName()).isEqualTo("Alice Johnson");
+        assertThat(response.getBody().getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
+        assertThat(response.getBody().getUserName()).isEqualTo("Test Admin");
         assertThat(response.getBody().getWorkType()).isEqualTo(WorkType.DEVELOPMENT);
         assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(5));
     }
@@ -187,11 +187,11 @@ class TaskBookedWorkControllerIT {
     @Test
     void createBookedWork_multipleEntriesForSameWorkType_areAllReturned() {
         restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/booked-work",
-                bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"), TaskBookedWorkResponse.class);
+                bookedWorkRequest(WorkType.DEVELOPMENT, "3"), TaskBookedWorkResponse.class);
         restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/booked-work",
-                bookedWorkRequest(BOB_ID, WorkType.DEVELOPMENT, "4"), TaskBookedWorkResponse.class);
+                bookedWorkRequest(WorkType.DEVELOPMENT, "4"), TaskBookedWorkResponse.class);
         restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/booked-work",
-                bookedWorkRequest(ALICE_ID, WorkType.TESTING, "2"), TaskBookedWorkResponse.class);
+                bookedWorkRequest(WorkType.TESTING, "2"), TaskBookedWorkResponse.class);
 
         ResponseEntity<TaskBookedWorkResponse[]> response = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/booked-work",
@@ -205,7 +205,7 @@ class TaskBookedWorkControllerIT {
     void createBookedWork_whenTaskNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + UUID.randomUUID() + "/booked-work",
-                bookedWorkRequest(ALICE_ID, WorkType.PLANNING, "1"),
+                bookedWorkRequest(WorkType.PLANNING, "1"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -217,10 +217,10 @@ class TaskBookedWorkControllerIT {
     void updateBookedWork_updatesAllFields() {
         String bookedWorkId = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/booked-work",
-                bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"),
+                bookedWorkRequest(WorkType.DEVELOPMENT, "3"),
                 TaskBookedWorkResponse.class).getBody().getId().toString();
 
-        TaskBookedWorkRequest update = bookedWorkRequest(BOB_ID, WorkType.CODE_REVIEW, "6");
+        TaskBookedWorkRequest update = bookedWorkRequest(WorkType.CODE_REVIEW, "6");
 
         ResponseEntity<TaskBookedWorkResponse> response = restTemplate.exchange(
                 "/api/v1/tasks/" + taskId + "/booked-work/" + bookedWorkId,
@@ -229,7 +229,7 @@ class TaskBookedWorkControllerIT {
                 TaskBookedWorkResponse.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody().getUserId()).isEqualTo(BOB_ID);
+        assertThat(response.getBody().getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
         assertThat(response.getBody().getWorkType()).isEqualTo(WorkType.CODE_REVIEW);
         assertThat(response.getBody().getBookedHours()).isEqualTo(BigInteger.valueOf(6));
     }
@@ -239,7 +239,7 @@ class TaskBookedWorkControllerIT {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/v1/tasks/" + taskId + "/booked-work/" + UUID.randomUUID(),
                 HttpMethod.PUT,
-                new HttpEntity<>(bookedWorkRequest(ALICE_ID, WorkType.TESTING, "1")),
+                new HttpEntity<>(bookedWorkRequest(WorkType.TESTING, "1")),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -251,7 +251,7 @@ class TaskBookedWorkControllerIT {
     void deleteBookedWork_removesItFromList() {
         String bookedWorkId = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/booked-work",
-                bookedWorkRequest(ALICE_ID, WorkType.MEETING, "1"),
+                bookedWorkRequest(WorkType.MEETING, "1"),
                 TaskBookedWorkResponse.class).getBody().getId().toString();
 
         restTemplate.delete("/api/v1/tasks/" + taskId + "/booked-work/" + bookedWorkId);
@@ -280,7 +280,7 @@ class TaskBookedWorkControllerIT {
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + planningTaskId + "/booked-work",
-                bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3"),
+                bookedWorkRequest(WorkType.DEVELOPMENT, "3"),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -295,7 +295,7 @@ class TaskBookedWorkControllerIT {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/v1/tasks/" + planningTaskId + "/booked-work/" + UUID.randomUUID(),
                 HttpMethod.PUT,
-                new HttpEntity<>(bookedWorkRequest(ALICE_ID, WorkType.DEVELOPMENT, "3")),
+                new HttpEntity<>(bookedWorkRequest(WorkType.DEVELOPMENT, "3")),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -316,9 +316,8 @@ class TaskBookedWorkControllerIT {
                 .getBody().getId().toString();
     }
 
-    private TaskBookedWorkRequest bookedWorkRequest(UUID userId, WorkType workType, String bookedHours) {
+    private TaskBookedWorkRequest bookedWorkRequest(WorkType workType, String bookedHours) {
         TaskBookedWorkRequest req = new TaskBookedWorkRequest();
-        req.setUserId(userId);
         req.setWorkType(workType);
         req.setBookedHours(new BigInteger(bookedHours));
         return req;

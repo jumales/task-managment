@@ -1270,7 +1270,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"DEVELOPMENT\",\n  \"bookedHours\": 3\n}",
+              "raw": "{\n  \"workType\": \"DEVELOPMENT\",\n  \"bookedHours\": 3\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1321,7 +1321,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"workType\": \"TESTING\",\n  \"bookedHours\": 4\n}",
+              "raw": "{\n  \"workType\": \"TESTING\",\n  \"bookedHours\": 4\n}",
               "options": {
                 "raw": {
                   "language": "json"

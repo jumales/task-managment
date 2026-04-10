@@ -1,43 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBookedWork, updateBookedWork, deleteBookedWork } from '../api/taskApi';
-import type { TaskBookedWorkResponse, WorkType } from '../api/types';
+import type { TaskBookedWorkResponse, TaskPlannedWorkResponse, WorkType } from '../api/types';
 
-/** Manages booked work list, add/edit-form state, and CRUD handlers for a task. */
-export function useTaskBookedWork(taskId: string | undefined, initialData: TaskBookedWorkResponse[]) {
+/** Manages booked work list, dialog state, add/edit-form state, and CRUD handlers for a task. */
+export function useTaskBookedWork(
+  taskId: string | undefined,
+  initialData: TaskBookedWorkResponse[],
+  plannedWork: TaskPlannedWorkResponse[],
+) {
   const { t } = useTranslation();
 
   const [bookedWork,   setBookedWork]   = useState<TaskBookedWorkResponse[]>(initialData);
   useEffect(() => { setBookedWork(initialData); }, [initialData]);
   const [editingBw,    setEditingBw]    = useState<TaskBookedWorkResponse | null>(null);
-  const [bwUserId,     setBwUserId]     = useState<string | null>(null);
   const [bwType,       setBwType]       = useState<WorkType>('DEVELOPMENT');
   const [bwHours,      setBwHours]      = useState(0);
+  const [dialogOpen,   setDialogOpen]   = useState(false);
   const [savingBw,     setSavingBw]     = useState(false);
   const [deletingBwId, setDeletingBwId] = useState<string | null>(null);
   const [error,        setError]        = useState<string | null>(null);
 
-  /** Populates the edit form with an existing booked-work entry. */
-  const startEditing = (bw: TaskBookedWorkResponse) => {
-    setEditingBw(bw);
-    setBwUserId(bw.userId);
-    setBwType(bw.workType);
-    setBwHours(Number(bw.bookedHours));
-  };
+  /** Planned hours for the currently selected work type (0 if no plan entry exists). */
+  const plannedHoursForType = useMemo(
+    () => Number(plannedWork.find((p) => p.workType === bwType)?.plannedHours ?? 0),
+    [plannedWork, bwType],
+  );
 
-  /** Resets the add/edit form back to its default empty state. */
-  const resetBwForm = () => {
+  /** Total already-booked hours for the selected work type, excluding the entry being edited. */
+  const bookedHoursForType = useMemo(
+    () => bookedWork
+      .filter((b) => b.workType === bwType && b.id !== editingBw?.id)
+      .reduce((sum, b) => sum + Number(b.bookedHours), 0),
+    [bookedWork, bwType, editingBw],
+  );
+
+  /** Opens the dialog with an empty form to add a new entry. */
+  const openAddDialog = () => {
     setEditingBw(null);
-    setBwUserId(null);
     setBwType('DEVELOPMENT');
     setBwHours(0);
+    setDialogOpen(true);
   };
 
-  /** Creates or updates a booked-work entry and resets the form on success. */
+  /** Populates the dialog form with an existing booked-work entry for editing. */
+  const startEditing = (bw: TaskBookedWorkResponse) => {
+    setEditingBw(bw);
+    setBwType(bw.workType);
+    setBwHours(Number(bw.bookedHours));
+    setDialogOpen(true);
+  };
+
+  /** Resets the form back to defaults and closes the dialog. */
+  const resetBwForm = () => {
+    setEditingBw(null);
+    setBwType('DEVELOPMENT');
+    setBwHours(0);
+    setDialogOpen(false);
+  };
+
+  /** Creates or updates a booked-work entry and closes the dialog on success. */
   const handleSaveBookedWork = () => {
-    if (!taskId || !bwUserId) return;
+    if (!taskId) return;
     setSavingBw(true);
-    const request = { userId: bwUserId, workType: bwType, bookedHours: bwHours };
+    const request = { workType: bwType, bookedHours: bwHours };
     const apiCall = editingBw
       ? updateBookedWork(taskId, editingBw.id, request)
       : createBookedWork(taskId, request);
@@ -75,12 +101,15 @@ export function useTaskBookedWork(taskId: string | undefined, initialData: TaskB
   return {
     bookedWork,
     editingBw,
-    bwUserId, setBwUserId,
     bwType,   setBwType,
     bwHours,  setBwHours,
+    dialogOpen, setDialogOpen,
+    plannedHoursForType,
+    bookedHoursForType,
     savingBw,
     deletingBwId,
     error,
+    openAddDialog,
     startEditing,
     resetBwForm,
     handleSaveBookedWork,
