@@ -80,12 +80,13 @@ public class UserClientHelper {
     /**
      * Returns the display name of a single user, or {@code null} if the user is not found
      * or user-service is unavailable. Result is cached to avoid repeated remote calls.
+     * Falls back to email, then username, if the user has no display name set.
      */
     @Cacheable(value = CacheConfig.USER_NAMES, key = "#userId", unless = "#result == null")
     @CircuitBreaker(name = "userService", fallbackMethod = "resolveUserNameFallback")
     public String resolveUserName(UUID userId) {
         if (userId == null) return null;
-        return userClient.getUserById(userId).getName();
+        return displayName(userClient.getUserById(userId));
     }
 
     private String resolveUserNameFallback(UUID userId, Throwable t) {
@@ -96,11 +97,12 @@ public class UserClientHelper {
     /**
      * Batch-fetches user display names keyed by UUID.
      * Returns an empty map if user-service is unavailable.
+     * Falls back to email, then username, if a user has no display name set.
      */
     @CircuitBreaker(name = "userService", fallbackMethod = "fetchUserNamesFallback")
     public Map<UUID, String> fetchUserNames(Set<UUID> userIds) {
         return userClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-                .collect(Collectors.toMap(UserDto::getId, UserDto::getName));
+                .collect(Collectors.toMap(UserDto::getId, this::displayName));
     }
 
     private Map<UUID, String> fetchUserNamesFallback(Set<UUID> userIds, Throwable t) {
@@ -136,5 +138,16 @@ public class UserClientHelper {
     private Map<UUID, UserDto> fetchUsersFallback(Set<UUID> userIds, Throwable t) {
         log.warn("user-service circuit open — cannot fetch users for {} ids: {}", userIds.size(), t.getMessage());
         return Map.of();
+    }
+
+    /**
+     * Returns the best available display label for a user: name → email → username.
+     * Avoids null values that would cause NPE in {@link Collectors#toMap} and
+     * ensures something human-readable is always shown instead of a raw UUID.
+     */
+    private String displayName(UserDto user) {
+        if (user.getName() != null) return user.getName();
+        if (user.getEmail() != null) return user.getEmail();
+        return user.getUsername();
     }
 }
