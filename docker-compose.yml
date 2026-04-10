@@ -27,9 +27,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-logs:/var/lib/zookeeper/log
+    # No persistent volumes for Zookeeper — persisting ZK session data causes
+    # "NodeExists" conflicts when Kafka restarts, because the old ephemeral broker
+    # registration lingers until the ZK session timeout expires.
     networks:
       - ms-network
 
@@ -190,8 +190,6 @@ volumes:
   elasticsearch-data:
   minio-data:
   kafka-data:
-  zookeeper-data:
-  zookeeper-logs:
 
 networks:
   ms-network:
