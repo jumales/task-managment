@@ -21,19 +21,19 @@
       },
       {
         "name": "QA",
-        "description": "Quality assurance — full read/write access to tasks and projects"
+        "description": "Quality assurance \u2014 full read/write access to tasks and projects"
       },
       {
         "name": "DEVOPS",
-        "description": "DevOps — full read/write access to tasks and projects"
+        "description": "DevOps \u2014 full read/write access to tasks and projects"
       },
       {
         "name": "PM",
-        "description": "Project manager — full read/write access to tasks and projects"
+        "description": "Project manager \u2014 full read/write access to tasks and projects"
       },
       {
         "name": "SUPERVISOR",
-        "description": "Supervisor — read-only access across all services; write operations are blocked at the gateway"
+        "description": "Supervisor \u2014 read-only access across all services; write operations are blocked at the gateway"
       }
     ]
   },
@@ -101,14 +101,21 @@
       "enabled": true,
       "serviceAccountClientId": "user-service",
       "clientRoles": {
-        "realm-management": ["manage-users", "view-users", "view-realm", "query-users"]
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "view-realm",
+          "query-users"
+        ]
       }
     },
     {
       "username": "service-account-notification-service",
       "enabled": true,
       "serviceAccountClientId": "notification-service",
-      "realmRoles": ["WEB_APP"]
+      "realmRoles": [
+        "WEB_APP"
+      ]
     },
     {
       "username": "admin-user",
@@ -127,7 +134,8 @@
       "realmRoles": [
         "ADMIN",
         "WEB_APP"
-      ]
+      ],
+      "id": "11111111-1111-1111-1111-111111111101"
     },
     {
       "username": "dev-user",
@@ -146,7 +154,8 @@
       "realmRoles": [
         "DEVELOPER",
         "WEB_APP"
-      ]
+      ],
+      "id": "11111111-1111-1111-1111-111111111102"
     },
     {
       "username": "qa-user",
@@ -165,7 +174,8 @@
       "realmRoles": [
         "QA",
         "WEB_APP"
-      ]
+      ],
+      "id": "11111111-1111-1111-1111-111111111103"
     },
     {
       "username": "devops-user",
@@ -184,7 +194,8 @@
       "realmRoles": [
         "DEVOPS",
         "WEB_APP"
-      ]
+      ],
+      "id": "11111111-1111-1111-1111-111111111104"
     },
     {
       "username": "pm-user",
@@ -203,7 +214,8 @@
       "realmRoles": [
         "PM",
         "WEB_APP"
-      ]
+      ],
+      "id": "11111111-1111-1111-1111-111111111105"
     },
     {
       "username": "supervisor-user",
@@ -222,7 +234,8 @@
       "realmRoles": [
         "SUPERVISOR",
         "WEB_APP"
-      ]
+      ],
+      "id": "11111111-1111-1111-1111-111111111106"
     }
   ]
 }
