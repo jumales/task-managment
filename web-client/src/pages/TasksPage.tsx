@@ -166,10 +166,6 @@ export function TasksPage() {
         if (fetchedProjects.length === 1) {
           const projectId = fetchedProjects[0].id;
           form.setFieldValue('projectId', projectId);
-          loadPhases(projectId).then(() => {
-            const defaultPhaseId = fetchedProjects[0].defaultPhaseId;
-            if (defaultPhaseId) form.setFieldValue('phaseId', defaultPhaseId);
-          });
         }
         if (fetchedUsers.length === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
       })
@@ -410,17 +406,6 @@ export function TasksPage() {
                   <Select
                     options={projects.map((p) => ({ label: p.name, value: p.id }))}
                     placeholder={t('tasks.selectProject')}
-                    onChange={(projectId: string) => {
-                      form.setFieldValue('phaseId', undefined);
-                      setPhases([]);
-                      loadPhases(projectId);
-                    }}
-                  />
-                </Form.Item>
-                <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
-                  <Select
-                    options={phases.map((ph) => ({ label: resolvePhaseLabel(ph), value: ph.id }))}
-                    placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
                   />
                 </Form.Item>
               </div>
@@ -469,7 +454,7 @@ export function TasksPage() {
                     onClick={() => {
                       const fieldsForStep = [
                         ['title'],
-                        ['type', 'status', 'projectId', 'phaseId'],
+                        ['type', 'status', 'projectId'],
                       ][wizardStep];
                       form.validateFields(fieldsForStep)
                         .then(() => setWizardStep((s) => s + 1))
