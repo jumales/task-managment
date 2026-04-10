@@ -11,7 +11,7 @@ import type { InputRef } from 'antd';
 import { getTasks, createTask, deleteTask, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskSummaryResponse, TaskStatus, TaskType, TaskCompletionStatus, TaskProjectResponse, UserResponse } from '../api/types';
 import { getTypeLabels } from './taskDetail/taskDetailConstants';
 
 import { useAuth } from '../auth/AuthProvider';
@@ -47,8 +47,9 @@ export function TasksPage() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [modalError,   setModalError]   = useState<string | null>(null);
-  const [searchQuery,  setSearchQuery]  = useState('');
-  const [activeSearch, setActiveSearch] = useState('');
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [activeSearch,     setActiveSearch]     = useState('');
+  const [completionFilter, setCompletionFilter] = useState<TaskCompletionStatus | undefined>(undefined);
   const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [wizardStep,   setWizardStep]   = useState(0);
@@ -71,8 +72,8 @@ export function TasksPage() {
     [typeLabels],
   );
 
-  const loadTasks = (page = currentPage, size = pageSize) =>
-    getTasks({ page: page - 1, size })
+  const loadTasks = (page = currentPage, size = pageSize, cs = completionFilter) =>
+    getTasks({ page: page - 1, size, completionStatus: cs })
       .then((data) => {
         setTasks(data.content);
         setTotalTasks(data.totalElements);
@@ -145,7 +146,14 @@ export function TasksPage() {
     setCurrentPage(page);
     setPageSize(size);
     setLoading(true);
-    loadTasks(page, size);
+    loadTasks(page, size, completionFilter);
+  };
+
+  const handleCompletionFilterChange = (value: TaskCompletionStatus | undefined) => {
+    setCompletionFilter(value);
+    setCurrentPage(1);
+    setLoading(true);
+    loadTasks(1, pageSize, value);
   };
 
   /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
@@ -257,6 +265,17 @@ export function TasksPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>{t('tasks.title')}</Typography.Title>
         <Space>
+          <Select<TaskCompletionStatus | undefined>
+            allowClear
+            placeholder="Completion"
+            value={completionFilter}
+            onChange={handleCompletionFilterChange}
+            style={{ width: 150 }}
+            options={[
+              { label: 'Finished', value: 'FINISHED' as TaskCompletionStatus },
+              { label: 'Dev Finished', value: 'DEV_FINISHED' as TaskCompletionStatus },
+            ]}
+          />
           <Input
             ref={searchInputRef}
             placeholder={t('tasks.searchPlaceholder')}

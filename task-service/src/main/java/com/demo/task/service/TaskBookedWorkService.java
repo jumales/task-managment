@@ -66,14 +66,15 @@ public class TaskBookedWorkService {
      * Creates a new booked-work entry on the task.
      * Validates that both the task and the referenced user exist.
      * Blocked when the task is in PLANNING phase — use planned work for estimates instead.
+     * Blocked when the task is in RELEASED or REJECTED phase — fully finished tasks are immutable.
      * Publishes a BOOKED_WORK_CREATED audit event.
-     *
-     * @throws IllegalArgumentException if the task is currently in the PLANNING phase
      */
     @Transactional
     public TaskBookedWorkResponse create(UUID taskId, TaskBookedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
-        validateNotPlanningPhase(task);
+        TaskPhaseName phaseName = resolvePhaseName(task);
+        validateNotPlanningPhase(phaseName);
+        validateNotFinished(phaseName);
         UserDto user = userClient.getUserById(request.getUserId());
         TaskBookedWork saved = repository.save(TaskBookedWork.builder()
                 .taskId(taskId)
@@ -91,14 +92,15 @@ public class TaskBookedWorkService {
     /**
      * Updates userId, workType, and bookedHours of an existing booked-work entry.
      * Blocked when the task is in PLANNING phase.
+     * Blocked when the task is in RELEASED or REJECTED phase — fully finished tasks are immutable.
      * Publishes a BOOKED_WORK_UPDATED audit event.
-     *
-     * @throws IllegalArgumentException if the task is currently in the PLANNING phase
      */
     @Transactional
     public TaskBookedWorkResponse update(UUID taskId, UUID bookedWorkId, TaskBookedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
-        validateNotPlanningPhase(task);
+        TaskPhaseName phaseName = resolvePhaseName(task);
+        validateNotPlanningPhase(phaseName);
+        validateNotFinished(phaseName);
         TaskBookedWork entry = getOrThrow(bookedWorkId);
         UserDto user = userClient.getUserById(request.getUserId());
         entry.setUserId(request.getUserId());
@@ -113,11 +115,13 @@ public class TaskBookedWorkService {
 
     /**
      * Soft-deletes a booked-work entry; throws if not found.
+     * Blocked when the task is in RELEASED or REJECTED phase — fully finished tasks are immutable.
      * Publishes a BOOKED_WORK_DELETED audit event.
      */
     @Transactional
     public void delete(UUID taskId, UUID bookedWorkId) {
         Task task = getTaskOrThrow(taskId);
+        validateNotFinished(resolvePhaseName(task));
         if (!repository.existsById(bookedWorkId)) {
             throw new ResourceNotFoundException(ENTITY_NAME, bookedWorkId);
         }
@@ -126,12 +130,23 @@ public class TaskBookedWorkService {
                 bookedWorkId));
     }
 
+    /** Returns the current phase name for the task; single lookup shared across guards. */
+    private TaskPhaseName resolvePhaseName(Task task) {
+        return phaseService.getOrThrow(task.getPhaseId()).getName();
+    }
+
     /** Throws if the task is currently in the PLANNING phase; booked work requires an active phase. */
-    private void validateNotPlanningPhase(Task task) {
-        TaskPhaseName phaseName = phaseService.getOrThrow(task.getPhaseId()).getName();
+    private void validateNotPlanningPhase(TaskPhaseName phaseName) {
         if (phaseName == TaskPhaseName.PLANNING) {
             throw new BusinessLogicException(
                     "Booked work cannot be entered while the task is in the PLANNING phase");
+        }
+    }
+
+    /** Throws if the task is in RELEASED or REJECTED phase — fully finished tasks are immutable. */
+    private void validateNotFinished(TaskPhaseName phaseName) {
+        if (TaskPhaseName.FINISHED_PHASES.contains(phaseName)) {
+            throw new BusinessLogicException("Task is finished and cannot be modified");
         }
     }
 

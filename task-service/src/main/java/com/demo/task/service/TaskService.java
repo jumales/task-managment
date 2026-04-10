@@ -4,6 +4,7 @@ import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskBookedWorkResponse;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskCompletionStatus;
 import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskParticipantResponse;
@@ -21,6 +22,7 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.event.TaskEvent;
+import com.demo.common.exception.BusinessLogicException;
 import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
@@ -161,6 +163,18 @@ public class TaskService {
     }
 
     /**
+     * Returns a paginated summary page of tasks filtered by completion status.
+     * {@code FINISHED} returns tasks in RELEASED or REJECTED phase; {@code DEV_FINISHED} returns tasks in DONE phase.
+     */
+    public PageResponse<TaskSummaryResponse> findByCompletionStatus(TaskCompletionStatus status, Pageable pageable) {
+        Set<TaskPhaseName> phaseNames = status == TaskCompletionStatus.FINISHED
+                ? TaskPhaseName.FINISHED_PHASES
+                : Set.of(TaskPhaseName.DONE);
+        List<UUID> phaseIds = phaseService.findIdsByNameIn(phaseNames);
+        return toSummaryPageResponse(repository.findByPhaseIdIn(phaseIds, pageable));
+    }
+
+    /**
      * Creates a new task, resolving the phase, validating the assigned user and project,
      * recording both the CREATOR and ASSIGNEE participants, and initializing the mandatory
      * PLANNED_START and PLANNED_END timeline entries.
@@ -220,6 +234,7 @@ public class TaskService {
     @Transactional
     public TaskResponse update(UUID id, TaskRequest request) {
         Task task = getOrThrow(id);
+        validateFieldsEditable(phaseService.getOrThrow(task.getPhaseId()).getName());
 
         TaskStatus oldStatus = task.getStatus();
 
@@ -260,6 +275,9 @@ public class TaskService {
         TaskPhase currentPhase = phaseService.getOrThrow(oldPhaseId);
         TaskPhase newPhase     = phaseService.getOrThrow(phaseId);
 
+        // Fully finished tasks are immutable — no phase changes allowed.
+        validateNotFinished(currentPhase.getName());
+
         // One-way gate: once a task has left PLANNING it may never return.
         if (currentPhase.getName() != TaskPhaseName.PLANNING && newPhase.getName() == TaskPhaseName.PLANNING) {
             throw new IllegalArgumentException("Cannot return a task to the PLANNING phase");
@@ -284,10 +302,6 @@ public class TaskService {
         return toResponse(saved);
     }
 
-    /** Set of phase names that mark a task as complete (triggers REAL_END). */
-    private static final java.util.Set<TaskPhaseName> TERMINAL_PHASES =
-            java.util.Set.of(TaskPhaseName.DONE, TaskPhaseName.RELEASED, TaskPhaseName.REJECTED);
-
     /**
      * Records REAL_START, REAL_END, and RELEASE_DATE timeline entries automatically
      * based on the phase transition. Called within the updatePhase transaction.
@@ -298,13 +312,27 @@ public class TaskService {
         if (fromPhase == TaskPhaseName.PLANNING) {
             timelineService.setAutomaticIfAbsent(task.getId(), TimelineState.REAL_START, assignee);
         }
-        // Record REAL_END whenever the task enters a terminal phase
-        if (TERMINAL_PHASES.contains(toPhase)) {
+        // Record REAL_END whenever the task enters a terminal phase (DONE, RELEASED, REJECTED)
+        if (TaskPhaseName.FIELD_LOCKED_PHASES.contains(toPhase)) {
             timelineService.upsertAutomatic(task.getId(), TimelineState.REAL_END, assignee);
         }
         // Record RELEASE_DATE when the task enters RELEASED
         if (toPhase == TaskPhaseName.RELEASED) {
             timelineService.upsertAutomatic(task.getId(), TimelineState.RELEASE_DATE, assignee);
+        }
+    }
+
+    /** Throws {@link BusinessLogicException} if the phase is RELEASED or REJECTED (fully finished). */
+    private void validateNotFinished(TaskPhaseName phaseName) {
+        if (TaskPhaseName.FINISHED_PHASES.contains(phaseName)) {
+            throw new BusinessLogicException("Task is finished and cannot be modified");
+        }
+    }
+
+    /** Throws {@link BusinessLogicException} if the phase is DONE, RELEASED, or REJECTED (fields locked). */
+    private void validateFieldsEditable(TaskPhaseName phaseName) {
+        if (TaskPhaseName.FIELD_LOCKED_PHASES.contains(phaseName)) {
+            throw new BusinessLogicException("Task fields are locked in the " + phaseName + " phase");
         }
     }
 
@@ -346,6 +374,7 @@ public class TaskService {
     @Transactional
     public TaskCommentResponse addComment(UUID taskId, TaskCommentRequest request, UUID authorId) {
         Task task = getOrThrow(taskId);
+        validateNotFinished(phaseService.getOrThrow(task.getPhaseId()).getName());
         TaskComment saved = commentRepository.save(TaskComment.builder()
                 .taskId(taskId)
                 .userId(authorId)

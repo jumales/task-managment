@@ -19,7 +19,7 @@ const PROJECTS_URL = '/api/v1/projects';
 const PHASES_URL   = '/api/v1/phases';
 
 /** Fetches a paginated list of tasks (summary view), with optional filters. */
-export function getTasks(params?: { userId?: string; projectId?: string; status?: string; page?: number; size?: number }) {
+export function getTasks(params?: { userId?: string; projectId?: string; status?: string; completionStatus?: string; page?: number; size?: number }) {
   return apiClient.get<PageResponse<TaskSummaryResponse>>(TASKS_URL, { params: { size: 20, ...params } }).then((r) => r.data);
 }
 

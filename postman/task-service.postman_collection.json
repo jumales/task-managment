@@ -498,6 +498,12 @@
                 {
                   "key": "size",
                   "value": "20"
+                },
+                {
+                  "key": "completionStatus",
+                  "value": "FINISHED",
+                  "disabled": true,
+                  "description": "FINISHED (RELEASED or REJECTED phase) or DEV_FINISHED (DONE phase)"
                 }
               ]
             }

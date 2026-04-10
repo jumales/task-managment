@@ -87,6 +87,36 @@
 - always soft delete
 - don't delete if exists related entities
 
+# Task Completion State
+
+Tasks have two levels of completion based on **phase** (not status):
+
+| Phase | State | Label |
+|---|---|---|
+| `DONE` | Semi-final ("dev finished") | `DEV_FINISHED` |
+| `RELEASED` or `REJECTED` | Fully finished | `FINISHED` |
+
+## Write rules per state
+
+| Operation | DONE | RELEASED / REJECTED |
+|---|---|---|
+| Edit task fields (`PUT /tasks/{id}`) | ❌ blocked | ❌ blocked |
+| Change phase (`PATCH /tasks/{id}/phase`) | ✅ allowed | ❌ blocked |
+| Add comments | ✅ allowed | ❌ blocked |
+| Booked work (create / update / delete) | ✅ allowed | ❌ blocked |
+| Planned dates / planned work | ❌ already blocked (PLANNING only) | ❌ already blocked |
+
+## Implementation pattern
+- Constants live on `TaskPhaseName`: `FINISHED_PHASES = {RELEASED, REJECTED}`, `FIELD_LOCKED_PHASES = {DONE, RELEASED, REJECTED}`
+- Guards throw `BusinessLogicException` (HTTP 422) — consistent with the existing `validateNotPlanningPhase` pattern
+- `validateNotFinished(task)` — used before phase change, add comment, booked work writes
+- `validateFieldsEditable(task)` — used before task field update
+
+## Filtering
+- `GET /tasks?completionStatus=FINISHED` → tasks in RELEASED or REJECTED phase
+- `GET /tasks?completionStatus=DEV_FINISHED` → tasks in DONE phase
+- Implemented via `TaskCompletionStatus` enum (`FINISHED`, `DEV_FINISHED`) in common and a JPQL JOIN query on the repository
+
 # Java Code Style
 
 ## Methods

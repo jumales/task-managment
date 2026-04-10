@@ -1,4 +1,4 @@
-import type { TaskPhaseResponse } from '../api/types';
+import type { TaskPhaseResponse, TaskPhaseName } from '../api/types';
 
 /**
  * Formats a TaskPhaseName enum value into a human-readable string.
@@ -19,4 +19,20 @@ export function resolvePhaseLabel(phase: TaskPhaseResponse | null | undefined): 
   if (!phase) return '—';
   if (phase.customName) return phase.customName;
   return formatPhaseEnum(phase.name);
+}
+
+/**
+ * Returns true when the task is fully finished (RELEASED or REJECTED phase).
+ * All modifications are blocked for finished tasks.
+ */
+export function isTaskFinished(phaseName: TaskPhaseName): boolean {
+  return phaseName === 'RELEASED' || phaseName === 'REJECTED';
+}
+
+/**
+ * Returns true when task fields (title, description, status, etc.) are locked.
+ * Includes DONE (dev-finished) in addition to RELEASED and REJECTED.
+ */
+export function isTaskFieldsLocked(phaseName: TaskPhaseName): boolean {
+  return phaseName === 'DONE' || isTaskFinished(phaseName);
 }
