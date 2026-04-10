@@ -12,5 +12,6 @@ public enum TaskPhaseName {
     IN_REVIEW,
     TESTING,
     DONE,
-    RELEASED
+    RELEASED,
+    REJECTED
 }
