@@ -21,7 +21,6 @@ type Props = ReturnType<typeof useTaskTimeline> & {
   taskPhaseName: TaskPhaseName;
 };
 
-const PLANNED_STATES = new Set<TimelineState>(['PLANNED_START', 'PLANNED_END']);
 /** States that are set automatically by phase transitions — never user-editable. */
 const AUTO_STATES = new Set<TimelineState>(['REAL_START', 'REAL_END', 'RELEASE_DATE']);
 

@@ -110,6 +110,7 @@ export interface TaskParticipantRequest {
 
 export interface TaskResponse {
   id: string;
+  taskCode: string | null;
   title: string;
   description: string;
   status: TaskStatus;

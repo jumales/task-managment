@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Divider, Spin, Tabs } from 'antd';
+import { Alert, Button, Col, Divider, Row, Spin, Space, Tabs, Tag, Typography } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useTaskDetailData } from '../hooks/useTaskDetailData';
 import { updateTask } from '../api/taskApi';
@@ -22,8 +22,9 @@ import { TaskBookedWorkTab }     from '../components/taskDetail/TaskBookedWorkTa
 import { TaskParticipantsTab }   from '../components/taskDetail/TaskParticipantsTab';
 import { TaskCommentsTab }       from '../components/taskDetail/TaskCommentsTab';
 import { TaskAttachmentsTab }    from '../components/taskDetail/TaskAttachmentsTab';
+import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from './taskDetail/taskDetailConstants';
 
-/** Full-page view for a single task: overview, timeline, work logs, participants, and comments. */
+/** Full-page view for a single task: header with code+title+tags, left column with metadata and timeline, right column with tabs. */
 export function TaskDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -32,6 +33,8 @@ export function TaskDetailPage() {
   const { data, setData, loading, error } = useTaskDetailData(id);
 
   const [saving, setSaving] = useState(false);
+
+  const typeLabels = useMemo(() => getTypeLabels(t), [t]);
 
   /** Persists edits to title, description, assignee, and progress without leaving the detail page. */
   const handleOverviewSave = (patch: { title: string; description: string; assignedUserId: string; progress: number }) => {
@@ -79,7 +82,7 @@ export function TaskDetailPage() {
   const finished = isTaskFinished(data.task.phase.name);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
       <Button
         icon={<ArrowLeftOutlined />}
         onClick={() => navigate('/tasks')}
@@ -88,13 +91,24 @@ export function TaskDetailPage() {
         {t('tasks.backToTasks')}
       </Button>
 
-      <TaskOverviewCard
-        task={data.task}
-        users={data.users}
-        onSave={handleOverviewSave}
-        saving={saving}
-        onChangePhase={phaseChange.openModal}
-      />
+      {/* Top header: task code + title + status/type/completion tags */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+        <div>
+          {data.task.taskCode && (
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 2 }}>
+              {data.task.taskCode}
+            </Typography.Text>
+          )}
+          <Typography.Title level={3} style={{ margin: 0 }}>{data.task.title}</Typography.Title>
+        </div>
+        <Space wrap>
+          <Tag color={STATUS_COLORS[data.task.status]}>{t(`tasks.statuses.${data.task.status}`)}</Tag>
+          {data.task.type && <Tag color={TYPE_COLORS[data.task.type]}>{typeLabels[data.task.type]}</Tag>}
+          {finished && <Tag color="red">Finished</Tag>}
+          {!finished && data.task.phase.name === 'DONE' && <Tag color="orange">Dev Finished</Tag>}
+        </Space>
+      </div>
+
       <TaskPhaseChangeModal
         open={phaseChange.open}
         onClose={() => phaseChange.setOpen(false)}
@@ -107,25 +121,42 @@ export function TaskDetailPage() {
         error={phaseChange.error}
       />
 
-      <Tabs
-        items={[
-          {
-            key: 'comments',
-            label: t('tasks.comments'),
-            children: (
-              <>
-                <TaskCommentsTab {...comments} finished={finished} />
-                <Divider />
-                <TaskAttachmentsTab {...attachments} />
-              </>
-            ),
-          },
-          { key: 'timeline',     label: t('tasks.timeline'),     children: <TaskTimelineTab     {...timeline}     users={data.users} taskPhaseName={data.task.phase.name} /> },
-          { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} /> },
-          { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} finished={finished} /> },
-          { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
-        ]}
-      />
+      <Row gutter={[24, 24]}>
+        {/* Left column: metadata + timeline */}
+        <Col xs={24} md={10}>
+          <TaskOverviewCard
+            task={data.task}
+            users={data.users}
+            onSave={handleOverviewSave}
+            saving={saving}
+            onChangePhase={phaseChange.openModal}
+          />
+          <Divider orientation="left" style={{ marginTop: 24 }}>{t('tasks.timeline')}</Divider>
+          <TaskTimelineTab {...timeline} users={data.users} taskPhaseName={data.task.phase.name} />
+        </Col>
+
+        {/* Right column: collaborative tabs */}
+        <Col xs={24} md={14}>
+          <Tabs
+            items={[
+              {
+                key: 'comments',
+                label: t('tasks.comments'),
+                children: (
+                  <>
+                    <TaskCommentsTab {...comments} finished={finished} />
+                    <Divider />
+                    <TaskAttachmentsTab {...attachments} />
+                  </>
+                ),
+              },
+              { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} /> },
+              { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} finished={finished} /> },
+              { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
+            ]}
+          />
+        </Col>
+      </Row>
     </div>
   );
 }
