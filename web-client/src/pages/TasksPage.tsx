@@ -13,6 +13,7 @@ import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
 import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
 import { getTypeLabels } from './taskDetail/taskDetailConstants';
+
 import { useAuth } from '../auth/AuthProvider';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
