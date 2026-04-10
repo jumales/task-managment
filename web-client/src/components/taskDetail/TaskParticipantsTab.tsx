@@ -4,12 +4,14 @@ import { Button, Divider, List, Popconfirm, Select, Space, Tag } from 'antd';
 import type { TaskParticipantRole, UserResponse } from '../../api/types';
 import type { useTaskParticipants } from '../../hooks/useTaskParticipants';
 
+const PAGE_SIZE = 5;
+
 // Static — roles never change at runtime
 const ROLE_OPTIONS = (['ASSIGNEE', 'VIEWER', 'REVIEWER'] as TaskParticipantRole[]).map((r) => ({ label: r, value: r }));
 
 type Props = ReturnType<typeof useTaskParticipants> & { users: UserResponse[] };
 
-/** Renders the participants list and the add-participant form. */
+/** Renders the add-participant form (top) followed by the paginated participants list. */
 export function TaskParticipantsTab({
   participants, removingPId, handleRemoveParticipant,
   newPUserId, setNewPUserId, newPRole, setNewPRole,
@@ -22,10 +24,32 @@ export function TaskParticipantsTab({
 
   return (
     <>
+      <Space.Compact style={{ width: '100%', maxWidth: 480, marginBottom: 4 }}>
+        <Select
+          style={{ flex: 1 }}
+          placeholder={t('tasks.selectUser')}
+          value={newPUserId}
+          onChange={setNewPUserId}
+          options={userOptions}
+        />
+        <Select
+          style={{ width: 130 }}
+          value={newPRole}
+          onChange={setNewPRole}
+          options={ROLE_OPTIONS}
+        />
+        <Button type="primary" loading={addingP} disabled={!newPUserId} onClick={handleAddParticipant}>
+          {t('common.add')}
+        </Button>
+      </Space.Compact>
+
+      <Divider style={{ marginTop: 12, marginBottom: 8 }} />
+
       <List
         size="small"
         dataSource={participants}
         locale={{ emptyText: t('tasks.noParticipants') }}
+        pagination={participants.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(p) => (
           <List.Item
             key={p.id}
@@ -48,25 +72,6 @@ export function TaskParticipantsTab({
           </List.Item>
         )}
       />
-      <Divider style={{ marginTop: 16 }} />
-      <Space.Compact style={{ width: '100%', maxWidth: 480 }}>
-        <Select
-          style={{ flex: 1 }}
-          placeholder={t('tasks.selectUser')}
-          value={newPUserId}
-          onChange={setNewPUserId}
-          options={userOptions}
-        />
-        <Select
-          style={{ width: 130 }}
-          value={newPRole}
-          onChange={setNewPRole}
-          options={ROLE_OPTIONS}
-        />
-        <Button type="primary" loading={addingP} disabled={!newPUserId} onClick={handleAddParticipant}>
-          {t('common.add')}
-        </Button>
-      </Space.Compact>
     </>
   );
 }
