@@ -83,14 +83,16 @@ export function TaskBookedWorkTab({
           onChange={setBwType}
           options={workTypeOptions}
         />
-        <InputNumber
-          min={0} step={1} precision={0}
-          value={bwHours}
-          onChange={(v) => setBwHours(v ?? 0)}
-          addonBefore={t('tasks.booked')}
-          addonAfter="h"
-          style={{ width: '100%' }}
-        />
+        <Space align="center">
+          <Typography.Text type="secondary">{t('tasks.booked')}</Typography.Text>
+          <InputNumber
+            min={0} step={1} precision={0}
+            value={bwHours}
+            onChange={(v) => setBwHours(v ?? 0)}
+            suffix="h"
+            style={{ width: 120 }}
+          />
+        </Space>
         <Space>
           <Button type="primary" loading={savingBw} disabled={!bwUserId} onClick={handleSaveBookedWork}>
             {editingBw ? t('common.save') : t('common.add')}

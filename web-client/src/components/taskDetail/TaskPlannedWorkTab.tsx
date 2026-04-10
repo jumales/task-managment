@@ -59,14 +59,16 @@ export function TaskPlannedWorkTab({
               onChange={setPwType}
               options={workTypeOptions}
             />
-            <InputNumber
-              min={0} step={1} precision={0}
-              value={pwHours}
-              onChange={(v) => setPwHours(v ?? 0)}
-              addonBefore={t('tasks.planned')}
-              addonAfter="h"
-              style={{ width: '100%' }}
-            />
+            <Space align="center">
+              <Typography.Text type="secondary">{t('tasks.planned')}</Typography.Text>
+              <InputNumber
+                min={0} step={1} precision={0}
+                value={pwHours}
+                onChange={(v) => setPwHours(v ?? 0)}
+                suffix="h"
+                style={{ width: 120 }}
+              />
+            </Space>
             <Button type="primary" loading={savingPw} onClick={handleSavePlannedWork} disabled={pwHours <= 0}>
               {t('common.add')}
             </Button>
