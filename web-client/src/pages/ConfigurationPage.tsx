@@ -269,7 +269,7 @@ function TemplatesTab() {
         confirmLoading={submitting}
         okText={t('common.save')}
         width={680}
-        destroyOnClose
+        destroyOnHidden
       >
         {/* Placeholder catalogue */}
         {placeholders.length > 0 && (

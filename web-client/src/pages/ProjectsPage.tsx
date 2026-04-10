@@ -253,7 +253,7 @@ export function ProjectsPage() {
         onCancel={() => { setPhasesProject(null); setPhasesError(null); }}
         footer={null}
         width={isAdmin ? 720 : 400}
-        destroyOnClose
+        destroyOnHidden
       >
         {phasesError && (
           <Alert
