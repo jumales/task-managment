@@ -99,6 +99,29 @@ public class TaskTimelineService {
         repository.deleteById(entry.getId());
     }
 
+    /**
+     * Creates a timeline entry for the given state only if none already exists.
+     * Used for REAL_START, which must only be recorded the first time a task leaves PLANNING.
+     */
+    @Transactional
+    void setAutomaticIfAbsent(UUID taskId, TimelineState state, UUID assignedUserId) {
+        if (repository.findByTaskIdAndState(taskId, state).isPresent()) return;
+        repository.save(buildEntry(taskId, state, Instant.now(), assignedUserId));
+    }
+
+    /**
+     * Upserts a timeline entry for the given state, overwriting the timestamp if one already exists.
+     * Used for REAL_END and RELEASE_DATE, which are always refreshed on re-entry to a terminal phase.
+     */
+    @Transactional
+    void upsertAutomatic(UUID taskId, TimelineState state, UUID assignedUserId) {
+        TaskTimeline entry = repository.findByTaskIdAndState(taskId, state)
+                .orElseGet(() -> buildEntry(taskId, state, Instant.now(), assignedUserId));
+        entry.setTimestamp(Instant.now());
+        entry.setSetByUserId(assignedUserId);
+        repository.save(entry);
+    }
+
     /** Returns the active PLANNED_START timestamp for a task, or {@code null} if none is set. */
     Instant findPlannedStart(UUID taskId) {
         return repository.findByTaskIdAndState(taskId, TimelineState.PLANNED_START)

@@ -22,6 +22,8 @@ type Props = ReturnType<typeof useTaskTimeline> & {
 };
 
 const PLANNED_STATES = new Set<TimelineState>(['PLANNED_START', 'PLANNED_END']);
+/** States that are set automatically by phase transitions — never user-editable. */
+const AUTO_STATES = new Set<TimelineState>(['REAL_START', 'REAL_END', 'RELEASE_DATE']);
 
 /** Renders the timeline cards for all four timeline states plus the set/edit modal. */
 export function TaskTimelineTab({
@@ -64,8 +66,8 @@ export function TaskTimelineTab({
                   </Space>
                 }
                 extra={
-                  // Planned dates are locked once the task leaves the PLANNING phase
-                  (!PLANNED_STATES.has(state) || taskPhaseName === 'PLANNING') && (
+                  // Only planned dates are user-editable, and only while the task is in PLANNING
+                  !AUTO_STATES.has(state) && taskPhaseName === 'PLANNING' && (
                     <Space size="small">
                       <Button size="small" onClick={() => openTlModal(state)}>
                         {entry ? t('common.edit') : t('tasks.setDate')}

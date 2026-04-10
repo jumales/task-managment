@@ -121,7 +121,8 @@
       "PLANNED_START": "Planned Start",
       "PLANNED_END": "Planned End",
       "REAL_START": "Actual Start",
-      "REAL_END": "Actual End"
+      "REAL_END": "Actual End",
+      "RELEASE_DATE": "Release Date"
     },
     "statuses": {
       "TODO": "To Do",

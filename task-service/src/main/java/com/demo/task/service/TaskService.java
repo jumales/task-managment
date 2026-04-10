@@ -14,6 +14,7 @@ import com.demo.common.dto.TaskRequest;
 import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskStatus;
+import com.demo.common.dto.TimelineState;
 import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.TaskTimelineResponse;
 import com.demo.common.dto.UserDto;
@@ -267,6 +268,8 @@ public class TaskService {
         task.setPhaseId(phaseId);
         Task saved = repository.save(task);
 
+        recordAutomaticTimelines(saved, currentPhase.getName(), newPhase.getName());
+
         outboxWriter.write(TaskChangedEvent.phaseChanged(
                 saved.getId(), saved.getAssignedUserId(), saved.getProjectId(), saved.getTitle(),
                 oldPhaseId, currentPhase.getName().name(),
@@ -279,6 +282,30 @@ public class TaskService {
                 project.getName(), phaseId, userName);
 
         return toResponse(saved);
+    }
+
+    /** Set of phase names that mark a task as complete (triggers REAL_END). */
+    private static final java.util.Set<TaskPhaseName> TERMINAL_PHASES =
+            java.util.Set.of(TaskPhaseName.DONE, TaskPhaseName.RELEASED, TaskPhaseName.REJECTED);
+
+    /**
+     * Records REAL_START, REAL_END, and RELEASE_DATE timeline entries automatically
+     * based on the phase transition. Called within the updatePhase transaction.
+     */
+    private void recordAutomaticTimelines(Task task, TaskPhaseName fromPhase, TaskPhaseName toPhase) {
+        UUID assignee = task.getAssignedUserId();
+        // Record REAL_START once — the first time the task leaves PLANNING
+        if (fromPhase == TaskPhaseName.PLANNING) {
+            timelineService.setAutomaticIfAbsent(task.getId(), TimelineState.REAL_START, assignee);
+        }
+        // Record REAL_END whenever the task enters a terminal phase
+        if (TERMINAL_PHASES.contains(toPhase)) {
+            timelineService.upsertAutomatic(task.getId(), TimelineState.REAL_END, assignee);
+        }
+        // Record RELEASE_DATE when the task enters RELEASED
+        if (toPhase == TaskPhaseName.RELEASED) {
+            timelineService.upsertAutomatic(task.getId(), TimelineState.RELEASE_DATE, assignee);
+        }
     }
 
     /** Publishes a STATUS_CHANGED outbox event when the status has actually changed. */
