@@ -121,7 +121,8 @@
       "PLANNED_START": "Planirani početak",
       "PLANNED_END": "Planirani završetak",
       "REAL_START": "Stvarni početak",
-      "REAL_END": "Stvarni završetak"
+      "REAL_END": "Stvarni završetak",
+      "RELEASE_DATE": "Datum izdanja"
     },
     "statuses": {
       "TODO": "Za napraviti",

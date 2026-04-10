@@ -16,7 +16,7 @@ export const TYPE_COLORS: Record<TaskType, string> = {
   OTHER:          'default',
 };
 
-export const TIMELINE_STATES: TimelineState[] = ['PLANNED_START', 'PLANNED_END', 'REAL_START', 'REAL_END'];
+export const TIMELINE_STATES: TimelineState[] = ['PLANNED_START', 'PLANNED_END', 'REAL_START', 'REAL_END', 'RELEASE_DATE'];
 
 /** Returns a translated label map for all TaskType values. Intended for use inside useMemo. */
 export function getTypeLabels(t: (key: string) => string): Record<TaskType, string> {

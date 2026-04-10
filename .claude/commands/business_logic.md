@@ -25,10 +25,10 @@ Do not guess — read the actual files before reporting any finding.
 |---|---|
 | `TaskStatus` | `TODO`, `IN_PROGRESS`, `DONE` |
 | `TaskType` | `FEATURE`, `BUG_FIXING`, `TESTING`, `PLANNING`, `TECHNICAL_DEBT`, `DOCUMENTATION`, `OTHER` |
-| `TaskPhaseName` | `BACKLOG`, `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `TESTING`, `DONE`, `RELEASED` |
+| `TaskPhaseName` | `PLANNING`, `BACKLOG`, `TODO`, `IN_PROGRESS`, `IN_REVIEW`, `TESTING`, `DONE`, `RELEASED`, `REJECTED` |
 | `TaskParticipantRole` | `CREATOR`, `ASSIGNEE`, `VIEWER`, `REVIEWER` |
 | `WorkType` | `DEVELOPMENT`, `TESTING`, `CODE_REVIEW`, `DESIGN`, `PLANNING`, `DOCUMENTATION`, `DEPLOYMENT`, `MEETING`, `OTHER` |
-| `TimelineState` | `PLANNED_START`, `PLANNED_END`, `REAL_START`, `REAL_END` |
+| `TimelineState` | `PLANNED_START`, `PLANNED_END`, `REAL_START`, `REAL_END`, `RELEASE_DATE` |
 
 ### Task rules
 
@@ -62,9 +62,13 @@ Do not guess — read the actual files before reporting any finding.
 
 ### TaskTimeline rules
 
-- `PLANNED_START` must be before `PLANNED_END` when both are set
+- `PLANNED_START` must be before `PLANNED_END` when both are set; clients should enforce ordering before submitting
 - `REAL_START` must be before `REAL_END` when both are set
-- Clients should enforce the ordering before submitting
+- `REAL_START`, `REAL_END`, and `RELEASE_DATE` are **system-managed** — set automatically by phase transitions; must never be user-editable
+  - `REAL_START` → set once when task first leaves the PLANNING phase
+  - `REAL_END` → set (or updated) when task enters DONE, RELEASED, or REJECTED
+  - `RELEASE_DATE` → set (or updated) when task enters RELEASED
+- API `setState` and `deleteState` return HTTP 400 for `REAL_START`, `REAL_END`, and `RELEASE_DATE`
 
 ### TaskPlannedWork rules
 
@@ -108,6 +112,7 @@ For each rule category below, read the relevant backend service and the correspo
 ### 3 — Read-only field protection (HIGH)
 - Is `taskCode` treated as display-only everywhere in the frontend (never in a form input)?
 - Is the `CREATOR` participant role absent from the "add participant" role dropdown?
+- Are `REAL_START`, `REAL_END`, and `RELEASE_DATE` timeline cards rendered without edit/delete buttons?
 
 ### 4 — Status-gated UI (HIGH)
 - Is the `TaskPlannedWork` creation form disabled or hidden when task status is not `TODO`?
@@ -126,7 +131,7 @@ For each rule category below, read the relevant backend service and the correspo
 - Are there any client-side caches or local state that could show stale deleted items?
 
 ### 8 — Timeline ordering (MEDIUM)
-- Does the timeline date-picker enforce PLANNED_START < PLANNED_END and REAL_START < REAL_END before submit?
+- Does the timeline date-picker enforce PLANNED_START < PLANNED_END before submit? (REAL_START/REAL_END/RELEASE_DATE are auto-managed and have no user-facing date pickers)
 
 ### 9 — Notification template placeholders (LOW)
 - Does the template editor list or suggest only recognized `TemplatePlaceholder` values?

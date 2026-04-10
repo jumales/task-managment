@@ -188,17 +188,13 @@ class TaskTimelineControllerIT {
     }
 
     @Test
-    void setState_allFourStates_areReturnedInList() {
-        // Use timestamps that satisfy start < end invariants for both PLANNED and REAL pairs
+    void setState_plannedStates_areReturnedInList() {
+        // Only PLANNED_START and PLANNED_END are user-settable; REAL_* and RELEASE_DATE are auto-managed
         Instant start = Instant.parse("2026-03-01T00:00:00Z");
         Instant end   = Instant.parse("2026-06-01T00:00:00Z");
         restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_START",
                 HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, start)), TaskTimelineResponse.class);
         restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
-                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, end)), TaskTimelineResponse.class);
-        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/REAL_START",
-                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, start)), TaskTimelineResponse.class);
-        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/REAL_END",
                 HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, end)), TaskTimelineResponse.class);
 
         ResponseEntity<TaskTimelineResponse[]> response = restTemplate.getForEntity(
@@ -206,13 +202,26 @@ class TaskTimelineControllerIT {
                 TaskTimelineResponse[].class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(4);
+        assertThat(response.getBody()).hasSize(2);
+        assertThat(response.getBody()).anyMatch(e -> e.getState() == TimelineState.PLANNED_START);
+        assertThat(response.getBody()).anyMatch(e -> e.getState() == TimelineState.PLANNED_END);
+    }
+
+    @Test
+    void setState_autoManagedState_returns400() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + taskId + "/timelines/REAL_START",
+                HttpMethod.PUT,
+                new HttpEntity<>(timelineRequest(ALICE_ID, Instant.now())),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void setState_whenTaskNotFound_returns404() {
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/tasks/" + UUID.randomUUID() + "/timelines/REAL_START",
+                "/api/v1/tasks/" + UUID.randomUUID() + "/timelines/PLANNED_START",
                 HttpMethod.PUT,
                 new HttpEntity<>(timelineRequest(ALICE_ID, Instant.now())),
                 String.class);
@@ -248,23 +257,33 @@ class TaskTimelineControllerIT {
 
     @Test
     void deleteState_removesItFromList() {
-        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/REAL_END",
-                HttpMethod.PUT, new HttpEntity<>(timelineRequest(ALICE_ID, Instant.now())),
-                TaskTimelineResponse.class);
-
-        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/REAL_END",
+        // PLANNED_END is created during task setup; delete it and verify it is gone
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
                 HttpMethod.DELETE, HttpEntity.EMPTY, Void.class);
 
         ResponseEntity<TaskTimelineResponse[]> listResponse = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/timelines",
                 TaskTimelineResponse[].class);
-        assertThat(listResponse.getBody()).noneMatch(e -> e.getState() == TimelineState.REAL_END);
+        assertThat(listResponse.getBody()).noneMatch(e -> e.getState() == TimelineState.PLANNED_END);
+    }
+
+    @Test
+    void deleteState_autoManagedState_returns400() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/tasks/" + taskId + "/timelines/REAL_END",
+                HttpMethod.DELETE, HttpEntity.EMPTY, String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
     void deleteState_whenNotFound_returns404() {
+        // Delete PLANNED_END first so it no longer exists, then try to delete again
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
+                HttpMethod.DELETE, HttpEntity.EMPTY, Void.class);
+
         ResponseEntity<String> response = restTemplate.exchange(
-                "/api/v1/tasks/" + taskId + "/timelines/REAL_START",
+                "/api/v1/tasks/" + taskId + "/timelines/PLANNED_END",
                 HttpMethod.DELETE, HttpEntity.EMPTY, String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);

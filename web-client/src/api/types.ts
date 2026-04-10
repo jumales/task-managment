@@ -253,7 +253,7 @@ export interface AuditRecord {
 }
 
 /** Mirrors com.demo.common.dto.TimelineState */
-export type TimelineState = 'PLANNED_START' | 'PLANNED_END' | 'REAL_START' | 'REAL_END';
+export type TimelineState = 'PLANNED_START' | 'PLANNED_END' | 'REAL_START' | 'REAL_END' | 'RELEASE_DATE';
 
 /** Mirrors com.demo.common.dto.TaskTimelineResponse */
 export interface TaskTimelineResponse {
