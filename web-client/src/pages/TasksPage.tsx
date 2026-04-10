@@ -396,17 +396,17 @@ export function TasksPage() {
 
               {/* Step 2 — Type, Status, Project & Phase */}
               <div style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
-                <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
-                  <Select options={typeOptions} placeholder={t('tasks.selectType')} />
-                </Form.Item>
-                <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
-                  <Select options={statusOptions} />
-                </Form.Item>
                 <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
                   <Select
                     options={projects.map((p) => ({ label: p.name, value: p.id }))}
                     placeholder={t('tasks.selectProject')}
                   />
+                </Form.Item>
+                <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
+                  <Select options={typeOptions} placeholder={t('tasks.selectType')} />
+                </Form.Item>
+                <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
+                  <Select options={statusOptions} />
                 </Form.Item>
               </div>
 
@@ -454,7 +454,7 @@ export function TasksPage() {
                     onClick={() => {
                       const fieldsForStep = [
                         ['title'],
-                        ['type', 'status', 'projectId'],
+                        ['projectId', 'type', 'status'],
                       ][wizardStep];
                       form.validateFields(fieldsForStep)
                         .then(() => setWizardStep((s) => s + 1))
