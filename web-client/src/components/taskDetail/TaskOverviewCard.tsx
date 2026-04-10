@@ -119,7 +119,7 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
                 max={100}
                 value={progress}
                 onChange={(v) => setProgress(v ?? 0)}
-                addonAfter="%"
+                suffix="%"
                 style={{ width: 120 }}
               />
             )
