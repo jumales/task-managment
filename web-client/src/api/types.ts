@@ -25,7 +25,6 @@ export interface TaskPlannedWorkResponse {
 
 /** Mirrors com.demo.common.dto.TaskBookedWorkRequest */
 export interface TaskBookedWorkRequest {
-  userId: string;
   workType: WorkType;
   bookedHours: number;
 }

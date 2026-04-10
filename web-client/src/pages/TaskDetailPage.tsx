@@ -70,7 +70,7 @@ export function TaskDetailPage() {
 
   const timeline     = useTaskTimeline(id,      timelinesData);
   const plannedWork  = useTaskPlannedWork(id,   plannedWorkData);
-  const bookedWork   = useTaskBookedWork(id,    bookedWorkData);
+  const bookedWork   = useTaskBookedWork(id,    bookedWorkData, plannedWorkData);
   const participants = useTaskParticipants(id,  participantsData);
   const comments     = useTaskComments(id,      commentsData);
   const attachments  = useTaskAttachments(id,   attachmentsData);
@@ -151,7 +151,7 @@ export function TaskDetailPage() {
                 ),
               },
               { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} /> },
-              { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} finished={finished} /> },
+              { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   taskPhaseName={data.task.phase.name} finished={finished} /> },
               { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
             ]}
           />

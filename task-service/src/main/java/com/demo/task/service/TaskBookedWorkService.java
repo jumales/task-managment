@@ -63,22 +63,22 @@ public class TaskBookedWorkService {
     }
 
     /**
-     * Creates a new booked-work entry on the task.
+     * Creates a new booked-work entry on the task, attributed to the given userId.
      * Validates that both the task and the referenced user exist.
      * Blocked when the task is in PLANNING phase — use planned work for estimates instead.
      * Blocked when the task is in RELEASED or REJECTED phase — fully finished tasks are immutable.
      * Publishes a BOOKED_WORK_CREATED audit event.
      */
     @Transactional
-    public TaskBookedWorkResponse create(UUID taskId, TaskBookedWorkRequest request) {
+    public TaskBookedWorkResponse create(UUID taskId, UUID userId, TaskBookedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
         TaskPhaseName phaseName = resolvePhaseName(task);
         validateNotPlanningPhase(phaseName);
         validateNotFinished(phaseName);
-        UserDto user = userClient.getUserById(request.getUserId());
+        UserDto user = userClient.getUserById(userId);
         TaskBookedWork saved = repository.save(TaskBookedWork.builder()
                 .taskId(taskId)
-                .userId(request.getUserId())
+                .userId(userId)
                 .workType(request.getWorkType())
                 .bookedHours(request.getBookedHours() != null ? request.getBookedHours().intValue() : 0)
                 .createdAt(Instant.now())
@@ -90,20 +90,20 @@ public class TaskBookedWorkService {
     }
 
     /**
-     * Updates userId, workType, and bookedHours of an existing booked-work entry.
+     * Updates workType and bookedHours of an existing booked-work entry; userId is kept as provided by the caller.
      * Blocked when the task is in PLANNING phase.
      * Blocked when the task is in RELEASED or REJECTED phase — fully finished tasks are immutable.
      * Publishes a BOOKED_WORK_UPDATED audit event.
      */
     @Transactional
-    public TaskBookedWorkResponse update(UUID taskId, UUID bookedWorkId, TaskBookedWorkRequest request) {
+    public TaskBookedWorkResponse update(UUID taskId, UUID bookedWorkId, UUID userId, TaskBookedWorkRequest request) {
         Task task = getTaskOrThrow(taskId);
         TaskPhaseName phaseName = resolvePhaseName(task);
         validateNotPlanningPhase(phaseName);
         validateNotFinished(phaseName);
         TaskBookedWork entry = getOrThrow(bookedWorkId);
-        UserDto user = userClient.getUserById(request.getUserId());
-        entry.setUserId(request.getUserId());
+        UserDto user = userClient.getUserById(userId);
+        entry.setUserId(userId);
         entry.setWorkType(request.getWorkType());
         entry.setBookedHours(request.getBookedHours() != null ? request.getBookedHours().intValue() : 0);
         TaskBookedWork saved = repository.save(entry);
