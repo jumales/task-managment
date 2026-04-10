@@ -1,9 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Descriptions, Input, InputNumber, Progress, Select, Space, Tag, Typography } from 'antd';
+import { Button, Descriptions, Input, InputNumber, Progress, Select, Space } from 'antd';
 import { EditOutlined, SwapOutlined } from '@ant-design/icons';
 import type { TaskResponse, UserResponse } from '../../api/types';
-import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 import { resolvePhaseLabel, isTaskFinished, isTaskFieldsLocked } from '../../utils/phaseUtils';
 
 interface EditPatch {
@@ -21,11 +20,9 @@ interface Props {
   onChangePhase?: () => void;
 }
 
-/** Renders the task overview card: title, status/type tags, and key metadata fields. Supports inline editing of title, description, assignee, and progress. Edit is locked in DONE/RELEASED/REJECTED phases; phase change is locked in RELEASED/REJECTED. */
+/** Renders the task metadata panel: phase, project, assignee, progress, and description. Supports inline editing. Edit is locked in DONE/RELEASED/REJECTED phases; phase change is locked in RELEASED/REJECTED. Title and status/type tags are rendered by the parent page header. */
 export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }: Props) {
   const { t } = useTranslation();
-
-  const typeLabels = useMemo(() => getTypeLabels(t), [t]);
 
   const finished     = isTaskFinished(task.phase.name);
   const fieldsLocked = isTaskFieldsLocked(task.phase.name);
@@ -55,38 +52,23 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
   };
 
   return (
-    <Card style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-        {editing
-          ? <Input value={title} onChange={(e) => setTitle(e.target.value)} style={{ flex: 1, maxWidth: 500, fontWeight: 600, fontSize: 16 }} />
-          : <Typography.Title level={4} style={{ margin: 0 }}>{task.title}</Typography.Title>
-        }
-        <Space>
-          <Tag color={STATUS_COLORS[task.status]}>{t(`tasks.statuses.${task.status}`)}</Tag>
-          {task.type && <Tag color={TYPE_COLORS[task.type]}>{typeLabels[task.type]}</Tag>}
-          {finished    && <Tag color="red">Finished</Tag>}
-          {!finished && task.phase.name === 'DONE' && <Tag color="orange">Dev Finished</Tag>}
-          {!editing && !fieldsLocked && (
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={startEditing}
-            />
-          )}
-        </Space>
-      </div>
+    <div>
+      {!editing && !fieldsLocked && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={startEditing}>
+            {t('common.edit')}
+          </Button>
+        </div>
+      )}
 
-      <Descriptions column={2} style={{ marginTop: 16 }} size="small">
-        <Descriptions.Item label={t('common.description')} span={2}>
-          {editing
-            ? <Input.TextArea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-            : (task.description || '—')
-          }
-        </Descriptions.Item>
-        <Descriptions.Item label={t('common.project')}>
-          {task.project?.name ?? '—'}
-        </Descriptions.Item>
+      {editing && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)', marginBottom: 4 }}>{t('tasks.title_field')}</div>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+      )}
+
+      <Descriptions column={1} size="small">
         <Descriptions.Item label={t('tasks.phase')}>
           <Space>
             {resolvePhaseLabel(task.phase)}
@@ -103,20 +85,23 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
             )}
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label={t('tasks.assignedTo')} span={2}>
+        <Descriptions.Item label={t('common.project')}>
+          {task.project?.name ?? '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label={t('tasks.assignedTo')}>
           {editing
             ? (
               <Select
                 value={assignedUserId}
                 onChange={setAssignedUserId}
                 options={users.map((u) => ({ label: u.name || u.email, value: u.id }))}
-                style={{ width: '100%', maxWidth: 300 }}
+                style={{ width: '100%' }}
               />
             )
             : (assignedParticipant?.userName ?? assignedParticipant?.userEmail ?? '—')
           }
         </Descriptions.Item>
-        <Descriptions.Item label={t('tasks.progress')} span={2}>
+        <Descriptions.Item label={t('tasks.progress')}>
           {editing
             ? (
               <InputNumber
@@ -132,9 +117,14 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
               <Progress
                 percent={task.progress}
                 strokeColor={task.progress === 100 ? '#52c41a' : undefined}
-                style={{ maxWidth: 300 }}
               />
             )
+          }
+        </Descriptions.Item>
+        <Descriptions.Item label={t('common.description')}>
+          {editing
+            ? <Input.TextArea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+            : (task.description || '—')
           }
         </Descriptions.Item>
       </Descriptions>
@@ -145,6 +135,6 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
           <Button type="primary" loading={saving} onClick={handleSave}>{t('common.save')}</Button>
         </div>
       )}
-    </Card>
+    </div>
   );
 }

@@ -53,6 +53,7 @@ export const mockUser2: UserResponse = {
 
 export const mockTask: TaskResponse = {
   id: 'task-1',
+  taskCode: 'ALPHA-1',
   title: 'Fix login bug',
   description: 'Users cannot log in',
   status: 'TODO',
@@ -109,6 +110,7 @@ export const handlers = [
     const body = await request.json() as Record<string, unknown>;
     const created: TaskResponse = {
       id: 'task-new',
+      taskCode: null,
       title: body.title as string,
       description: (body.description as string) ?? '',
       status: (body.status as TaskResponse['status']) ?? 'TODO',
