@@ -59,7 +59,10 @@ export interface UserDto {
 }
 
 /** Mirrors com.demo.common.dto.TaskPhaseName */
-export type TaskPhaseName = 'PLANNING' | 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'TESTING' | 'DONE' | 'RELEASED';
+export type TaskPhaseName = 'PLANNING' | 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'TESTING' | 'DONE' | 'RELEASED' | 'REJECTED';
+
+/** Mirrors com.demo.common.dto.TaskCompletionStatus */
+export type TaskCompletionStatus = 'FINISHED' | 'DEV_FINISHED';
 
 export interface TaskProjectResponse {
   id: string;

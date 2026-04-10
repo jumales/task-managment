@@ -6,6 +6,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useTaskDetailData } from '../hooks/useTaskDetailData';
 import { updateTask } from '../api/taskApi';
 import type { TaskRequest } from '../api/types';
+import { isTaskFinished } from '../utils/phaseUtils';
 import { useTaskTimeline }     from '../hooks/useTaskTimeline';
 import { useTaskPlannedWork }  from '../hooks/useTaskPlannedWork';
 import { useTaskBookedWork }   from '../hooks/useTaskBookedWork';
@@ -75,6 +76,8 @@ export function TaskDetailPage() {
   if (error)   return <Alert type="error" message={error} style={{ margin: 24 }} />;
   if (!data)   return null;
 
+  const finished = isTaskFinished(data.task.phase.name);
+
   return (
     <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
       <Button
@@ -111,7 +114,7 @@ export function TaskDetailPage() {
             label: t('tasks.comments'),
             children: (
               <>
-                <TaskCommentsTab {...comments} />
+                <TaskCommentsTab {...comments} finished={finished} />
                 <Divider />
                 <TaskAttachmentsTab {...attachments} />
               </>
@@ -119,7 +122,7 @@ export function TaskDetailPage() {
           },
           { key: 'timeline',     label: t('tasks.timeline'),     children: <TaskTimelineTab     {...timeline}     users={data.users} taskPhaseName={data.task.phase.name} /> },
           { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} /> },
-          { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} /> },
+          { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   users={data.users} taskPhaseName={data.task.phase.name} finished={finished} /> },
           { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
         ]}
       />

@@ -4,6 +4,7 @@ import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskCommentResponse;
+import com.demo.common.dto.TaskCompletionStatus;
 import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskPhaseUpdateRequest;
 import com.demo.common.dto.TaskRequest;
@@ -41,16 +42,19 @@ public class TaskController {
     }
 
     /**
-     * Returns a paginated list of tasks, with optional filtering by user, project, or status.
+     * Returns a paginated list of tasks, with optional filtering by user, project, status, or completion state.
      * Supports {@code ?page=0&size=20&sort=title,asc} query parameters.
      *
-     * @param userId    filter by assigned user UUID (optional)
-     * @param projectId filter by project UUID (optional)
-     * @param status    filter by task status string, case-insensitive (optional)
-     * @param pageable  pagination parameters (page, size, sort)
+     * @param userId           filter by assigned user UUID (optional)
+     * @param projectId        filter by project UUID (optional)
+     * @param status           filter by task status string, case-insensitive (optional)
+     * @param completionStatus filter by completion state: FINISHED (RELEASED/REJECTED) or DEV_FINISHED (DONE) (optional)
+     * @param pageable         pagination parameters (page, size, sort)
      */
     @Operation(summary = "List all tasks (paginated)",
-               description = "Returns a page of tasks. Optionally filter by `userId`, `projectId`, or `status`. "
+               description = "Returns a page of tasks. Optionally filter by `userId`, `projectId`, `status`, or `completionStatus`. "
+                           + "`completionStatus=FINISHED` returns tasks in RELEASED or REJECTED phase; "
+                           + "`completionStatus=DEV_FINISHED` returns tasks in DONE phase. "
                            + "Use `page`, `size`, and `sort` query parameters to control pagination.")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -58,7 +62,9 @@ public class TaskController {
             @Parameter(description = "Filter by assigned user UUID") @RequestParam(required = false) UUID userId,
             @Parameter(description = "Filter by project UUID") @RequestParam(required = false) UUID projectId,
             @Parameter(description = "Filter by status (case-insensitive): TODO, IN_PROGRESS, DONE") @RequestParam(required = false) String status,
+            @Parameter(description = "Filter by completion state: FINISHED (RELEASED or REJECTED phase) or DEV_FINISHED (DONE phase)") @RequestParam(required = false) TaskCompletionStatus completionStatus,
             @PageableDefault(size = 20) Pageable pageable) {
+        if (completionStatus != null) return service.findByCompletionStatus(completionStatus, pageable);
         if (userId != null) return service.findByUser(userId, pageable);
         if (projectId != null) return service.findByProject(projectId, pageable);
         if (status != null) return service.findByStatus(status, pageable);

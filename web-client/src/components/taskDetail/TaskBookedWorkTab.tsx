@@ -10,15 +10,17 @@ import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 type Props = ReturnType<typeof useTaskBookedWork> & {
   users: UserResponse[];
   taskPhaseName: TaskPhaseName;
+  /** When true, the task is fully finished (RELEASED/REJECTED) — add/edit/delete actions are hidden. */
+  finished?: boolean;
 };
 
-/** Renders the booked-work list and the add/edit form. Form is hidden in PLANNING phase. */
+/** Renders the booked-work list and the add/edit form. Form is hidden in PLANNING phase or when the task is finished (RELEASED/REJECTED). */
 export function TaskBookedWorkTab({
   bookedWork, editingBw,
   bwUserId, setBwUserId, bwType, setBwType, bwHours, setBwHours,
   savingBw, deletingBwId,
   startEditing, resetBwForm, handleSaveBookedWork, handleDeleteBookedWork,
-  users, taskPhaseName,
+  users, taskPhaseName, finished,
 }: Props) {
   const { t } = useTranslation();
 
@@ -38,7 +40,7 @@ export function TaskBookedWorkTab({
         renderItem={(bw) => (
           <List.Item
             key={bw.id}
-            actions={[
+            actions={finished ? [] : [
               <Button key="edit" size="small" onClick={() => startEditing(bw)}>
                 {t('common.edit')}
               </Button>,
@@ -66,10 +68,10 @@ export function TaskBookedWorkTab({
         )}
       />
 
-      {taskPhaseName !== 'PLANNING' && <Divider orientation="left" style={{ marginTop: 16 }}>
+      {taskPhaseName !== 'PLANNING' && !finished && <Divider orientation="left" style={{ marginTop: 16 }}>
         {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
       </Divider>}
-      {taskPhaseName !== 'PLANNING' && <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
+      {taskPhaseName !== 'PLANNING' && !finished && <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
         <Select
           style={{ width: '100%' }}
           placeholder={t('tasks.selectUser')}

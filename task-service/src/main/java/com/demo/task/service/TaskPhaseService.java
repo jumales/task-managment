@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -92,6 +93,11 @@ public class TaskPhaseService {
     /** Returns raw entities for all given IDs; missing IDs are silently skipped. Package-private for batch loading in TaskService list responses. */
     List<TaskPhase> findAllByIds(Iterable<UUID> ids) {
         return phaseRepository.findAllById(ids);
+    }
+
+    /** Returns the IDs of all phases (across all projects) whose name is in the given set. Package-private for completion-status filtering in TaskService. */
+    List<UUID> findIdsByNameIn(Collection<TaskPhaseName> names) {
+        return phaseRepository.findByNameIn(names).stream().map(TaskPhase::getId).toList();
     }
 
     /** Returns the raw entity; package-private for use by TaskService and TaskProjectService. */

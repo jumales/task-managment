@@ -4,7 +4,7 @@ import { Button, Card, Descriptions, Input, InputNumber, Progress, Select, Space
 import { EditOutlined, SwapOutlined } from '@ant-design/icons';
 import type { TaskResponse, UserResponse } from '../../api/types';
 import { STATUS_COLORS, TYPE_COLORS, getTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
-import { resolvePhaseLabel } from '../../utils/phaseUtils';
+import { resolvePhaseLabel, isTaskFinished, isTaskFieldsLocked } from '../../utils/phaseUtils';
 
 interface EditPatch {
   title:          string;
@@ -21,11 +21,14 @@ interface Props {
   onChangePhase?: () => void;
 }
 
-/** Renders the task overview card: title, status/type tags, and key metadata fields. Supports inline editing of title, description, assignee, and progress. */
+/** Renders the task overview card: title, status/type tags, and key metadata fields. Supports inline editing of title, description, assignee, and progress. Edit is locked in DONE/RELEASED/REJECTED phases; phase change is locked in RELEASED/REJECTED. */
 export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }: Props) {
   const { t } = useTranslation();
 
   const typeLabels = useMemo(() => getTypeLabels(t), [t]);
+
+  const finished     = isTaskFinished(task.phase.name);
+  const fieldsLocked = isTaskFieldsLocked(task.phase.name);
 
   const assignedParticipant = task.participants.find((p) => p.role === 'ASSIGNEE');
 
@@ -61,7 +64,9 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
         <Space>
           <Tag color={STATUS_COLORS[task.status]}>{t(`tasks.statuses.${task.status}`)}</Tag>
           {task.type && <Tag color={TYPE_COLORS[task.type]}>{typeLabels[task.type]}</Tag>}
-          {!editing && (
+          {finished    && <Tag color="red">Finished</Tag>}
+          {!finished && task.phase.name === 'DONE' && <Tag color="orange">Dev Finished</Tag>}
+          {!editing && !fieldsLocked && (
             <Button
               type="text"
               size="small"
@@ -85,7 +90,7 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
         <Descriptions.Item label={t('tasks.phase')}>
           <Space>
             {resolvePhaseLabel(task.phase)}
-            {onChangePhase && (
+            {onChangePhase && !finished && (
               <Button
                 type="link"
                 size="small"
