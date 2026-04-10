@@ -3,17 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
-  Space, Popconfirm, Progress, InputNumber, DatePicker, Steps,
+  Space, Popconfirm, Progress, DatePicker, Steps,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { InputRef } from 'antd';
-import { getTasks, createTask, updateTask, deleteTask, getProjects, getPhases } from '../api/taskApi';
+import { getTasks, createTask, deleteTask, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, TaskPhaseResponse, UserResponse } from '../api/types';
+import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
 import { getTypeLabels } from './taskDetail/taskDetailConstants';
-import { resolvePhaseLabel } from '../utils/phaseUtils';
 import { useAuth } from '../auth/AuthProvider';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
@@ -43,7 +42,6 @@ export function TasksPage() {
   const [currentPage,  setCurrentPage]  = useState(1);
   const [pageSize,     setPageSize]     = useState(20);
   const [projects,     setProjects]     = useState<TaskProjectResponse[]>([]);
-  const [phases,       setPhases]       = useState<TaskPhaseResponse[]>([]);
   const [users,        setUsers]        = useState<UserResponse[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
@@ -53,7 +51,6 @@ export function TasksPage() {
   const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [wizardStep,   setWizardStep]   = useState(0);
-  const [editingTask,  setEditingTask]  = useState<TaskSummaryResponse | null>(null);
   const [submitting,   setSubmitting]   = useState(false);
   const [deletingId,   setDeletingId]   = useState<string | null>(null);
 
@@ -85,9 +82,6 @@ export function TasksPage() {
         setError(`${t('tasks.failedLoad')} [${status}]: ${message}`);
       })
       .finally(() => setLoading(false));
-
-  const loadPhases = (projectId: string) =>
-    getPhases(projectId).then(setPhases).catch(() => setModalError(t('tasks.failedLoadPhases')));
 
   const refreshDropdowns = () => {
     getProjects().then(setProjects).catch(() => setError(t('projects.failedLoad')));
@@ -155,9 +149,7 @@ export function TasksPage() {
 
   /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
   const openCreateModal = () => {
-    setEditingTask(null);
     setWizardStep(0);
-    setPhases([]);
     setModalError(null);
     form.resetFields();
     Promise.all([getProjects(), getUsers()])
@@ -177,53 +169,26 @@ export function TasksPage() {
     setModalOpen(true);
   };
 
-  /** Opens the modal in edit mode, pre-filled with the given task's values. */
-  const openEditModal = (task: TaskSummaryResponse) => {
-    setModalError(null);
-    setEditingTask(task);
-    form.setFieldsValue({
-      title:          task.title,
-      description:    task.description,
-      status:         task.status,
-      type:           task.type ?? null,
-      progress:       task.progress,
-      projectId:      task.projectId,
-      phaseId:        task.phaseId,
-      assignedUserId: task.assignedUserId ?? null,
-    });
-    refreshDropdowns();
-    if (task.projectId) loadPhases(task.projectId);
-    setModalOpen(true);
-  };
-
-  /** Submits the form — calls createTask or updateTask based on edit mode. */
+  /** Submits the create form. */
   const handleSubmit = () => {
     form.validateFields().catch(() => {}).then((values) => {
       if (!values) return;
       setSubmitting(true);
       const request = {
         ...values,
-        type:     values.type ?? null,
-        progress: editingTask ? (values.progress ?? 0) : 0,
-        // plannedStart/End only on create; format dayjs to ISO string
-        ...(editingTask ? {} : {
-          plannedStart: values.plannedStart?.toISOString(),
-          plannedEnd:   values.plannedEnd?.toISOString(),
-        }),
+        type:        values.type ?? null,
+        progress:    0,
+        plannedStart: values.plannedStart?.toISOString(),
+        plannedEnd:   values.plannedEnd?.toISOString(),
       };
-      const apiCall = editingTask
-        ? updateTask(editingTask.id, request)
-        : createTask(request);
-      apiCall
+      createTask(request)
         .then(() => {
           setModalOpen(false);
-          setEditingTask(null);
           loadTasks();
         })
         .catch((err) => {
-          const label   = editingTask ? t('tasks.failedUpdate') : t('tasks.failedCreate');
-          const message = err?.response?.data?.message ?? err?.message ?? label;
-          setError(`${label}: ${message}`);
+          const message = err?.response?.data?.message ?? err?.message ?? t('tasks.failedCreate');
+          setError(`${t('tasks.failedCreate')}: ${message}`);
         })
         .finally(() => setSubmitting(false));
     });
@@ -268,7 +233,6 @@ export function TasksPage() {
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => navigate(`/tasks/${record.id}`)}>{t('tasks.view')}</Button>
-          <Button size="small" onClick={() => openEditModal(record)}>{t('common.edit')}</Button>
           <Popconfirm
             title={t('tasks.deleteConfirm')}
             description={t('tasks.deleteDescription')}
@@ -317,165 +281,113 @@ export function TasksPage() {
         onChange={activeSearch ? undefined : handleTableChange}
       />
 
-      {/* Create / Edit Modal */}
+      {/* Create Modal */}
       <Modal
-        title={editingTask ? t('tasks.editTask') : t('tasks.createTask')}
+        title={t('tasks.createTask')}
         open={modalOpen}
-        onCancel={() => { setModalOpen(false); setEditingTask(null); setWizardStep(0); setModalError(null); }}
+        onCancel={() => { setModalOpen(false); setWizardStep(0); setModalError(null); }}
         footer={null}
         width={560}
       >
         {modalError && <Alert type="error" message={modalError} style={{ marginBottom: 12 }} />}
 
-        {/* ── Edit mode: flat form ── */}
-        {editingTask && (
-          <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Steps
+          current={wizardStep}
+          size="small"
+          style={{ marginTop: 16, marginBottom: 24 }}
+          items={[
+            { title: t('tasks.wizardStep1') },
+            { title: t('tasks.wizardStep2') },
+            { title: t('tasks.wizardStep3') },
+          ]}
+        />
+        <Form form={form} layout="vertical">
+          {/* Step 1 — Title & Description */}
+          <div style={{ display: wizardStep === 0 ? 'block' : 'none' }}>
             <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
               <Input />
             </Form.Item>
             <Form.Item name="description" label={t('common.description')}>
               <Input.TextArea rows={3} />
             </Form.Item>
-            <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
-              <Select options={statusOptions} />
-            </Form.Item>
-            <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
-              <Select options={typeOptions} placeholder={t('tasks.selectType')} />
-            </Form.Item>
-            <Form.Item name="progress" label={t('tasks.progressPct')} initialValue={0}>
-              <InputNumber min={0} max={100} style={{ width: '100%' }} addonAfter="%" />
-            </Form.Item>
+          </div>
+
+          {/* Step 2 — Project, Type & Status */}
+          <div style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
             <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
               <Select
                 options={projects.map((p) => ({ label: p.name, value: p.id }))}
                 placeholder={t('tasks.selectProject')}
-                onChange={(projectId: string) => {
-                  form.setFieldValue('phaseId', undefined);
-                  setPhases([]);
-                  loadPhases(projectId);
-                }}
               />
             </Form.Item>
-            <Form.Item name="phaseId" label={t('tasks.phase')} rules={[{ required: true, message: t('tasks.phaseRequired') }]}>
-              <Select
-                options={phases.map((ph) => ({ label: resolvePhaseLabel(ph), value: ph.id }))}
-                placeholder={phases.length === 0 ? t('tasks.selectProjectFirst') : t('tasks.selectPhase')}
-              />
+            <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
+              <Select options={typeOptions} placeholder={t('tasks.selectType')} />
             </Form.Item>
+            <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
+              <Select options={statusOptions} />
+            </Form.Item>
+          </div>
+
+          {/* Step 3 — Assignee & Dates */}
+          <div style={{ display: wizardStep === 2 ? 'block' : 'none' }}>
             <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
               <Select options={users.map((u) => ({ label: u.name, value: u.id }))} placeholder={t('tasks.selectUser')} />
             </Form.Item>
-            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-              <Space>
-                <Button onClick={() => { setModalOpen(false); setEditingTask(null); setModalError(null); }}>{t('common.cancel')}</Button>
-                <Button type="primary" loading={submitting} onClick={handleSubmit}>{t('common.save')}</Button>
-              </Space>
+            <Form.Item name="plannedStart" label={t('tasks.plannedStart')} rules={[{ required: true, message: t('tasks.plannedStartRequired') }]}>
+              <DatePicker style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
             </Form.Item>
-          </Form>
-        )}
-
-        {/* ── Create mode: 3-step wizard ── */}
-        {!editingTask && (
-          <>
-            <Steps
-              current={wizardStep}
-              size="small"
-              style={{ marginTop: 16, marginBottom: 24 }}
-              items={[
-                { title: t('tasks.wizardStep1') },
-                { title: t('tasks.wizardStep2') },
-                { title: t('tasks.wizardStep3') },
+            <Form.Item
+              name="plannedEnd"
+              label={t('tasks.plannedEnd')}
+              dependencies={['plannedStart']}
+              rules={[
+                { required: true, message: t('tasks.plannedEndRequired') },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const start = getFieldValue('plannedStart');
+                    if (!value || !start || value.isAfter(start)) return Promise.resolve();
+                    return Promise.reject(new Error(t('tasks.plannedEndMustBeAfterStart')));
+                  },
+                }),
               ]}
-            />
-            <Form form={form} layout="vertical">
-              {/* Step 1 — Title & Description */}
-              <div style={{ display: wizardStep === 0 ? 'block' : 'none' }}>
-                <Form.Item name="title" label={t('tasks.title_field')} rules={[{ required: true, message: t('tasks.titleRequired') }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="description" label={t('common.description')}>
-                  <Input.TextArea rows={3} />
-                </Form.Item>
-              </div>
+            >
+              <DatePicker style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
+            </Form.Item>
+          </div>
+        </Form>
 
-              {/* Step 2 — Type, Status, Project & Phase */}
-              <div style={{ display: wizardStep === 1 ? 'block' : 'none' }}>
-                <Form.Item name="projectId" label={t('common.project')} rules={[{ required: true, message: t('tasks.projectRequired') }]}>
-                  <Select
-                    options={projects.map((p) => ({ label: p.name, value: p.id }))}
-                    placeholder={t('tasks.selectProject')}
-                  />
-                </Form.Item>
-                <Form.Item name="type" label={t('tasks.type')} rules={[{ required: true, message: t('tasks.typeRequired') }]}>
-                  <Select options={typeOptions} placeholder={t('tasks.selectType')} />
-                </Form.Item>
-                <Form.Item name="status" label={t('common.status')} initialValue="TODO" rules={[{ required: true }]}>
-                  <Select options={statusOptions} />
-                </Form.Item>
-              </div>
-
-              {/* Step 3 — Assignee & Dates */}
-              <div style={{ display: wizardStep === 2 ? 'block' : 'none' }}>
-                <Form.Item name="assignedUserId" label={t('tasks.assignedTo')} rules={[{ required: true, message: t('tasks.userRequired') }]}>
-                  <Select options={users.map((u) => ({ label: u.name, value: u.id }))} placeholder={t('tasks.selectUser')} />
-                </Form.Item>
-                <Form.Item name="plannedStart" label={t('tasks.plannedStart')} rules={[{ required: true, message: t('tasks.plannedStartRequired') }]}>
-                  <DatePicker style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
-                </Form.Item>
-                <Form.Item
-                  name="plannedEnd"
-                  label={t('tasks.plannedEnd')}
-                  dependencies={['plannedStart']}
-                  rules={[
-                    { required: true, message: t('tasks.plannedEndRequired') },
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        const start = getFieldValue('plannedStart');
-                        if (!value || !start || value.isAfter(start)) return Promise.resolve();
-                        return Promise.reject(new Error(t('tasks.plannedEndMustBeAfterStart')));
-                      },
-                    }),
-                  ]}
-                >
-                  <DatePicker style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
-                </Form.Item>
-              </div>
-            </Form>
-
-            {/* Wizard navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+        {/* Wizard navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+          <Button
+            disabled={wizardStep === 0}
+            onClick={() => setWizardStep((s) => s - 1)}
+          >
+            {t('common.back')}
+          </Button>
+          <Space>
+            <Button onClick={() => { setModalOpen(false); setWizardStep(0); }}>{t('common.cancel')}</Button>
+            {wizardStep < 2 ? (
               <Button
-                disabled={wizardStep === 0}
-                onClick={() => setWizardStep((s) => s - 1)}
+                type="primary"
+                onClick={() => {
+                  const fieldsForStep = [
+                    ['title'],
+                    ['projectId', 'type', 'status'],
+                  ][wizardStep];
+                  form.validateFields(fieldsForStep)
+                    .then(() => setWizardStep((s) => s + 1))
+                    .catch(() => {});
+                }}
               >
-                {t('common.back')}
+                {t('common.next')}
               </Button>
-              <Space>
-                <Button onClick={() => { setModalOpen(false); setWizardStep(0); }}>{t('common.cancel')}</Button>
-                {wizardStep < 2 ? (
-                  <Button
-                    type="primary"
-                    onClick={() => {
-                      const fieldsForStep = [
-                        ['title'],
-                        ['projectId', 'type', 'status'],
-                      ][wizardStep];
-                      form.validateFields(fieldsForStep)
-                        .then(() => setWizardStep((s) => s + 1))
-                        .catch(() => {});
-                    }}
-                  >
-                    {t('common.next')}
-                  </Button>
-                ) : (
-                  <Button type="primary" loading={submitting} onClick={handleSubmit}>
-                    {t('common.create')}
-                  </Button>
-                )}
-              </Space>
-            </div>
-          </>
-        )}
+            ) : (
+              <Button type="primary" loading={submitting} onClick={handleSubmit}>
+                {t('common.create')}
+              </Button>
+            )}
+          </Space>
+        </div>
       </Modal>
     </>
   );
