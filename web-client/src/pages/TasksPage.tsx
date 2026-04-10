@@ -289,6 +289,7 @@ export function TasksPage() {
         onCancel={() => { setModalOpen(false); setWizardStep(0); setModalError(null); }}
         footer={null}
         width={560}
+        forceRender
       >
         {modalError && <Alert type="error" message={modalError} style={{ marginBottom: 12 }} />}
 
