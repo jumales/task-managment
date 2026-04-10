@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Alert, Button, Divider, Spin, Tabs } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useTaskDetailData } from '../hooks/useTaskDetailData';
+import { updateTask } from '../api/taskApi';
+import type { TaskRequest } from '../api/types';
 import { useTaskTimeline }     from '../hooks/useTaskTimeline';
 import { useTaskPlannedWork }  from '../hooks/useTaskPlannedWork';
 import { useTaskBookedWork }   from '../hooks/useTaskBookedWork';
@@ -27,6 +29,27 @@ export function TaskDetailPage() {
   const { t }    = useTranslation();
 
   const { data, setData, loading, error } = useTaskDetailData(id);
+
+  const [saving, setSaving] = useState(false);
+
+  /** Persists edits to title, description, assignee, and progress without leaving the detail page. */
+  const handleOverviewSave = (patch: { title: string; description: string; assignedUserId: string; progress: number }) => {
+    if (!data || !id) return Promise.resolve();
+    setSaving(true);
+    const req: TaskRequest = {
+      title:          patch.title,
+      description:    patch.description,
+      status:         data.task.status,
+      type:           data.task.type ?? null,
+      progress:       patch.progress,
+      assignedUserId: patch.assignedUserId,
+      projectId:      data.task.project.id,
+      phaseId:        data.task.phase.id,
+    };
+    return updateTask(id, req)
+      .then((updated) => setData((prev) => prev ? { ...prev, task: updated } : null))
+      .finally(() => setSaving(false));
+  };
 
   const phaseChange = useTaskPhaseChange(id, data?.task ?? null, (updated) => {
     setData((prev) => (prev ? { ...prev, task: updated } : null));
@@ -62,7 +85,13 @@ export function TaskDetailPage() {
         {t('tasks.backToTasks')}
       </Button>
 
-      <TaskOverviewCard task={data.task} onChangePhase={phaseChange.openModal} />
+      <TaskOverviewCard
+        task={data.task}
+        users={data.users}
+        onSave={handleOverviewSave}
+        saving={saving}
+        onChangePhase={phaseChange.openModal}
+      />
       <TaskPhaseChangeModal
         open={phaseChange.open}
         onClose={() => phaseChange.setOpen(false)}
