@@ -14,6 +14,7 @@ import { searchTasks } from '../api/searchApi';
 import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, TaskPhaseResponse, UserResponse } from '../api/types';
 import { getTypeLabels } from './taskDetail/taskDetailConstants';
 import { resolvePhaseLabel } from '../utils/phaseUtils';
+import { useAuth } from '../auth/AuthProvider';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   TODO:        'default',
@@ -33,8 +34,9 @@ const TYPE_COLORS: Record<TaskType, string> = {
 
 /** Displays all tasks and allows creating, editing, and deleting them. Detail view opens as a full page. */
 export function TasksPage() {
-  const { t }    = useTranslation();
-  const navigate = useNavigate();
+  const { t }        = useTranslation();
+  const navigate     = useNavigate();
+  const { username } = useAuth();
 
   const [tasks,        setTasks]        = useState<TaskSummaryResponse[]>([]);
   const [totalTasks,   setTotalTasks]   = useState(0);
@@ -167,7 +169,9 @@ export function TasksPage() {
           const projectId = fetchedProjects[0].id;
           form.setFieldValue('projectId', projectId);
         }
-        if (fetchedUsers.length === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
+        const currentUser = fetchedUsers.find((u) => u.username === username);
+        if (currentUser) form.setFieldValue('assignedUserId', currentUser.id);
+        else if (fetchedUsers.length === 1) form.setFieldValue('assignedUserId', fetchedUsers[0].id);
       })
       .catch(() => setError(t('tasks.failedOptions')));
     setModalOpen(true);
@@ -416,7 +420,7 @@ export function TasksPage() {
                   <Select options={users.map((u) => ({ label: u.name, value: u.id }))} placeholder={t('tasks.selectUser')} />
                 </Form.Item>
                 <Form.Item name="plannedStart" label={t('tasks.plannedStart')} rules={[{ required: true, message: t('tasks.plannedStartRequired') }]}>
-                  <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
+                  <DatePicker style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
                 </Form.Item>
                 <Form.Item
                   name="plannedEnd"
@@ -433,7 +437,7 @@ export function TasksPage() {
                     }),
                   ]}
                 >
-                  <DatePicker showTime style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
+                  <DatePicker style={{ width: '100%' }} placeholder={t('tasks.selectDate')} />
                 </Form.Item>
               </div>
             </Form>
