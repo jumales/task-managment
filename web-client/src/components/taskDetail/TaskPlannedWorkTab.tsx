@@ -7,11 +7,13 @@ import type { TaskPhaseName, WorkType } from '../../api/types';
 import type { useTaskPlannedWork } from '../../hooks/useTaskPlannedWork';
 import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
+const PAGE_SIZE = 5;
+
 type Props = ReturnType<typeof useTaskPlannedWork> & {
   taskPhaseName: TaskPhaseName;
 };
 
-/** Renders the planned-work list and the add form (visible only when task is in the PLANNING phase). */
+/** Renders the add-planned-work form (top, PLANNING phase only) followed by the paginated planned-work list. */
 export function TaskPlannedWorkTab({
   plannedWork,
   pwType, setPwType, pwHours, setPwHours,
@@ -21,6 +23,10 @@ export function TaskPlannedWorkTab({
   const { t } = useTranslation();
 
   const workTypeLabels  = useMemo(() => getWorkTypeLabels(t), [t]);
+  const sorted          = useMemo(
+    () => [...plannedWork].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [plannedWork],
+  );
   const workTypeOptions = useMemo(() => {
     const usedTypes = new Set(plannedWork.map((pw) => pw.workType));
     return (Object.keys(workTypeLabels) as WorkType[])
@@ -28,30 +34,12 @@ export function TaskPlannedWorkTab({
       .map((w) => ({ label: workTypeLabels[w], value: w }));
   }, [workTypeLabels, plannedWork]);
 
+  const showForm = taskPhaseName === 'PLANNING' && workTypeOptions.length > 0;
+
   return (
     <>
-      <List
-        size="small"
-        dataSource={plannedWork}
-        locale={{ emptyText: t('tasks.noPlannedWork') }}
-        renderItem={(pw) => (
-          <List.Item key={pw.id}>
-            <Space direction="vertical" size={0}>
-              <Space>
-                <Tag color="blue">{workTypeLabels[pw.workType]}</Tag>
-                <Typography.Text strong>{pw.userName ?? '—'}</Typography.Text>
-              </Space>
-              <Typography.Text type="secondary">
-                {t('tasks.planned')}: <strong>{pw.plannedHours}h</strong>
-              </Typography.Text>
-            </Space>
-          </List.Item>
-        )}
-      />
-
-      {taskPhaseName === 'PLANNING' && workTypeOptions.length > 0 && (
+      {showForm && (
         <>
-          <Divider orientation="left" style={{ marginTop: 16 }}>{t('tasks.addPlannedWork')}</Divider>
           <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
             <Select
               style={{ width: '100%' }}
@@ -73,8 +61,29 @@ export function TaskPlannedWorkTab({
               {t('common.add')}
             </Button>
           </Space>
+          <Divider style={{ marginBottom: 8 }} />
         </>
       )}
+
+      <List
+        size="small"
+        dataSource={sorted}
+        locale={{ emptyText: t('tasks.noPlannedWork') }}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
+        renderItem={(pw) => (
+          <List.Item key={pw.id}>
+            <Space direction="vertical" size={0}>
+              <Space>
+                <Tag color="blue">{workTypeLabels[pw.workType]}</Tag>
+                <Typography.Text strong>{pw.userName ?? '—'}</Typography.Text>
+              </Space>
+              <Typography.Text type="secondary">
+                {t('tasks.planned')}: <strong>{pw.plannedHours}h</strong>
+              </Typography.Text>
+            </Space>
+          </List.Item>
+        )}
+      />
     </>
   );
 }

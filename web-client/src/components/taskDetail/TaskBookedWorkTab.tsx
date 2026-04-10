@@ -7,6 +7,8 @@ import type { TaskPhaseName, UserResponse, WorkType } from '../../api/types';
 import type { useTaskBookedWork } from '../../hooks/useTaskBookedWork';
 import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
 
+const PAGE_SIZE = 5;
+
 type Props = ReturnType<typeof useTaskBookedWork> & {
   users: UserResponse[];
   taskPhaseName: TaskPhaseName;
@@ -14,7 +16,7 @@ type Props = ReturnType<typeof useTaskBookedWork> & {
   finished?: boolean;
 };
 
-/** Renders the booked-work list and the add/edit form. Form is hidden in PLANNING phase or when the task is finished (RELEASED/REJECTED). */
+/** Renders the add/edit booked-work form (top, hidden in PLANNING or finished) followed by the paginated booked-work list. */
 export function TaskBookedWorkTab({
   bookedWork, editingBw,
   bwUserId, setBwUserId, bwType, setBwType, bwHours, setBwHours,
@@ -26,17 +28,64 @@ export function TaskBookedWorkTab({
 
   const workTypeLabels  = useMemo(() => getWorkTypeLabels(t), [t]);
   const userOptions     = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
+  const sorted          = useMemo(
+    () => [...bookedWork].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [bookedWork],
+  );
   const workTypeOptions = useMemo(
     () => (Object.keys(workTypeLabels) as WorkType[]).map((w) => ({ label: workTypeLabels[w], value: w })),
     [workTypeLabels],
   );
 
+  const showForm = taskPhaseName !== 'PLANNING' && !finished;
+
   return (
     <>
+      {showForm && (
+        <>
+          <Divider orientation="left" style={{ marginTop: 0 }}>
+            {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
+          </Divider>
+          <Space direction="vertical" style={{ width: '100%', maxWidth: 480, marginBottom: 16 }}>
+            <Select
+              style={{ width: '100%' }}
+              placeholder={t('tasks.selectUser')}
+              value={bwUserId}
+              onChange={setBwUserId}
+              options={userOptions}
+            />
+            <Select
+              style={{ width: '100%' }}
+              value={bwType}
+              onChange={setBwType}
+              options={workTypeOptions}
+            />
+            <Space align="center">
+              <Typography.Text type="secondary">{t('tasks.booked')}</Typography.Text>
+              <InputNumber
+                min={0} step={1} precision={0}
+                value={bwHours}
+                onChange={(v) => setBwHours(v ?? 0)}
+                suffix="h"
+                style={{ width: 120 }}
+              />
+            </Space>
+            <Space>
+              <Button type="primary" loading={savingBw} disabled={!bwUserId} onClick={handleSaveBookedWork}>
+                {editingBw ? t('common.save') : t('common.add')}
+              </Button>
+              {editingBw && <Button onClick={resetBwForm}>{t('common.cancel')}</Button>}
+            </Space>
+          </Space>
+          <Divider style={{ marginTop: 0, marginBottom: 8 }} />
+        </>
+      )}
+
       <List
         size="small"
-        dataSource={bookedWork}
+        dataSource={sorted}
         locale={{ emptyText: t('tasks.noBookedWork') }}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(bw) => (
           <List.Item
             key={bw.id}
@@ -67,41 +116,6 @@ export function TaskBookedWorkTab({
           </List.Item>
         )}
       />
-
-      {taskPhaseName !== 'PLANNING' && !finished && <Divider orientation="left" style={{ marginTop: 16 }}>
-        {editingBw ? t('tasks.editBookedWork') : t('tasks.addBookedWork')}
-      </Divider>}
-      {taskPhaseName !== 'PLANNING' && !finished && <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
-        <Select
-          style={{ width: '100%' }}
-          placeholder={t('tasks.selectUser')}
-          value={bwUserId}
-          onChange={setBwUserId}
-          options={userOptions}
-        />
-        <Select
-          style={{ width: '100%' }}
-          value={bwType}
-          onChange={setBwType}
-          options={workTypeOptions}
-        />
-        <Space align="center">
-          <Typography.Text type="secondary">{t('tasks.booked')}</Typography.Text>
-          <InputNumber
-            min={0} step={1} precision={0}
-            value={bwHours}
-            onChange={(v) => setBwHours(v ?? 0)}
-            suffix="h"
-            style={{ width: 120 }}
-          />
-        </Space>
-        <Space>
-          <Button type="primary" loading={savingBw} disabled={!bwUserId} onClick={handleSaveBookedWork}>
-            {editingBw ? t('common.save') : t('common.add')}
-          </Button>
-          {editingBw && <Button onClick={resetBwForm}>{t('common.cancel')}</Button>}
-        </Space>
-      </Space>}
     </>
   );
 }

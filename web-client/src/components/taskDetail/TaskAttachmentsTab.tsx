@@ -1,16 +1,23 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, List, Popconfirm, Space, Typography } from 'antd';
+import { Alert, Button, Divider, List, Popconfirm, Space, Typography } from 'antd';
 import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import type { useTaskAttachments } from '../../hooks/useTaskAttachments';
 import apiClient from '../../api/client';
 
+const PAGE_SIZE = 5;
+
 type Props = ReturnType<typeof useTaskAttachments>;
 
-/** Lists task attachments and provides upload/delete controls. */
+/** Lists task attachments with upload control on top and paginated list below. */
 export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload, handleDelete }: Props) {
   const { t }     = useTranslation();
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const sorted = useMemo(
+    () => [...attachments].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+    [attachments],
+  );
 
   const handleDownload = (fileId: string, fileName: string) => {
     apiClient.get<Blob>(`/api/v1/files/${fileId}/download`, { responseType: 'blob' })
@@ -37,9 +44,27 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
     <>
       {error && <Alert type="error" message={error} style={{ marginBottom: 12 }} />}
 
+      <input
+        ref={fileInput}
+        type="file"
+        style={{ display: 'none' }}
+        onChange={onFileChange}
+      />
+      <Button
+        icon={<UploadOutlined />}
+        loading={uploading}
+        onClick={() => fileInput.current?.click()}
+        style={{ marginBottom: 12 }}
+      >
+        {t('tasks.uploadAttachment')}
+      </Button>
+
+      <Divider style={{ marginTop: 0, marginBottom: 8 }} />
+
       <List
-        dataSource={attachments}
+        dataSource={sorted}
         locale={{ emptyText: t('tasks.noAttachments') }}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(a) => (
           <List.Item
             key={a.id}
@@ -78,21 +103,6 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
           </List.Item>
         )}
       />
-
-      <input
-        ref={fileInput}
-        type="file"
-        style={{ display: 'none' }}
-        onChange={onFileChange}
-      />
-      <Button
-        icon={<UploadOutlined />}
-        loading={uploading}
-        onClick={() => fileInput.current?.click()}
-        style={{ marginTop: 12 }}
-      >
-        {t('tasks.uploadAttachment')}
-      </Button>
     </>
   );
 }
