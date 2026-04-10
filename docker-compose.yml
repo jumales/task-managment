@@ -82,6 +82,7 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     volumes:
+      - keycloak-data:/opt/keycloak/data
       - ./docker-images/keycloak/demo-realm.json:/opt/keycloak/data/import/demo-realm.json:ro
     networks:
       - ms-network
@@ -187,6 +188,7 @@ services:
 
 volumes:
   postgres-data:
+  keycloak-data:
   elasticsearch-data:
   minio-data:
   kafka-data:
