@@ -21,6 +21,7 @@ export function TaskParticipantsTab({
   const { t } = useTranslation();
 
   const userOptions = useMemo(() => users.map((u) => ({ label: u.name, value: u.id })), [users]);
+  const sorted      = useMemo(() => [...participants].reverse(), [participants]);
 
   return (
     <>
@@ -47,9 +48,9 @@ export function TaskParticipantsTab({
 
       <List
         size="small"
-        dataSource={participants}
+        dataSource={sorted}
         locale={{ emptyText: t('tasks.noParticipants') }}
-        pagination={participants.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(p) => (
           <List.Item
             key={p.id}

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Divider, Input, List, Space } from 'antd';
 import type { useTaskComments } from '../../hooks/useTaskComments';
@@ -14,6 +15,11 @@ export function TaskCommentsTab({
   comments, newComment, setNewComment, addingCmt, handleAddComment, finished,
 }: Props) {
   const { t } = useTranslation();
+
+  const sorted = useMemo(
+    () => [...comments].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [comments],
+  );
 
   return (
     <>
@@ -40,9 +46,9 @@ export function TaskCommentsTab({
       )}
 
       <List
-        dataSource={comments}
+        dataSource={sorted}
         locale={{ emptyText: t('tasks.noComments') }}
-        pagination={comments.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(c) => (
           <List.Item key={c.id}>
             <List.Item.Meta

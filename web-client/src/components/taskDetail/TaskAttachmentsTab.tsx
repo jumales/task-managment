@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Button, Divider, List, Popconfirm, Space, Typography } from 'antd';
 import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
@@ -13,6 +13,11 @@ type Props = ReturnType<typeof useTaskAttachments>;
 export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload, handleDelete }: Props) {
   const { t }     = useTranslation();
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const sorted = useMemo(
+    () => [...attachments].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+    [attachments],
+  );
 
   const handleDownload = (fileId: string, fileName: string) => {
     apiClient.get<Blob>(`/api/v1/files/${fileId}/download`, { responseType: 'blob' })
@@ -57,9 +62,9 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
       <Divider style={{ marginTop: 0, marginBottom: 8 }} />
 
       <List
-        dataSource={attachments}
+        dataSource={sorted}
         locale={{ emptyText: t('tasks.noAttachments') }}
-        pagination={attachments.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(a) => (
           <List.Item
             key={a.id}

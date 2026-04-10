@@ -23,6 +23,10 @@ export function TaskPlannedWorkTab({
   const { t } = useTranslation();
 
   const workTypeLabels  = useMemo(() => getWorkTypeLabels(t), [t]);
+  const sorted          = useMemo(
+    () => [...plannedWork].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [plannedWork],
+  );
   const workTypeOptions = useMemo(() => {
     const usedTypes = new Set(plannedWork.map((pw) => pw.workType));
     return (Object.keys(workTypeLabels) as WorkType[])
@@ -63,9 +67,9 @@ export function TaskPlannedWorkTab({
 
       <List
         size="small"
-        dataSource={plannedWork}
+        dataSource={sorted}
         locale={{ emptyText: t('tasks.noPlannedWork') }}
-        pagination={plannedWork.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
+        pagination={sorted.length > PAGE_SIZE ? { pageSize: PAGE_SIZE, size: 'small', hideOnSinglePage: true } : false}
         renderItem={(pw) => (
           <List.Item key={pw.id}>
             <Space direction="vertical" size={0}>
