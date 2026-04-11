@@ -278,6 +278,8 @@ public class TaskService {
 
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         publishStatusChangedEvent(saved, oldStatus, request.getStatus());
+        outboxWriter.write(TaskChangedEvent.taskUpdated(saved.getId(), saved.getAssignedUserId(),
+                saved.getProjectId(), saved.getTitle()));
 
         // Publish lifecycle event to task-events topic so search-service keeps its index current.
         TaskProject project = projectService.getOrThrow(saved.getProjectId());

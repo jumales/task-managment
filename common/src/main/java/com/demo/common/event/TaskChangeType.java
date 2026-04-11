@@ -2,6 +2,7 @@ package com.demo.common.event;
 
 public enum TaskChangeType {
     TASK_CREATED,
+    TASK_UPDATED,
     STATUS_CHANGED,
     COMMENT_ADDED,
     PHASE_CHANGED,
@@ -10,5 +11,8 @@ public enum TaskChangeType {
     BOOKED_WORK_UPDATED,
     BOOKED_WORK_DELETED,
     ATTACHMENT_ADDED,
-    ATTACHMENT_DELETED
+    ATTACHMENT_DELETED,
+    PARTICIPANT_ADDED,
+    PARTICIPANT_REMOVED,
+    TIMELINE_CHANGED
 }

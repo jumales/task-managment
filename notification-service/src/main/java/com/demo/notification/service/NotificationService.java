@@ -240,6 +240,22 @@ public class NotificationService {
                 "Attachment removed from task",
                 "The file '" + event.getFileName() + "' was removed from task '" + title + "'."
             };
+            case TASK_UPDATED -> new String[]{
+                "Task updated: " + title,
+                "Task '" + title + "' has been updated."
+            };
+            case PARTICIPANT_ADDED -> new String[]{
+                "You are now watching task: " + title,
+                "You have been added as a participant on task '" + title + "'."
+            };
+            case PARTICIPANT_REMOVED -> new String[]{
+                "You have been removed from task: " + title,
+                "You have been removed as a participant from task '" + title + "'."
+            };
+            case TIMELINE_CHANGED -> new String[]{
+                "Timeline updated on task: " + title,
+                "A timeline date was changed on task '" + title + "'."
+            };
         };
     }
 

@@ -95,6 +95,21 @@ spring:
           predicates:
             - Path=/api/v1/reports/**
 
+        # WebSocket route for SockJS/STOMP task push notifications from notification-service.
+        # Must be declared before the catch-all /ws/** reporting-service route so the more
+        # specific /ws/tasks/** path takes precedence.
+        - id: notification-service-ws
+          uri: lb:ws://notification-service
+          predicates:
+            - Path=/ws/tasks/**
+          filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+        - id: notification-service-notifications
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+
         # WebSocket route for SockJS/STOMP push notifications from reporting-service.
         # lb:ws:// (not lb://) is required so Spring Cloud Gateway uses its WebSocket
         # routing filter and properly proxies the Upgrade handshake to the downstream service.

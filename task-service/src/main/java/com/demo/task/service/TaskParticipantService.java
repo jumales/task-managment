@@ -3,11 +3,13 @@ package com.demo.task.service;
 import com.demo.common.dto.TaskParticipantResponse;
 import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.UserDto;
+import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.BusinessLogicException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
 import com.demo.task.model.TaskParticipant;
+import com.demo.task.outbox.OutboxWriter;
 import com.demo.task.repository.TaskParticipantRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,13 +30,16 @@ public class TaskParticipantService {
     private final TaskParticipantRepository repository;
     private final UserClient userClient;
     private final UserClientHelper userClientHelper;
+    private final OutboxWriter outboxWriter;
 
     public TaskParticipantService(TaskParticipantRepository repository,
                                   UserClient userClient,
-                                  UserClientHelper userClientHelper) {
+                                  UserClientHelper userClientHelper,
+                                  OutboxWriter outboxWriter) {
         this.repository = repository;
         this.userClient = userClient;
         this.userClientHelper = userClientHelper;
+        this.outboxWriter = outboxWriter;
     }
 
     /**
@@ -50,6 +55,7 @@ public class TaskParticipantService {
                     .role(TaskParticipantRole.WATCHER)
                     .createdAt(Instant.now())
                     .build());
+            outboxWriter.write(TaskChangedEvent.participantAdded(taskId, userId));
         }
         UserDto user = userClient.getUserById(userId);
         return repository.findByTaskId(taskId).stream()
@@ -89,6 +95,7 @@ public class TaskParticipantService {
             throw new BusinessLogicException("You can only remove your own WATCHER entry");
         }
         repository.deleteById(participantId);
+        outboxWriter.write(TaskChangedEvent.participantRemoved(participant.getTaskId(), participant.getUserId()));
     }
 
     /** Returns all participants for a task, enriched with user details. */

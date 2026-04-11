@@ -306,6 +306,7 @@ export interface FileUploadResponse {
 /** Mirrors com.demo.common.event.TaskChangeType */
 export type TaskChangeType =
   | 'TASK_CREATED'
+  | 'TASK_UPDATED'
   | 'STATUS_CHANGED'
   | 'COMMENT_ADDED'
   | 'PHASE_CHANGED'
@@ -314,7 +315,16 @@ export type TaskChangeType =
   | 'BOOKED_WORK_UPDATED'
   | 'BOOKED_WORK_DELETED'
   | 'ATTACHMENT_ADDED'
-  | 'ATTACHMENT_DELETED';
+  | 'ATTACHMENT_DELETED'
+  | 'PARTICIPANT_ADDED'
+  | 'PARTICIPANT_REMOVED'
+  | 'TIMELINE_CHANGED';
+
+/** Mirrors com.demo.common.event.TaskPushMessage */
+export interface TaskPushMessage {
+  taskId: string;
+  changeType: TaskChangeType;
+}
 
 /** Mirrors com.demo.common.dto.TemplatePlaceholder */
 export interface TemplatePlaceholder {
