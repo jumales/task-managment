@@ -504,6 +504,12 @@
                   "value": "FINISHED",
                   "disabled": true,
                   "description": "FINISHED (RELEASED or REJECTED phase) or DEV_FINISHED (DONE phase)"
+                },
+                {
+                  "key": "includeFinished",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "When true, includes tasks in RELEASED and REJECTED phases (default: false)"
                 }
               ]
             }
