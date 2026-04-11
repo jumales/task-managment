@@ -1,5 +1,7 @@
-# Plan Task
-
+---
+name: plan-internal
+description: Guide the user through planning a new development task — understand scope, create a chunked plan file, choose the right branch strategy (simple 2-chunk vs. multi-chunk feature-branch flow), and execute chunks one at a time with CI checks between each.
+---
 Guide the user through planning a new task before any code is written.
 
 ## Workflow

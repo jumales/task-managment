@@ -1,5 +1,7 @@
-# New Kafka Event
-
+---
+name: new-kafka-event
+description: Add a new change type to TaskChangedEvent and wire it end-to-end — enum value, event factory method, outbox write in task-service, audit record entity, Kafka consumer case, audit controller endpoint, and integration tests.
+---
 Add a new change type to the unified `TaskChangedEvent` and wire it end-to-end: outbox → Kafka → audit-service.
 
 ## Required input

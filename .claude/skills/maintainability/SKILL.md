@@ -1,5 +1,7 @@
-# Source Code Maintainability Audit
-
+---
+name: maintainability
+description: Perform a maintainability audit of the full codebase across 10 dimensions — cyclomatic complexity, code duplication, coupling, test coverage, documentation, configuration management, error handling, dependency management, naming conventions, and frontend quality.
+---
 Perform a maintainability audit of this codebase. This project is a Spring Boot microservices backend with a React frontend. Use the knowledge below about the architecture to focus your analysis.
 
 ## Architecture context

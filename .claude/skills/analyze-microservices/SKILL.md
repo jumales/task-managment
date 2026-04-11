@@ -1,5 +1,7 @@
-# Analyze Microservice Architecture
-
+---
+name: analyze-microservices
+description: Perform a structured microservice architecture review across all 11 principles (bounded context, DB-per-service, gateway, Kafka outbox, resilience, observability, etc.) and produce a rated findings report.
+---
 Perform a structured review of the project against microservice architecture principles.
 Produce a report with findings grouped by principle, each rated **VIOLATION** (breaks the principle), **WARNING** (risk or smell), or **SUGGESTION** (improvement opportunity).
 

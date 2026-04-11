@@ -1,5 +1,7 @@
-# New Service Module
-
+---
+name: new-service-module
+description: Scaffold a new Spring Boot microservice module — Maven pom, application class, application.yml, OpenAPI config, docker-compose Postgres entry, service container entry, and api-gateway routes for all exposed controller paths.
+---
 Scaffold a new Spring Boot microservice module in the task-management multi-module Maven project.
 
 ## Required input

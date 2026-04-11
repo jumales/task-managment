@@ -1,5 +1,7 @@
-# OWASP Security Audit
-
+---
+name: owasp
+description: Perform an OWASP Top 10 (2021) security audit of the full stack — broken access control, cryptographic failures, injection, insecure design, security misconfiguration, vulnerable components, auth failures, integrity failures, logging gaps, and SSRF.
+---
 Perform a security audit of this codebase mapped to the OWASP Top 10 (2021). This project is a Spring Boot microservices backend with a React frontend. Use the knowledge below about the architecture to focus your analysis on areas that matter most.
 
 ## Architecture context
