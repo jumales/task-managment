@@ -49,7 +49,8 @@ export function TasksPage() {
   const [modalError,   setModalError]   = useState<string | null>(null);
   const [searchQuery,      setSearchQuery]      = useState('');
   const [activeSearch,     setActiveSearch]     = useState('');
-  const [completionFilter, setCompletionFilter] = useState<TaskCompletionStatus | undefined>(undefined);
+  // 'ACTIVE' = default (excludes RELEASED/REJECTED), 'FINISHED' = only RELEASED/REJECTED, 'ALL' = no phase filter
+  const [showFilter, setShowFilter] = useState<'ACTIVE' | 'FINISHED' | 'ALL'>('ACTIVE');
   const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [wizardStep,   setWizardStep]   = useState(0);
@@ -72,8 +73,12 @@ export function TasksPage() {
     [typeLabels],
   );
 
-  const loadTasks = (page = currentPage, size = pageSize, cs = completionFilter) =>
-    getTasks({ page: page - 1, size, completionStatus: cs })
+  const loadTasks = (page = currentPage, size = pageSize, show = showFilter) => {
+    const params =
+      show === 'FINISHED' ? { completionStatus: 'FINISHED' as TaskCompletionStatus } :
+      show === 'ALL'      ? { includeFinished: true } :
+      {};  // ACTIVE: backend default excludes RELEASED/REJECTED
+    return getTasks({ page: page - 1, size, ...params })
       .then((data) => {
         setTasks(data.content);
         setTotalTasks(data.totalElements);
@@ -84,6 +89,7 @@ export function TasksPage() {
         setError(`${t('tasks.failedLoad')} [${status}]: ${message}`);
       })
       .finally(() => setLoading(false));
+  };
 
   const refreshDropdowns = () => {
     getProjects().then(setProjects).catch(() => setError(t('projects.failedLoad')));
@@ -146,11 +152,11 @@ export function TasksPage() {
     setCurrentPage(page);
     setPageSize(size);
     setLoading(true);
-    loadTasks(page, size, completionFilter);
+    loadTasks(page, size, showFilter);
   };
 
-  const handleCompletionFilterChange = (value: TaskCompletionStatus | undefined) => {
-    setCompletionFilter(value);
+  const handleShowFilterChange = (value: 'ACTIVE' | 'FINISHED' | 'ALL') => {
+    setShowFilter(value);
     setCurrentPage(1);
     setLoading(true);
     loadTasks(1, pageSize, value);
@@ -265,15 +271,14 @@ export function TasksPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>{t('tasks.title')}</Typography.Title>
         <Space>
-          <Select<TaskCompletionStatus | undefined>
-            allowClear
-            placeholder="Completion"
-            value={completionFilter}
-            onChange={handleCompletionFilterChange}
+          <Select<'ACTIVE' | 'FINISHED' | 'ALL'>
+            value={showFilter}
+            onChange={handleShowFilterChange}
             style={{ width: 150 }}
             options={[
-              { label: 'Finished', value: 'FINISHED' as TaskCompletionStatus },
-              { label: 'Dev Finished', value: 'DEV_FINISHED' as TaskCompletionStatus },
+              { label: 'Active', value: 'ACTIVE' },
+              { label: 'Finished', value: 'FINISHED' },
+              { label: 'All', value: 'ALL' },
             ]}
           />
           <Input

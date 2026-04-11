@@ -19,6 +19,8 @@ public class MyTaskResponse {
     private final String title;
     private final String description;
     private final TaskStatus status;
+    /** Name of the phase this task is currently in (e.g. "IN_PROGRESS", "RELEASED"). */
+    private final String phaseName;
     private final Instant plannedStart;
     private final Instant plannedEnd;
     private final Instant updatedAt;
