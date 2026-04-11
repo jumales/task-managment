@@ -8,6 +8,9 @@ export default defineConfig({
     // sockjs-client references the Node.js global — polyfill it for browsers
     global: 'globalThis',
   },
+  build: {
+    sourcemap: true,
+  },
   server: {
     port: 3000,
   },

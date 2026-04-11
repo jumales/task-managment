@@ -132,6 +132,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               size="small"
               style={{ width: 110 }}
               variant="borderless"
+              aria-label="Language"
             />
             {avatarUrl
               ? <Avatar src={avatarUrl} size="small" />
