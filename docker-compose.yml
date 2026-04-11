@@ -21,35 +21,28 @@ services:
     networks:
       - ms-network
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
-    container_name: ms-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    # No persistent volumes for Zookeeper — persisting ZK session data causes
-    # "NodeExists" conflicts when Kafka restarts, because the old ephemeral broker
-    # registration lingers until the ZK session timeout expires.
-    networks:
-      - ms-network
-
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: ms-kafka
-    depends_on:
-      - zookeeper
     # Host port mapping (9092:9092) lives in docker-compose.override.yml for local dev only.
     # In CI/staging, only this file is used so Kafka is not exposed to the host.
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # KRaft mode — no ZooKeeper needed
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       # PLAINTEXT_HOST = reachable from host machine (localhost:9092)
       # PLAINTEXT      = reachable inside Docker network (kafka:29092)
+      # CONTROLLER     = internal KRaft consensus, not exposed externally
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://kafka:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Fixed cluster ID so the KRaft log dir is formatted consistently across restarts
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qw"
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:

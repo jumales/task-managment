@@ -154,7 +154,7 @@ log "All stopped. Starting fresh ..."
 
 # ── Step 1: Docker infrastructure ────────────────────────────────────────────
 
-INFRA_SERVICES="postgres zookeeper kafka keycloak minio minio-init redis mailhog"
+INFRA_SERVICES="postgres kafka keycloak minio minio-init redis mailhog"
 if [[ "$SKIP_ELK" == false ]]; then
   INFRA_SERVICES="$INFRA_SERVICES elasticsearch logstash kibana"
   log "Starting Docker infrastructure (including ELK) ..."
