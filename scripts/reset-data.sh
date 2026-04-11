@@ -77,7 +77,9 @@ if require_container ms-postgres; then
   psql_exec task_db task_svc "
     TRUNCATE
       task_timelines,
-      task_work_logs,
+      task_booked_works,
+      task_planned_works,
+      task_attachments,
       task_participants,
       task_comments,
       outbox_events,
@@ -96,7 +98,8 @@ if require_container ms-postgres; then
     TRUNCATE
       comment_audit_records,
       phase_audit_records,
-      work_log_audit_records,
+      booked_work_audit_records,
+      planned_work_audit_records,
       audit_records
     RESTART IDENTITY CASCADE;
   "

@@ -22,6 +22,9 @@ public interface TaskParticipantRepository extends JpaRepository<TaskParticipant
     /** Returns true if the user already holds the given role on the task. */
     boolean existsByTaskIdAndUserIdAndRole(UUID taskId, UUID userId, TaskParticipantRole role);
 
+    /** Returns true if the user has any active participant entry on the task (any role). */
+    boolean existsByTaskIdAndUserId(UUID taskId, UUID userId);
+
     /** Deletes all participants with the given role on the given task in one query. */
     @Modifying
     @Query("DELETE FROM TaskParticipant p WHERE p.taskId = :taskId AND p.role = :role")

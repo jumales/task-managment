@@ -6,6 +6,8 @@ interface AuthContextValue {
   name: string;
   /** Login username from the Keycloak token — used for matching the user record. */
   username: string;
+  /** Keycloak subject UUID — matches the user ID stored in the backend (sub claim). */
+  userId: string;
   /** True when the current user has the ADMIN realm role in Keycloak. */
   isAdmin: boolean;
   /** Logs out and redirects to the Keycloak logout page. */
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         name: keycloak.tokenParsed?.name ?? keycloak.tokenParsed?.preferred_username ?? '',
         username: keycloak.tokenParsed?.preferred_username ?? '',
+        userId: keycloak.tokenParsed?.sub ?? '',
         isAdmin: (keycloak.tokenParsed?.realm_access?.roles ?? []).includes('ADMIN'),
         logout: () => keycloak.logout(),
       }}

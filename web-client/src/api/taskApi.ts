@@ -68,12 +68,12 @@ export function getParticipants(taskId: string) {
   return apiClient.get<TaskParticipantResponse[]>(`${TASKS_URL}/${taskId}/participants`).then((r) => r.data);
 }
 
-/** Adds a participant with a role to a task. */
-export function addParticipant(taskId: string, request: TaskParticipantRequest) {
-  return apiClient.post<TaskParticipantResponse>(`${TASKS_URL}/${taskId}/participants`, request).then((r) => r.data);
+/** Adds the authenticated user as a WATCHER on a task. */
+export function watchTask(taskId: string) {
+  return apiClient.post<TaskParticipantResponse>(`${TASKS_URL}/${taskId}/participants/watch`).then((r) => r.data);
 }
 
-/** Removes a participant from a task. */
+/** Removes own WATCHER entry from a task. */
 export function removeParticipant(taskId: string, participantId: string) {
   return apiClient.delete(`${TASKS_URL}/${taskId}/participants/${participantId}`);
 }

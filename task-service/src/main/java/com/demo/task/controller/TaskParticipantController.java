@@ -1,12 +1,13 @@
 package com.demo.task.controller;
 
-import com.demo.common.dto.TaskParticipantRequest;
 import com.demo.common.dto.TaskParticipantResponse;
+import com.demo.task.client.UserClientHelper;
 import com.demo.task.service.TaskParticipantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,6 +15,8 @@ import java.util.UUID;
 
 /**
  * Endpoints for managing participants (user-role associations) on a task.
+ * Participants are added automatically when users interact with the task (comment,
+ * upload, book hours). The only manual action is Watch / Unwatch (WATCHER role).
  */
 @RestController
 @RequestMapping("/api/v1/tasks/{taskId}/participants")
@@ -21,9 +24,12 @@ import java.util.UUID;
 public class TaskParticipantController {
 
     private final TaskParticipantService service;
+    private final UserClientHelper userClientHelper;
 
-    public TaskParticipantController(TaskParticipantService service) {
+    public TaskParticipantController(TaskParticipantService service,
+                                     UserClientHelper userClientHelper) {
         this.service = service;
+        this.userClientHelper = userClientHelper;
     }
 
     /** Returns all participants for the given task. */
@@ -34,22 +40,31 @@ public class TaskParticipantController {
         return service.findByTaskId(taskId);
     }
 
-    /** Adds a participant with a role to the task. */
-    @PostMapping
+    /**
+     * Adds the authenticated user as a WATCHER on the task.
+     * If the user already has any role on the task, returns that existing entry.
+     */
+    @PostMapping("/watch")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Add a participant to a task")
-    public TaskParticipantResponse add(@PathVariable UUID taskId,
-                                       @RequestBody TaskParticipantRequest request) {
-        return service.add(taskId, request);
+    @Operation(summary = "Watch a task (adds authenticated user as WATCHER)")
+    public TaskParticipantResponse watch(@PathVariable UUID taskId, Authentication authentication) {
+        UUID userId = userClientHelper.resolveUserId(authentication);
+        return service.watch(taskId, userId);
     }
 
-    /** Removes a participant from the task. */
+    /**
+     * Removes a WATCHER participant entry.
+     * Only the participant themselves may remove their own WATCHER entry.
+     */
     @DeleteMapping("/{participantId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Remove a participant from a task")
-    public void remove(@PathVariable UUID taskId, @PathVariable UUID participantId) {
-        service.remove(participantId);
+    @Operation(summary = "Unwatch a task (removes own WATCHER entry)")
+    public void remove(@PathVariable UUID taskId,
+                       @PathVariable UUID participantId,
+                       Authentication authentication) {
+        UUID requestingUserId = userClientHelper.resolveUserId(authentication);
+        service.remove(participantId, requestingUserId);
     }
 }

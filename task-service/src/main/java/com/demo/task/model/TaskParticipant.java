@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Represents a user's role on a task (CREATOR, ASSIGNEE, VIEWER, REVIEWER).
+ * Represents a user's role on a task (CREATOR, ASSIGNEE, CONTRIBUTOR, WATCHER).
  * A task can have multiple participants, each with a distinct role.
  */
 @Entity
