@@ -154,7 +154,7 @@ log "All stopped. Starting fresh ..."
 
 # ── Step 1: Docker infrastructure ────────────────────────────────────────────
 
-INFRA_SERVICES="postgres kafka keycloak minio minio-init redis mailhog"
+INFRA_SERVICES="postgres kafka keycloak minio minio-init redis mailhog prometheus grafana"
 if [[ "$SKIP_ELK" == false ]]; then
   INFRA_SERVICES="$INFRA_SERVICES elasticsearch logstash kibana"
   log "Starting Docker infrastructure (including ELK) ..."
@@ -197,21 +197,27 @@ until docker inspect --format='{{.State.Health.Status}}' ms-redis 2>/dev/null | 
 done
 log "Redis is healthy."
 
+# Prometheus — wait for it to signal ready
+wait_for_http "Prometheus" "http://localhost:9090/-/ready" 30
+log "Grafana will be available at http://localhost:3001"
+
 # ── Docker-only mode: exit after infrastructure is healthy ────────────────────
 
 if [[ "$DOCKER_ONLY" == true ]]; then
   log "Docker-only mode — infrastructure is up. Skipping service terminals."
   cat <<'BANNER'
 
-  ┌─────────────────────────────────────────┐
-  │  Docker infrastructure is running       │
-  │                                         │
-  │  Keycloak  http://localhost:8180         │
-  │  Kibana    http://localhost:5601         │
-  │  MinIO     http://localhost:9001         │
-  │  Redis     localhost:6379               │
-  │  MailHog   http://localhost:8025         │
-  └─────────────────────────────────────────┘
+  ┌───────────────────────────────────────────┐
+  │  Docker infrastructure is running         │
+  │                                           │
+  │  Keycloak    http://localhost:8180        │
+  │  Kibana      http://localhost:5601        │
+  │  MinIO       http://localhost:9001        │
+  │  Redis       localhost:6379              │
+  │  MailHog     http://localhost:8025        │
+  │  Prometheus  http://localhost:9090        │
+  │  Grafana     http://localhost:3001        │
+  └───────────────────────────────────────────┘
 
   Start services:  ./scripts/start-dev.sh
   Stop infra:      ./scripts/stop-dev.sh
@@ -243,19 +249,21 @@ start_service web-client
 
 cat <<'BANNER'
 
-  ┌──────────────────────────────────────────────┐
-  │  Dev stack is starting up                    │
-  │                                              │
-  │  Eureka       http://localhost:8761          │
-  │  Gateway      http://localhost:8080          │
-  │  Keycloak     http://localhost:8180          │
-  │  Web app      http://localhost:3000          │
-  │  Kibana       http://localhost:5601          │
-  │  MinIO        http://localhost:9001          │
-  │  Elasticsearch http://localhost:9200         │
-  │  Redis        localhost:6379                │
-  │  MailHog      http://localhost:8025          │
-  └──────────────────────────────────────────────┘
+  ┌────────────────────────────────────────────────┐
+  │  Dev stack is starting up                      │
+  │                                                │
+  │  Eureka        http://localhost:8761           │
+  │  Gateway       http://localhost:8080           │
+  │  Keycloak      http://localhost:8180           │
+  │  Web app       http://localhost:3000           │
+  │  Kibana        http://localhost:5601           │
+  │  MinIO         http://localhost:9001           │
+  │  Elasticsearch http://localhost:9200           │
+  │  Redis         localhost:6379                 │
+  │  MailHog       http://localhost:8025           │
+  │  Prometheus    http://localhost:9090           │
+  │  Grafana       http://localhost:3001           │
+  └────────────────────────────────────────────────┘
 
   Each service has its own Terminal window.
   Restart one service:  ./scripts/start-dev.sh --restart <name>
