@@ -23,7 +23,7 @@ export function DashboardPage() {
     <div>
       <Typography.Title level={3}>Dashboard</Typography.Title>
 
-      <Typography.Title level={5} style={{ marginTop: 24 }}>Planned vs Booked Hours — by Project</Typography.Title>
+      <Typography.Title level={4} style={{ marginTop: 24 }}>Planned vs Booked Hours — by Project</Typography.Title>
 
       {error && <Alert type="warning" message={error} style={{ marginBottom: 16 }} />}
 
