@@ -101,9 +101,14 @@ public class TaskService {
         this.objectMapper = objectMapper;
     }
 
-    /** Returns a paginated summary page of all tasks. */
-    public PageResponse<TaskSummaryResponse> findAll(Pageable pageable) {
-        Page<Task> page = repository.findAll(pageable);
+    /**
+     * Returns a paginated summary page of tasks. When {@code includeFinished} is {@code false},
+     * tasks in RELEASED or REJECTED phases are excluded from the result.
+     */
+    public PageResponse<TaskSummaryResponse> findAll(boolean includeFinished, Pageable pageable) {
+        Page<Task> page = includeFinished
+                ? repository.findAll(pageable)
+                : repository.findByPhaseIdNotIn(resolveFinishedPhaseIds(), pageable);
         return toSummaryPageResponse(page);
     }
 
@@ -140,27 +145,46 @@ public class TaskService {
                 timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join());
     }
 
-    /** Returns a paginated summary page of tasks assigned to the specified user. */
-    public PageResponse<TaskSummaryResponse> findByUser(UUID userId, Pageable pageable) {
-        Page<Task> page = repository.findByAssignedUserId(userId, pageable);
+    /**
+     * Returns a paginated summary page of tasks assigned to the specified user.
+     * When {@code includeFinished} is {@code false}, RELEASED and REJECTED tasks are excluded.
+     */
+    public PageResponse<TaskSummaryResponse> findByUser(UUID userId, boolean includeFinished, Pageable pageable) {
+        Page<Task> page = includeFinished
+                ? repository.findByAssignedUserId(userId, pageable)
+                : repository.findByAssignedUserIdAndPhaseIdNotIn(userId, resolveFinishedPhaseIds(), pageable);
         return toSummaryPageResponse(page);
     }
 
     /**
      * Returns a paginated summary page of tasks whose status matches the given value (case-insensitive).
+     * When {@code includeFinished} is {@code false}, RELEASED and REJECTED tasks are excluded.
      *
      * @param status string representation of {@link TaskStatus}
      */
-    public PageResponse<TaskSummaryResponse> findByStatus(String status, Pageable pageable) {
-        Page<Task> page = repository.findByStatus(TaskStatus.valueOf(status.toUpperCase()), pageable);
+    public PageResponse<TaskSummaryResponse> findByStatus(String status, boolean includeFinished, Pageable pageable) {
+        TaskStatus taskStatus = TaskStatus.valueOf(status.toUpperCase());
+        Page<Task> page = includeFinished
+                ? repository.findByStatus(taskStatus, pageable)
+                : repository.findByStatusAndPhaseIdNotIn(taskStatus, resolveFinishedPhaseIds(), pageable);
         return toSummaryPageResponse(page);
     }
 
-    /** Returns a paginated summary page of tasks belonging to the specified project. */
-    public PageResponse<TaskSummaryResponse> findByProject(UUID projectId, Pageable pageable) {
+    /**
+     * Returns a paginated summary page of tasks belonging to the specified project.
+     * When {@code includeFinished} is {@code false}, RELEASED and REJECTED tasks are excluded.
+     */
+    public PageResponse<TaskSummaryResponse> findByProject(UUID projectId, boolean includeFinished, Pageable pageable) {
         projectService.getOrThrow(projectId);
-        Page<Task> page = repository.findByProjectId(projectId, pageable);
+        Page<Task> page = includeFinished
+                ? repository.findByProjectId(projectId, pageable)
+                : repository.findByProjectIdAndPhaseIdNotIn(projectId, resolveFinishedPhaseIds(), pageable);
         return toSummaryPageResponse(page);
+    }
+
+    /** Resolves the IDs of all RELEASED and REJECTED phases across all projects. */
+    private List<UUID> resolveFinishedPhaseIds() {
+        return phaseService.findIdsByNameIn(TaskPhaseName.FINISHED_PHASES);
     }
 
     /**
