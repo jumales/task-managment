@@ -8,6 +8,7 @@ import com.demo.common.dto.TaskCompletionStatus;
 import com.demo.common.dto.PlannedDatesRequest;
 import com.demo.common.dto.TaskFullResponse;
 import com.demo.common.dto.TaskParticipantResponse;
+import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskPhaseResponse;
 import com.demo.common.dto.TaskPlannedWorkResponse;
 import com.demo.common.dto.TaskProjectResponse;
@@ -384,6 +385,11 @@ public class TaskService {
 
         outboxWriter.write(TaskChangedEvent.commentAdded(taskId, task.getAssignedUserId(),
                 task.getProjectId(), task.getTitle(), saved.getId(), saved.getContent()));
+
+        // Auto-register the commenter as a CONTRIBUTOR if not already a participant
+        if (authorId != null) {
+            participantService.addIfNotPresent(taskId, authorId, TaskParticipantRole.CONTRIBUTOR);
+        }
 
         String authorName = authorId != null ? userClientHelper.resolveUserName(authorId) : null;
         return new TaskCommentResponse(saved.getId(), saved.getUserId(), authorName,

@@ -90,7 +90,7 @@ export interface TaskCommentResponse {
 }
 
 /** Mirrors com.demo.common.dto.TaskParticipantRole */
-export type TaskParticipantRole = 'CREATOR' | 'ASSIGNEE' | 'VIEWER' | 'REVIEWER';
+export type TaskParticipantRole = 'CREATOR' | 'ASSIGNEE' | 'CONTRIBUTOR' | 'WATCHER';
 
 /** Mirrors com.demo.common.dto.TaskParticipantResponse */
 export interface TaskParticipantResponse {

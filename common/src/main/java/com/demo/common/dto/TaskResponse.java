@@ -19,7 +19,7 @@ public class TaskResponse {
     private TaskType type;
     /** Completion percentage in the range 0–100. */
     private int progress;
-    /** All users associated with this task, each with their role (CREATOR, ASSIGNEE, VIEWER, REVIEWER). */
+    /** All users associated with this task, each with their role (CREATOR, ASSIGNEE, CONTRIBUTOR, WATCHER). */
     private List<TaskParticipantResponse> participants;
     private TaskProjectResponse project;
     private TaskPhaseResponse phase;

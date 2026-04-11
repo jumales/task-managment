@@ -1,10 +1,9 @@
 package com.demo.task.service;
 
-import com.demo.common.dto.TaskParticipantRequest;
 import com.demo.common.dto.TaskParticipantResponse;
 import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.UserDto;
-import com.demo.common.exception.DuplicateResourceException;
+import com.demo.common.exception.BusinessLogicException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
@@ -39,34 +38,55 @@ public class TaskParticipantService {
     }
 
     /**
-     * Adds a participant with the given role to the task.
-     * Throws 400 if the CREATOR role is requested (set automatically at task creation only).
-     * Throws 409 if the user already holds that role on the task.
+     * Adds the user as a WATCHER on the task and returns the created participant response.
+     * If the user already has any active participant entry on the task, the existing entry is returned instead.
      */
     @Transactional
-    public TaskParticipantResponse add(UUID taskId, TaskParticipantRequest request) {
-        if (request.getRole() == TaskParticipantRole.CREATOR) {
-            throw new IllegalArgumentException("CREATOR role is assigned automatically at task creation and cannot be added manually");
+    public TaskParticipantResponse watch(UUID taskId, UUID userId) {
+        if (!repository.existsByTaskIdAndUserId(taskId, userId)) {
+            repository.save(TaskParticipant.builder()
+                    .taskId(taskId)
+                    .userId(userId)
+                    .role(TaskParticipantRole.WATCHER)
+                    .createdAt(Instant.now())
+                    .build());
         }
-        if (repository.existsByTaskIdAndUserIdAndRole(taskId, request.getUserId(), request.getRole())) {
-            throw new DuplicateResourceException(
-                    "User already has role " + request.getRole() + " on this task");
-        }
-        UserDto user = userClient.getUserById(request.getUserId());
-        TaskParticipant saved = repository.save(TaskParticipant.builder()
-                .taskId(taskId)
-                .userId(request.getUserId())
-                .role(request.getRole())
-                .createdAt(Instant.now())
-                .build());
-        return toResponse(saved, user);
+        UserDto user = userClient.getUserById(userId);
+        return repository.findByTaskId(taskId).stream()
+                .filter(p -> p.getUserId().equals(userId))
+                .findFirst()
+                .map(p -> toResponse(p, user))
+                .orElseThrow(() -> new ResourceNotFoundException("TaskParticipant", userId));
     }
 
-    /** Soft-deletes a participant by ID; throws if not found. */
+    /**
+     * Auto-adds a user as a participant with the given role only if they have no existing
+     * active entry on the task. Prevents CREATOR or ASSIGNEE from being re-added as CONTRIBUTOR.
+     */
     @Transactional
-    public void remove(UUID participantId) {
-        if (!repository.existsById(participantId)) {
-            throw new ResourceNotFoundException("TaskParticipant", participantId);
+    public void addIfNotPresent(UUID taskId, UUID userId, TaskParticipantRole role) {
+        if (repository.existsByTaskIdAndUserId(taskId, userId)) return;
+        repository.save(TaskParticipant.builder()
+                .taskId(taskId)
+                .userId(userId)
+                .role(role)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    /**
+     * Removes a participant entry. Only WATCHER entries may be removed, and only by the
+     * participant themselves. All other roles are managed automatically.
+     */
+    @Transactional
+    public void remove(UUID participantId, UUID requestingUserId) {
+        TaskParticipant participant = repository.findById(participantId)
+                .orElseThrow(() -> new ResourceNotFoundException("TaskParticipant", participantId));
+        if (participant.getRole() != TaskParticipantRole.WATCHER) {
+            throw new BusinessLogicException("Only WATCHER participants can be removed");
+        }
+        if (!participant.getUserId().equals(requestingUserId)) {
+            throw new BusinessLogicException("You can only remove your own WATCHER entry");
         }
         repository.deleteById(participantId);
     }

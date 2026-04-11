@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Col, Divider, Row, Spin, Space, Tabs, Tag, Typography } from 'antd';
+import { Alert, Button, Col, Divider, Popconfirm, Row, Spin, Space, Tabs, Tag, Typography } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useTaskDetailData } from '../hooks/useTaskDetailData';
 import { updateTask } from '../api/taskApi';
@@ -94,11 +94,29 @@ export function TaskDetailPage() {
       {/* Top header: task code + title + status/type/completion tags */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <div>
-          {data.task.taskCode && (
-            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 2 }}>
-              {data.task.taskCode}
-            </Typography.Text>
-          )}
+          <Space align="center" style={{ marginBottom: 2 }}>
+            {data.task.taskCode && (
+              <Typography.Text type="secondary">{data.task.taskCode}</Typography.Text>
+            )}
+            {!participants.isAlreadyActiveParticipant && (
+              participants.myWatcherEntry ? (
+                <Popconfirm
+                  title={t('tasks.unwatchConfirm')}
+                  onConfirm={() => participants.handleRemoveParticipant(participants.myWatcherEntry!.id)}
+                  okText={t('tasks.unwatch')}
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button size="small" loading={participants.removingPId === participants.myWatcherEntry.id}>
+                    {t('tasks.unwatch')}
+                  </Button>
+                </Popconfirm>
+              ) : (
+                <Button size="small" type="primary" loading={participants.watching} onClick={participants.handleWatch}>
+                  {t('tasks.watch')}
+                </Button>
+              )
+            )}
+          </Space>
           <Typography.Title level={3} style={{ margin: 0 }}>{data.task.title}</Typography.Title>
         </div>
         <Space wrap>
@@ -152,7 +170,7 @@ export function TaskDetailPage() {
               },
               { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} /> },
               { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   taskPhaseName={data.task.phase.name} finished={finished} /> },
-              { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} users={data.users} /> },
+              { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} /> },
             ]}
           />
         </Col>

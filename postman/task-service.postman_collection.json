@@ -1059,21 +1059,12 @@
           ]
         },
         {
-          "name": "Add participant to task",
+          "name": "Watch task",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"role\": \"REVIEWER\"\n}"
-            },
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants",
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants/watch",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1082,7 +1073,8 @@
                 "v1",
                 "tasks",
                 "{{taskId}}",
-                "participants"
+                "participants",
+                "watch"
               ]
             }
           },
@@ -1094,6 +1086,7 @@
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
                   "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('Role is WATCHER', () => pm.expect(body.role).to.eql('WATCHER'));",
                   "pm.collectionVariables.set('participantId', body.id);"
                 ],
                 "type": "text/javascript"
@@ -1102,7 +1095,7 @@
           ]
         },
         {
-          "name": "Remove participant from task",
+          "name": "Unwatch task (remove own WATCHER entry)",
           "request": {
             "method": "DELETE",
             "header": [],
