@@ -1,5 +1,7 @@
-# React Best Practices Analysis
-
+---
+name: analyze-react
+description: Analyze the React frontend in web-client/src/ against the Vercel React Best Practices guide — waterfalls, bundle size, re-render optimization, JS performance, and client-side data fetching.
+---
 Analyze the React frontend in `web-client/src/` against the Vercel React Best Practices guide at `.claude/react-best-practices.md`. Do not guess — read the actual files before reporting.
 
 ## Scope

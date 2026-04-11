@@ -1,5 +1,7 @@
-# Move DTOs to Common Module
-
+---
+name: move-dtos-to-common
+description: Scan all service modules for misplaced DTO classes (*Request.java, *Response.java, *Dto.java) that belong in the common module, move them, and update every import across the project.
+---
 Scan the current multi-module Maven project for any DTO classes (files matching `*Request.java`, `*Response.java`, `*Dto.java`) that live inside a service-specific package (e.g. `com.demo.<service>.dto`) instead of the shared `common` module (`com.demo.common.dto`).
 
 For each misplaced DTO:

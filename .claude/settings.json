@@ -31,6 +31,31 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); file=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"'); if echo \"$file\" | grep -qE 'V[0-9]+__.*\\.sql$'; then if git ls-files --error-unmatch \"$file\" 2>/dev/null; then echo \"BLOCK: Flyway migration already committed to git. Create a new versioned migration file instead (never edit existing ones).\"; exit 2; fi; fi",
+            "statusMessage": "Checking Flyway migration immutability..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); file=$(echo \"$input\" | jq -r '.tool_input.file_path // \"\"'); if echo \"$file\" | grep -qE 'web-client/src/.*\\.tsx?$'; then cd /Users/admin/projects/cc/task-managment/web-client && npx tsc --noEmit 2>&1 | tail -20; fi",
+            "statusMessage": "Type-checking web-client...",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

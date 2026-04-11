@@ -1,5 +1,7 @@
-# Business Logic Audit
-
+---
+name: business_logic
+description: Audit business logic consistency between the Spring Boot backend (source of truth) and the React frontend — enum completeness, required-field validation, read-only field protection, status-gated UI, deletion guards, and soft-delete visibility.
+---
 Audit business logic consistency across backend (source of truth) and all clients (web-client).
 Do not guess — read the actual files before reporting any finding.
 

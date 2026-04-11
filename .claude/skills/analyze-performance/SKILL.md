@@ -1,5 +1,7 @@
-# Performance Analysis
-
+---
+name: analyze-performance
+description: Analyze the Spring Boot microservices backend for performance and scalability bottlenecks — N+1 queries, missing indexes, pagination gaps, connection pool sizing, Kafka consumer concurrency, cache eviction scope, and Feign timeouts.
+---
 Analyze this codebase for performance and scalability bottlenecks under high load. This is a Spring Boot microservices backend. Use the context below to focus your analysis.
 
 ## Architecture context

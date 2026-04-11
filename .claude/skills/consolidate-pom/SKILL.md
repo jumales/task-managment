@@ -1,5 +1,7 @@
-# POM Consolidation Analysis
-
+---
+name: consolidate-pom
+description: Analyze all pom.xml files in the multi-module Maven project, identify duplicated dependency versions and build blocks, centralize them in the parent POM, and implement the consolidation with a build verification.
+---
 Analyze all `pom.xml` files in this multi-module Maven project and identify what can be moved to the parent POM to reduce duplication. Then implement the consolidation.
 
 ## Architecture context

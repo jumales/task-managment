@@ -1,5 +1,7 @@
-# New Entity
-
+---
+name: new-entity
+description: Scaffold a complete new JPA entity in a specified service module — entity class with soft-delete, indexes, repository, DTOs, service, controller with OpenAPI docs, and integration tests, following all project conventions.
+---
 Scaffold a new JPA entity in the specified service module following project conventions.
 
 ## Required input

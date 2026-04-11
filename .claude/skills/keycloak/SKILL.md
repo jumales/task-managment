@@ -1,5 +1,8 @@
-# Keycloak
-
+---
+name: keycloak
+description: Reference guide and how-to for managing Keycloak in this project — adding roles, service accounts, users, debugging auth errors, and applying demo-realm.json changes. Use when working on Keycloak config or troubleshooting JWT/auth issues.
+user-invocable: false
+---
 Reference guide for managing Keycloak configuration in this project. Use when adding roles, adding service accounts, modifying user assignments, debugging auth errors, or troubleshooting Keycloak Admin API access from user-service.
 
 ---
