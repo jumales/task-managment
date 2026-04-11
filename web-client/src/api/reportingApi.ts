@@ -1,14 +1,19 @@
 import apiClient from './client';
 import type { MyTaskReport, TaskHoursRow, ProjectHoursRow, DetailedHoursRow } from './types';
 
-/** Fetch all tasks assigned to the current user. */
+/** Fetch open tasks assigned to the current user (RELEASED/REJECTED excluded). */
 export function getMyTasks(): Promise<MyTaskReport[]> {
   return apiClient.get<MyTaskReport[]>('/api/v1/reports/my-tasks').then((r) => r.data);
 }
 
-/** Fetch tasks assigned to the current user updated within the last {@code days} days. */
+/** Fetch open tasks assigned to the current user updated within the last {@code days} days. */
 export function getMyTasksFiltered(days: number): Promise<MyTaskReport[]> {
   return apiClient.get<MyTaskReport[]>(`/api/v1/reports/my-tasks?days=${days}`).then((r) => r.data);
+}
+
+/** Fetch finished tasks (RELEASED or REJECTED) assigned to the current user. */
+export function getMyFinishedTasks(): Promise<MyTaskReport[]> {
+  return apiClient.get<MyTaskReport[]>('/api/v1/reports/my-tasks?finished=true').then((r) => r.data);
 }
 
 /** Fetch planned vs booked hours per task, optionally filtered by project. */

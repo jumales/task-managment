@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Tabs, Tag, Typography, Spin, Alert, Button } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { getMyTasks, getMyTasksFiltered } from '../api/reportingApi';
+import { getMyTasks, getMyTasksFiltered, getMyFinishedTasks } from '../api/reportingApi';
 import { reportingSocket } from '../realtime/reportingSocket';
 import { HoursReport } from './reports/HoursReport';
 import type { MyTaskReport, TaskStatus } from '../api/types';
@@ -38,17 +38,18 @@ export function ReportsPage() {
         activeKey={activeTab}
         onChange={setActiveTab}
         items={[
-          { key: 'my-tasks',    label: 'My Tasks',             children: <MyTasksTab days={null} /> },
-          { key: 'my-tasks-5',  label: 'My Tasks (last 5 d)',  children: <MyTasksTab days={5} /> },
-          { key: 'my-tasks-30', label: 'My Tasks (last 30 d)', children: <MyTasksTab days={30} /> },
-          { key: 'hours',       label: 'Hours',                children: <HoursReport /> },
+          { key: 'my-tasks',      label: 'My Open Tasks',             children: <MyTasksTab days={null} finished={false} /> },
+          { key: 'my-tasks-5',    label: 'My Open Tasks (last 5 d)',  children: <MyTasksTab days={5} finished={false} /> },
+          { key: 'my-tasks-30',   label: 'My Open Tasks (last 30 d)', children: <MyTasksTab days={30} finished={false} /> },
+          { key: 'my-finished',   label: 'My Finished Tasks',         children: <MyTasksTab days={null} finished={true} /> },
+          { key: 'hours',         label: 'Hours',                     children: <HoursReport /> },
         ]}
       />
     </div>
   );
 }
 
-function MyTasksTab({ days }: { days: number | null }) {
+function MyTasksTab({ days, finished }: { days: number | null; finished: boolean }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<MyTaskReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,12 +57,14 @@ function MyTasksTab({ days }: { days: number | null }) {
 
   const load = useCallback(() => {
     setLoading(true);
-    const fetch = days == null ? getMyTasks() : getMyTasksFiltered(days);
+    const fetch = finished
+      ? getMyFinishedTasks()
+      : days == null ? getMyTasks() : getMyTasksFiltered(days);
     fetch
       .then(setRows)
       .catch(() => setError('Failed to load tasks'))
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [days, finished]);
 
   useEffect(() => {
     load();

@@ -346,6 +346,7 @@ export interface MyTaskReport {
   title: string;
   description: string | null;
   status: TaskStatus;
+  phaseName: string | null;
   plannedStart: string | null;
   plannedEnd: string | null;
   updatedAt: string;

@@ -18,8 +18,9 @@ const TASKS_URL    = '/api/v1/tasks';
 const PROJECTS_URL = '/api/v1/projects';
 const PHASES_URL   = '/api/v1/phases';
 
-/** Fetches a paginated list of tasks (summary view), with optional filters. */
-export function getTasks(params?: { userId?: string; projectId?: string; status?: string; completionStatus?: string; page?: number; size?: number }) {
+/** Fetches a paginated list of tasks (summary view), with optional filters.
+ *  By default, tasks in RELEASED/REJECTED phases are excluded; pass includeFinished=true to include them. */
+export function getTasks(params?: { userId?: string; projectId?: string; status?: string; completionStatus?: string; includeFinished?: boolean; page?: number; size?: number }) {
   return apiClient.get<PageResponse<TaskSummaryResponse>>(TASKS_URL, { params: { size: 20, ...params } }).then((r) => r.data);
 }
 
