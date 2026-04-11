@@ -36,18 +36,24 @@ public class ReportingController {
     }
 
     /**
-     * Returns all tasks assigned to the current user. When {@code days} is provided the
-     * result is limited to tasks updated within the last {@code days} days (e.g. 5 or 30).
+     * Returns tasks assigned to the current user. By default, only open tasks are returned
+     * (RELEASED and REJECTED phases excluded). Pass {@code finished=true} to get only finished tasks.
+     * When {@code days} is provided the result is limited to tasks updated within the last N days.
      */
     @Operation(summary = "My tasks",
-               description = "Tasks assigned to the authenticated user. Optional `days` parameter limits the result to the last N days.")
+               description = "Tasks assigned to the authenticated user. "
+                           + "By default returns only open tasks (excludes RELEASED and REJECTED). "
+                           + "Pass `finished=true` to retrieve only finished tasks. "
+                           + "Optional `days` parameter limits the result to the last N days.")
     @GetMapping("/my-tasks")
     @PreAuthorize("isAuthenticated()")
     public List<MyTaskResponse> getMyTasks(
             @Parameter(description = "Return only tasks updated within the last N days (e.g. 5 or 30).")
             @RequestParam(required = false) Integer days,
+            @Parameter(description = "When true, returns only finished tasks (RELEASED or REJECTED). Default: false.")
+            @RequestParam(defaultValue = "false") boolean finished,
             Authentication authentication) {
-        return myTasksService.findMyTasks(resolveUserId(authentication), days);
+        return myTasksService.findMyTasks(resolveUserId(authentication), days, finished);
     }
 
     /** Planned vs booked hours per task, optionally filtered by {@code projectId}. */
