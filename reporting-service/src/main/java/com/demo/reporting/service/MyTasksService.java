@@ -44,10 +44,9 @@ public class MyTasksService {
     /** Returns open (non-finished) tasks for the user, with an optional recency cutoff. */
     private List<ReportTask> findOpen(UUID userId, Integer days) {
         if (days == null) {
-            return repository.findByAssignedUserIdAndPhaseNameNotInOrderByUpdatedAtDesc(
-                    userId, FINISHED_PHASE_NAMES);
+            return repository.findOpenByAssignedUserIdOrderByUpdatedAtDesc(userId, FINISHED_PHASE_NAMES);
         }
-        return repository.findByAssignedUserIdAndUpdatedAtGreaterThanEqualAndPhaseNameNotInOrderByUpdatedAtDesc(
+        return repository.findOpenByAssignedUserIdAndUpdatedAtAfterOrderByUpdatedAtDesc(
                 userId, Instant.now().minus(days, ChronoUnit.DAYS), FINISHED_PHASE_NAMES);
     }
 
