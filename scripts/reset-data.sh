@@ -121,6 +121,18 @@ if require_container ms-postgres; then
   "
   log "notification_db cleared."
 
+# ── PostgreSQL — reporting_db ─────────────────────────────────────────────────
+
+  log "Clearing reporting_db ..."
+  psql_exec reporting_db reporting_svc "
+    TRUNCATE
+      report_booked_works,
+      report_planned_works,
+      report_tasks
+    RESTART IDENTITY CASCADE;
+  "
+  log "reporting_db cleared."
+
 # ── PostgreSQL — user_db (DISABLED — uncomment when needed) ──────────────────
 #
 #  log "Clearing user_db ..."
@@ -174,7 +186,8 @@ cat <<'BANNER'
   ┌──────────────────────────────────────────────────────────┐
   │  Reset complete                                          │
   │                                                          │
-  │  Cleared:  task_db, audit_db, file_db, notification_db  │
+  │  Cleared:  task_db, audit_db, file_db, notification_db, │
+  │            reporting_db                                 │
   │            Elasticsearch, Redis, MinIO                   │
   │                                                          │
   │  Preserved: user_db (users, roles, rights)               │
