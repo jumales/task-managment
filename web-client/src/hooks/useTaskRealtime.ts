@@ -49,8 +49,12 @@ export function useTaskRealtime(
         case 'TASK_CREATED':
         case 'TASK_UPDATED':
         case 'STATUS_CHANGED':
-        case 'PHASE_CHANGED':
           getTask(taskId).then(callbacks.onTaskUpdated).catch(() => {});
+          break;
+        case 'PHASE_CHANGED':
+          // Phase change auto-sets REAL_START / REAL_END / RELEASE_DATE, so re-fetch both
+          getTask(taskId).then(callbacks.onTaskUpdated).catch(() => {});
+          getTimelines(taskId).then(callbacks.onTimelinesUpdated).catch(() => {});
           break;
         case 'COMMENT_ADDED':
           getTaskComments(taskId).then(callbacks.onCommentsUpdated).catch(() => {});
