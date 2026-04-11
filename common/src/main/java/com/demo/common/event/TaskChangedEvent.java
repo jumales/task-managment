@@ -27,6 +27,10 @@ import java.util.UUID;
  *   <li>{@link TaskChangeType#BOOKED_WORK_DELETED}  — {@code workLogId} is set.</li>
  *   <li>{@link TaskChangeType#ATTACHMENT_ADDED}     — {@code attachmentId}, {@code fileName}, {@code assignedUserId} (uploader) are set.</li>
  *   <li>{@link TaskChangeType#ATTACHMENT_DELETED}   — {@code attachmentId}, {@code fileName} are set.</li>
+ *   <li>{@link TaskChangeType#TASK_UPDATED}         — title, description, assignee, progress, or type changed.</li>
+ *   <li>{@link TaskChangeType#PARTICIPANT_ADDED}    — {@code assignedUserId} holds the new participant's ID.</li>
+ *   <li>{@link TaskChangeType#PARTICIPANT_REMOVED}  — {@code assignedUserId} holds the removed participant's ID.</li>
+ *   <li>{@link TaskChangeType#TIMELINE_CHANGED}     — a timeline entry was manually set or deleted.</li>
  * </ul>
  */
 @Data
@@ -65,6 +69,48 @@ public class TaskChangedEvent {
     // Populated when changeType == ATTACHMENT_ADDED / ATTACHMENT_DELETED
     private UUID attachmentId;
     private String fileName;
+
+    /** Factory for task updated events (title, description, assignee, progress, type, status). */
+    public static TaskChangedEvent taskUpdated(UUID taskId, UUID assignedUserId,
+                                               UUID projectId, String taskTitle) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.assignedUserId = assignedUserId;
+        e.projectId = projectId;
+        e.taskTitle = taskTitle;
+        e.changeType = TaskChangeType.TASK_UPDATED;
+        e.changedAt = Instant.now();
+        return e;
+    }
+
+    /** Factory for participant added events. The userId is set on assignedUserId for recipient resolution. */
+    public static TaskChangedEvent participantAdded(UUID taskId, UUID userId) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.assignedUserId = userId;
+        e.changeType = TaskChangeType.PARTICIPANT_ADDED;
+        e.changedAt = Instant.now();
+        return e;
+    }
+
+    /** Factory for participant removed events. The userId is set on assignedUserId for recipient resolution. */
+    public static TaskChangedEvent participantRemoved(UUID taskId, UUID userId) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.assignedUserId = userId;
+        e.changeType = TaskChangeType.PARTICIPANT_REMOVED;
+        e.changedAt = Instant.now();
+        return e;
+    }
+
+    /** Factory for timeline changed events. Only taskId is needed; no extra fields required. */
+    public static TaskChangedEvent timelineChanged(UUID taskId) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.changeType = TaskChangeType.TIMELINE_CHANGED;
+        e.changedAt = Instant.now();
+        return e;
+    }
 
     /** Factory for task created events. */
     public static TaskChangedEvent taskCreated(UUID taskId, UUID assignedUserId,

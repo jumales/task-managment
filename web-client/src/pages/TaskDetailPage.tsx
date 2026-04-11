@@ -14,6 +14,7 @@ import { useTaskParticipants } from '../hooks/useTaskParticipants';
 import { useTaskComments }     from '../hooks/useTaskComments';
 import { useTaskPhaseChange }    from '../hooks/useTaskPhaseChange';
 import { useTaskAttachments }    from '../hooks/useTaskAttachments';
+import { useTaskRealtime }       from '../hooks/useTaskRealtime';
 import { TaskOverviewCard }      from '../components/taskDetail/TaskOverviewCard';
 import { TaskPhaseChangeModal }  from '../components/taskDetail/TaskPhaseChangeModal';
 import { TaskTimelineTab }       from '../components/taskDetail/TaskTimelineTab';
@@ -74,6 +75,16 @@ export function TaskDetailPage() {
   const participants = useTaskParticipants(id,  participantsData);
   const comments     = useTaskComments(id,      commentsData);
   const attachments  = useTaskAttachments(id,   attachmentsData);
+
+  useTaskRealtime(id, {
+    onTaskUpdated:         (t)  => setData((prev) => prev ? { ...prev, task: t }          : null),
+    onTimelinesUpdated:    (ts) => setData((prev) => prev ? { ...prev, timelines: ts }     : null),
+    onPlannedUpdated:      (pw) => setData((prev) => prev ? { ...prev, plannedWork: pw }   : null),
+    onBookedUpdated:       (bw) => setData((prev) => prev ? { ...prev, bookedWork: bw }    : null),
+    onParticipantsUpdated: (ps) => setData((prev) => prev ? { ...prev, participants: ps }  : null),
+    onCommentsUpdated:     (cs) => setData((prev) => prev ? { ...prev, comments: cs }      : null),
+    onAttachmentsUpdated:  (at) => setData((prev) => prev ? { ...prev, attachments: at }   : null),
+  });
 
   if (loading) return <div style={{ textAlign: 'center', marginTop: 80 }}><Spin size="large" /></div>;
   if (error)   return <Alert type="error" message={error} style={{ margin: 24 }} />;

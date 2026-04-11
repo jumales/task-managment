@@ -3,6 +3,7 @@ package com.demo.notification.consumer;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.notification.service.NotificationService;
+import com.demo.notification.service.TaskPushService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -18,15 +19,20 @@ public class TaskEventNotificationConsumer {
     private static final Logger log = LoggerFactory.getLogger(TaskEventNotificationConsumer.class);
 
     private final NotificationService notificationService;
+    private final TaskPushService taskPushService;
 
-    public TaskEventNotificationConsumer(NotificationService notificationService) {
+    public TaskEventNotificationConsumer(NotificationService notificationService,
+                                         TaskPushService taskPushService) {
         this.notificationService = notificationService;
+        this.taskPushService = taskPushService;
     }
 
-    /** Receives a task change event from Kafka and triggers an email notification. */
+    /** Receives a task change event from Kafka, triggers an email notification, and pushes via WebSocket. */
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "notification-group", concurrency = "3")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
         notificationService.notify(event);
+        // notify() is @Async so this executes immediately in the consumer thread — no blocking risk
+        taskPushService.push(event.getTaskId(), event.getChangeType());
     }
 }

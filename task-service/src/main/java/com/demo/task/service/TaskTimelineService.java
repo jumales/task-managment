@@ -5,11 +5,13 @@ import com.demo.common.dto.TaskTimelineRequest;
 import com.demo.common.dto.TaskTimelineResponse;
 import com.demo.common.dto.TimelineState;
 import com.demo.common.dto.UserDto;
+import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
 import com.demo.task.model.Task;
 import com.demo.task.model.TaskTimeline;
+import com.demo.task.outbox.OutboxWriter;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
 import org.springframework.stereotype.Service;
@@ -45,17 +47,20 @@ public class TaskTimelineService {
     private final TaskPhaseService phaseService;
     private final UserClient userClient;
     private final UserClientHelper userClientHelper;
+    private final OutboxWriter outboxWriter;
 
     public TaskTimelineService(TaskTimelineRepository repository,
                                TaskRepository taskRepository,
                                TaskPhaseService phaseService,
                                UserClient userClient,
-                               UserClientHelper userClientHelper) {
+                               UserClientHelper userClientHelper,
+                               OutboxWriter outboxWriter) {
         this.repository = repository;
         this.taskRepository = taskRepository;
         this.phaseService = phaseService;
         this.userClient = userClient;
         this.userClientHelper = userClientHelper;
+        this.outboxWriter = outboxWriter;
     }
 
     /** Returns all active timeline entries for the given task, enriched with user display names. */
@@ -83,6 +88,7 @@ public class TaskTimelineService {
                 .orElseGet(() -> createEntry(taskId, state, request));
 
         TaskTimeline saved = repository.save(entry);
+        outboxWriter.write(TaskChangedEvent.timelineChanged(taskId));
         return toResponse(saved, user.getName());
     }
 
@@ -97,6 +103,7 @@ public class TaskTimelineService {
         TaskTimeline entry = repository.findByTaskIdAndState(taskId, state)
                 .orElseThrow(() -> new ResourceNotFoundException("TaskTimeline state " + state + " on task", taskId));
         repository.deleteById(entry.getId());
+        outboxWriter.write(TaskChangedEvent.timelineChanged(taskId));
     }
 
     /**
