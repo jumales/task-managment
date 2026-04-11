@@ -1,7 +1,7 @@
 import apiClient from './client';
 import type {
   PageResponse,
-  TaskParticipantRequest, TaskParticipantResponse,
+  TaskParticipantResponse,
   TaskResponse, TaskFullResponse, TaskSummaryResponse, TaskRequest,
   TaskCommentResponse,
   TaskProjectResponse, TaskProjectRequest,
