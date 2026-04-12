@@ -1,5 +1,6 @@
 package com.demo.task.controller;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.task.service.TaskProjectService;
@@ -9,11 +10,12 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Projects", description = "Manage task projects. Every task belongs to exactly one project.")
@@ -27,12 +29,12 @@ public class TaskProjectController {
         this.service = service;
     }
 
-    /** Returns all projects. */
-    @Operation(summary = "List all projects")
+    /** Returns a page of projects. Supports {@code ?page}, {@code ?size}, and {@code ?sort} query params. */
+    @Operation(summary = "List projects (paginated)")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public List<TaskProjectResponse> getAll() {
-        return service.findAll();
+    public PageResponse<TaskProjectResponse> getAll(@PageableDefault(size = 50, sort = "name") Pageable pageable) {
+        return service.findAll(pageable);
     }
 
     /** Returns the project identified by {@code id}. */

@@ -36,7 +36,7 @@ public class OutboxPublisher {
     @Scheduled(fixedDelay = 5000)
     @Transactional
     public void publishPending() {
-        List<OutboxEvent> pending = outboxRepository.findByPublishedFalse();
+        List<OutboxEvent> pending = outboxRepository.findUnpublishedForUpdate();
         List<OutboxEvent> published = new ArrayList<>();
         for (OutboxEvent event : pending) {
             try {

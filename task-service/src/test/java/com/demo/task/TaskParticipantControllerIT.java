@@ -1,5 +1,6 @@
 package com.demo.task;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskBookedWorkRequest;
 import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskParticipantResponse;
@@ -31,6 +32,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -209,8 +211,9 @@ class TaskParticipantControllerIT {
         taskReq.setDescription("desc");
         taskReq.setStatus(TaskStatus.TODO);
         taskReq.setAssignedUserId(BOB_ID);
-        taskReq.setProjectId(restTemplate.getForEntity("/api/v1/projects", TaskProjectResponse[].class)
-                .getBody()[0].getId());
+        taskReq.setProjectId(restTemplate.exchange("/api/v1/projects", HttpMethod.GET, null,
+                new ParameterizedTypeReference<PageResponse<TaskProjectResponse>>() {})
+                .getBody().getContent().get(0).getId());
         taskReq.setPhaseId(phaseId);
         taskReq.setType(TaskType.FEATURE);
         taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
@@ -309,8 +312,9 @@ class TaskParticipantControllerIT {
         taskReq.setDescription("desc");
         taskReq.setStatus(TaskStatus.TODO);
         taskReq.setAssignedUserId(ALICE_ID);
-        taskReq.setProjectId(restTemplate.getForEntity("/api/v1/projects", TaskProjectResponse[].class)
-                .getBody()[0].getId());
+        taskReq.setProjectId(restTemplate.exchange("/api/v1/projects", HttpMethod.GET, null,
+                new ParameterizedTypeReference<PageResponse<TaskProjectResponse>>() {})
+                .getBody().getContent().get(0).getId());
         taskReq.setPhaseId(phaseId);
         taskReq.setType(TaskType.FEATURE);
         taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));

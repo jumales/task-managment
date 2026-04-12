@@ -1,5 +1,6 @@
 package com.demo.task.service;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.exception.RelatedEntityActiveException;
@@ -8,6 +9,8 @@ import com.demo.task.model.TaskPhase;
 import com.demo.task.model.TaskProject;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +34,16 @@ public class TaskProjectService {
         this.phaseService = phaseService;
     }
 
-    /** Returns all projects. */
-    public List<TaskProjectResponse> findAll() {
-        return repository.findAll().stream().map(this::toResponse).toList();
+    /** Returns a page of projects sorted and limited by the given {@link Pageable}. */
+    public PageResponse<TaskProjectResponse> findAll(Pageable pageable) {
+        Page<TaskProject> page = repository.findAll(pageable);
+        return new PageResponse<>(
+                page.getContent().stream().map(this::toResponse).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast());
     }
 
     /** Returns the project with the given ID, or throws {@link ResourceNotFoundException}. */

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -62,7 +63,11 @@ public class FileService {
         validateFile(file, bucketConfig);
 
         UUID fileId = generateUuidV7();
-        String objectKey = fileId + "_" + file.getOriginalFilename();
+        // Strip directory components (e.g. "../") to prevent path-traversal in the MinIO object key.
+        String safeFilename = Paths.get(file.getOriginalFilename() != null ? file.getOriginalFilename() : "upload")
+                .getFileName()
+                .toString();
+        String objectKey = fileId + "_" + safeFilename;
         String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
         putObject(file, bucket, objectKey, contentType);
@@ -72,7 +77,7 @@ public class FileService {
                 .bucket(bucket)
                 .objectKey(objectKey)
                 .contentType(contentType)
-                .originalFilename(file.getOriginalFilename())
+                .originalFilename(safeFilename)
                 .uploadedBy(uploader)
                 .uploadedAt(Instant.now())
                 .build();

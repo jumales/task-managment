@@ -2,6 +2,7 @@ package com.demo.task.outbox;
 
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
+import com.demo.task.model.OutboxAggregateType;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.repository.OutboxRepository;
@@ -18,8 +19,6 @@ import java.time.Instant;
  */
 @Component
 public class OutboxWriter {
-
-    private static final String AGGREGATE_TYPE = "Task";
 
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
@@ -38,7 +37,7 @@ public class OutboxWriter {
     public void write(TaskChangedEvent event) {
         try {
             outboxRepository.save(OutboxEvent.builder()
-                    .aggregateType(AGGREGATE_TYPE)
+                    .aggregateType(OutboxAggregateType.TASK)
                     .aggregateId(event.getTaskId())
                     .eventType(OutboxEventType.TASK_CHANGED)
                     .topic(KafkaTopics.TASK_CHANGED)

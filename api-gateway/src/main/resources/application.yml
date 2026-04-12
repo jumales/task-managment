@@ -22,7 +22,7 @@ spring:
       # Deny requests with no resolved rate-limit key (should not happen since all routes require auth)
       filter:
         request-rate-limiter:
-          deny-empty-key: false
+          deny-empty-key: true
       routes:
         # Rate-limited: GET /api/v1/users/** — 60 req/min per user to prevent enumeration
         # replenishRate 1/s, requestedTokens 1 → 60/min, burst up to 10

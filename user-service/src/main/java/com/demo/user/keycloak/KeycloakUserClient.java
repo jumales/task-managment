@@ -89,23 +89,18 @@ public class KeycloakUserClient implements KeycloakUserPort {
                 .bodyToMono(USER_LIST_TYPE)
                 .block();
 
-        // Count all enabled WEB_APP users (brief representation keeps the payload small).
-        List<Map<String, Object>> allBrief = webClient.get()
-                .uri(u -> u.path("/roles/" + ROLE_WEB_APP + "/users")
-                        .queryParam("briefRepresentation", true)
-                        .queryParam("max", Integer.MAX_VALUE)
-                        .build())
+        // Count all WEB_APP role members via the lightweight count endpoint (no payload to parse).
+        Long countResult = webClient.get()
+                .uri("/roles/" + ROLE_WEB_APP + "/users/count")
                 .retrieve()
-                .bodyToMono(USER_LIST_TYPE)
+                .bodyToMono(Long.class)
                 .block();
 
         List<UserDto> users = pageReps == null ? List.of() : pageReps.stream()
                 .filter(this::isHumanUser)
                 .map(this::toDto)
                 .toList();
-        long totalElements = allBrief == null ? 0 : allBrief.stream()
-                .filter(this::isHumanUser)
-                .count();
+        long totalElements = countResult != null ? countResult : 0L;
         int totalPages = size == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
         boolean isLast = (offset + size) >= totalElements;
 
