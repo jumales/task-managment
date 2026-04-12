@@ -58,6 +58,9 @@ spring:
           keycloak:
             token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/demo/protocol/openid-connect/token}
 
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4173}
+
 app:
   # Base URL of the frontend — used to build {taskUrl} in notification templates
   frontend-url: http://localhost:3000

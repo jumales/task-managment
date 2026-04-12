@@ -75,13 +75,10 @@ public class HoursReportService {
         projectIds.addAll(booked.keySet());
         if (projectIds.isEmpty()) return List.of();
 
-        // Pick an arbitrary task per project to fetch the project name (report_tasks is the read-model).
+        // Fetch project names with a targeted query — avoids loading the full report_tasks table.
         Map<UUID, String> projectNames = new HashMap<>();
-        taskRepository.findAll().forEach(t -> {
-            if (t.getProjectId() != null && !projectNames.containsKey(t.getProjectId())) {
-                projectNames.put(t.getProjectId(), t.getProjectName());
-            }
-        });
+        taskRepository.findProjectNamesByIds(projectIds)
+                .forEach(row -> projectNames.put((UUID) row[0], (String) row[1]));
 
         return projectIds.stream()
                 .map(id -> new ProjectHoursResponse(

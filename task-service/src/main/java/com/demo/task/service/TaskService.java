@@ -28,6 +28,7 @@ import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
+import com.demo.task.model.OutboxAggregateType;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.Task;
@@ -56,8 +57,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class TaskService {
-
-    private static final String AGGREGATE_TYPE = "Task";
 
     private final TaskRepository repository;
     private final TaskCommentRepository commentRepository;
@@ -503,7 +502,7 @@ public class TaskService {
     private void writeLifecycleToOutbox(UUID taskId, OutboxEventType eventType, TaskEvent event) {
         try {
             outboxRepository.save(OutboxEvent.builder()
-                    .aggregateType(AGGREGATE_TYPE)
+                    .aggregateType(OutboxAggregateType.TASK)
                     .aggregateId(taskId)
                     .eventType(eventType)
                     .topic(KafkaTopics.TASK_EVENTS)

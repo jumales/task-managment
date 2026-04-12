@@ -19,8 +19,8 @@ public class OutboxEvent {
     @UuidGenerator(style = UuidGenerator.Style.TIME)
     private UUID id;
 
-    //TODO: aggregateType maybe enum?
-    private String aggregateType;  // e.g. "Task"
+    @Enumerated(EnumType.STRING)
+    private OutboxAggregateType aggregateType;
     private UUID aggregateId;
     @Enumerated(EnumType.STRING)
     private OutboxEventType eventType;

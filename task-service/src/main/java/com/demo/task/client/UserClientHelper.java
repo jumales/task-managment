@@ -58,26 +58,6 @@ public class UserClientHelper {
     }
 
     /**
-     * Resolves the user-service UUID for the given Keycloak preferred_username.
-     *
-     * @deprecated No longer called from within this service — Keycloak UUIDs are resolved
-     *             directly from the JWT {@code sub} claim via {@link #resolveUserId}.
-     *             Kept for backwards-compatible tooling or manual Postman lookups.
-     */
-    @Deprecated
-    @Cacheable(value = CacheConfig.USER_NAMES, key = "'username:' + #username", unless = "#result == null")
-    @CircuitBreaker(name = "userService", fallbackMethod = "resolveUserIdByUsernameFallback")
-    public UUID resolveUserIdByUsername(String username) {
-        if (username == null) return null;
-        return userClient.getUserByUsername(username).getId();
-    }
-
-    private UUID resolveUserIdByUsernameFallback(String username, Throwable t) {
-        log.warn("user-service circuit open — cannot resolve user ID for username {}: {}", username, t.getMessage());
-        return null;
-    }
-
-    /**
      * Returns the display name of a single user, or {@code null} if the user is not found
      * or user-service is unavailable. Result is cached to avoid repeated remote calls.
      * Falls back to email, then username, if the user has no display name set.

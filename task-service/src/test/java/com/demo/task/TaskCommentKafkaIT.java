@@ -178,7 +178,7 @@ class TaskCommentKafkaIT {
         addComment(task.getId(), "Published comment");
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(outboxRepository.findByPublishedFalse()).isEmpty()
+                assertThat(outboxRepository.findUnpublishedForUpdate()).isEmpty()
         );
     }
 

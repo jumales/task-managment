@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** Spring Data access for the reporting read-model of tasks. */
@@ -44,4 +45,12 @@ public interface ReportTaskRepository extends JpaRepository<ReportTask, UUID> {
     /** Finished tasks updated on or after the given cutoff, newest first. */
     List<ReportTask> findByAssignedUserIdAndUpdatedAtGreaterThanEqualAndPhaseNameInOrderByUpdatedAtDesc(
             UUID assignedUserId, Instant updatedAtCutoff, Collection<String> phaseNames);
+
+    /**
+     * Returns distinct (projectId, projectName) pairs for the given project IDs.
+     * Used by {@code HoursReportService.byProject()} to avoid a full table scan.
+     * Each element is a two-element Object array: {@code [UUID projectId, String projectName]}.
+     */
+    @Query("SELECT DISTINCT t.projectId, t.projectName FROM ReportTask t WHERE t.projectId IN :ids")
+    List<Object[]> findProjectNamesByIds(@Param("ids") Set<UUID> ids);
 }
