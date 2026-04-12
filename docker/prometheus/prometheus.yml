@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # Discovers all services registered in Eureka (api-gateway + 7 business services).
+  # Services run on the HOST; Prometheus runs in Docker.
+  # host.docker.internal resolves to the host from Docker Desktop (macOS)
+  # and from the host-gateway alias added via extra_hosts in docker-compose.yml (Linux).
+  - job_name: 'spring-services'
+    eureka_sd_configs:
+      - server: 'http://host.docker.internal:8761/eureka/v2'
+        refresh_interval: 30s
+    relabel_configs:
+      # Services register with their LAN IP which is unreachable from inside Docker.
+      # Strip the IP portion, keep only the port, prepend host.docker.internal.
+      - source_labels: [__address__]
+        regex: '[^:]+:(\d+)'
+        target_label: __address__
+        replacement: 'host.docker.internal:$1'
+      # Actuator Prometheus endpoint is at /actuator/prometheus, not /.
+      - target_label: __metrics_path__
+        replacement: /actuator/prometheus
+      # Carry the Eureka app name as a readable label on every time series.
+      - source_labels: [__meta_eureka_app_name]
+        target_label: application
+
+  # Eureka server does not register itself in its own registry — use a static scrape job.
+  - job_name: 'eureka-server'
+    static_configs:
+      - targets: ['host.docker.internal:8761']
+    metrics_path: /actuator/prometheus
+
+  # Prometheus self-monitoring.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
