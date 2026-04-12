@@ -76,6 +76,13 @@ public class TaskProjectService {
      * Atomically reserves the next sequential task code for the given project.
      * Acquires a pessimistic write lock, increments the counter, and returns the new code
      * (e.g. "PROJ_5"). Must be called within an active transaction.
+     *
+     * <p><strong>Call ordering requirement:</strong> this method must be called
+     * <em>before</em> any plain {@code findById} / {@code getOrThrow} call for the same
+     * project within the enclosing transaction. Hibernate's L1 session cache intercepts
+     * the {@code SELECT … FOR UPDATE} query and returns the already-loaded entity without
+     * hitting the database, which skips the row lock. Calling this first guarantees the
+     * entity is not yet in the cache so the lock SQL always executes.
      */
     @Transactional
     String nextTaskCode(UUID projectId) {

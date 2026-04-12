@@ -61,6 +61,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Actuator health and metrics are open — consumed by Docker, Prometheus, and load balancers
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/prometheus").permitAll()
                         .requestMatchers(HttpMethod.POST, "/**").hasAnyRole(WRITE_ROLES)
                         .requestMatchers(HttpMethod.PUT, "/**").hasAnyRole(WRITE_ROLES)
                         .requestMatchers(HttpMethod.PATCH, "/**").hasAnyRole(WRITE_ROLES)

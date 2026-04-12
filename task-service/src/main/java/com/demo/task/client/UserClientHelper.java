@@ -112,8 +112,11 @@ public class UserClientHelper {
 
     /**
      * Fetches the full {@link UserDto} for a single user.
-     * Returns {@code null} if the user is not found or user-service is unavailable.
+     * Result is cached to avoid repeated remote calls when the same users are referenced
+     * across many concurrent task operations. Returns {@code null} if the user is not
+     * found or user-service is unavailable (circuit open).
      */
+    @Cacheable(value = CacheConfig.USER_DTOS, key = "#userId", unless = "#result == null")
     @CircuitBreaker(name = "userService", fallbackMethod = "fetchUserFallback")
     public UserDto fetchUser(UUID userId) {
         if (userId == null) return null;

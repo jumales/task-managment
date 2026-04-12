@@ -23,4 +23,8 @@ public interface UserClient {
     /** Looks up a user by their username; used to resolve the caller's user-service UUID from a JWT preferred_username claim. */
     @GetMapping("/api/v1/users/by-username")
     UserDto getUserByUsername(@RequestParam("username") String username);
+
+    /** Fetches a paginated list of users; used for cache warmup at startup. */
+    @GetMapping("/api/v1/users")
+    UserPageResponse getUsers(@RequestParam("page") int page, @RequestParam("size") int size);
 }
