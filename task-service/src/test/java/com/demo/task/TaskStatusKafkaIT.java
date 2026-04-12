@@ -169,10 +169,16 @@ class TaskStatusKafkaIT {
 
     // ── Helpers ───────────────────────────────────────────────────
 
-    /** Returns only outbox events for the {@code task-changed} topic (audit events). */
+    /**
+     * Returns only STATUS_CHANGED outbox events on the {@code task-changed} topic.
+     * {@code update()} also writes a TASK_UPDATED event on every call (for search-service
+     * index freshness), so we filter by payload content to isolate the status-change events
+     * that these tests care about.
+     */
     private java.util.List<OutboxEvent> changedEvents() {
         return outboxRepository.findAll().stream()
                 .filter(e -> KafkaTopics.TASK_CHANGED.equals(e.getTopic()))
+                .filter(e -> e.getPayload().contains(com.demo.common.event.TaskChangeType.STATUS_CHANGED.name()))
                 .toList();
     }
 

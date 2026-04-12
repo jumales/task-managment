@@ -10,9 +10,9 @@
  *   - k6 installed: brew install k6
  *
  * Usage:
- *   k6 run learning/k6-load-test.js
- *   k6 run --vus 50 --duration 1m learning/k6-load-test.js   # quick smoke test
- *   k6 run learning/k6-load-test.js --out json=results.json   # export raw results
+ *   k6 run scripts/k6-load-test.js
+ *   k6 run --vus 50 --duration 1m scripts/k6-load-test.js   # quick smoke test
+ *   k6 run scripts/k6-load-test.js --out json=results.json   # export raw results
  *
  * User roles and workflows:
  *   Write-capable roles (ADMIN, DEVELOPER, QA, DEVOPS, PM) — full workflow:

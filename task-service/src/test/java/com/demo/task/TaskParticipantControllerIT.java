@@ -7,6 +7,7 @@ import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
+import com.demo.common.dto.TaskPhaseUpdateRequest;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -166,6 +167,14 @@ class TaskParticipantControllerIT {
 
     @Test
     void watch_addsAuthenticatedUserAsWatcher() {
+        // TEST_USER_ID is already CREATOR because they created the task in @BeforeEach.
+        // Remove that entry so the user is a clean non-participant and the watch endpoint
+        // can add them as a fresh WATCHER.
+        participantRepository.findByTaskId(UUID.fromString(taskId))
+                .stream()
+                .filter(p -> p.getUserId().equals(TestSecurityConfig.TEST_USER_ID))
+                .forEach(p -> participantRepository.deleteById(p.getId()));
+
         ResponseEntity<TaskParticipantResponse> response = restTemplate.postForEntity(
                 "/api/v1/tasks/" + taskId + "/participants/watch",
                 null,
@@ -328,6 +337,13 @@ class TaskParticipantControllerIT {
 
     @Test
     void createBookedWork_autoAddsUserAsContributor() {
+        // Tasks start in PLANNING phase; booked work is blocked in PLANNING.
+        // Advance to BACKLOG so the booked-work call is allowed.
+        TaskPhaseUpdateRequest phaseUpdate = new TaskPhaseUpdateRequest();
+        phaseUpdate.setPhaseId(phaseId);
+        restTemplate.exchange("/api/v1/tasks/" + taskId + "/phase",
+                HttpMethod.PATCH, new HttpEntity<>(phaseUpdate), TaskResponse.class);
+
         // Remove TEST_USER_ID's CREATOR entry so they are fresh on this task
         participantRepository.findByTaskId(UUID.fromString(taskId))
                 .stream()

@@ -309,12 +309,14 @@ class TaskControllerIT {
     }
 
     @Test
-    void createTask_withNonExistentUser_returns500() {
+    void createTask_withNonExistentUser_returns404() {
+        // UserClientHelper.fetchUser() catches the exception via circuit-breaker fallback and returns null,
+        // which causes TaskService.create() to throw ResourceNotFoundException → 404.
         when(userClient.getUserById(any(UUID.class))).thenThrow(new RuntimeException("User not found"));
 
         ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/tasks", request("Ghost task", "desc", TaskStatus.TODO, UUID.randomUUID()), String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(repository.count()).isEqualTo(0);
     }
 
