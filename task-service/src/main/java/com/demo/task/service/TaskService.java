@@ -209,13 +209,24 @@ public class TaskService {
     @Transactional
     public TaskResponse create(TaskRequest request, UUID creatorId) {
         validatePlannedDates(request.getPlannedStart(), request.getPlannedEnd());
-        UserDto user = userClient.getUserById(request.getAssignedUserId());
+        // fetchUser is cached (Caffeine, 10 min TTL) so repeated calls for the same user
+        // are served from memory — user-service is only hit once per unique user ID.
+        UserDto user = userClientHelper.fetchUser(request.getAssignedUserId());
+        if (user == null) {
+            throw new ResourceNotFoundException("User", request.getAssignedUserId());
+        }
+
+        // nextTaskCode MUST be called before getOrThrow so the project entity is not yet
+        // in the Hibernate L1 session cache. If getOrThrow ran first, Hibernate would serve
+        // the cached entity for the subsequent SELECT … FOR UPDATE query inside nextTaskCode,
+        // skipping the row lock and causing duplicate task codes under concurrent load.
+        String taskCode = projectService.nextTaskCode(request.getProjectId());
+
+        // getOrThrow returns the entity now cached by nextTaskCode (cache hit, no extra query).
         TaskProject project = projectService.getOrThrow(request.getProjectId());
 
         // Every new task starts in the PLANNING phase; any phaseId in the request is ignored.
         UUID phaseId = phaseService.findPlanningPhaseOrThrow(project.getId()).getId();
-
-        String taskCode = projectService.nextTaskCode(request.getProjectId());
 
         Task task = Task.builder()
                 .title(request.getTitle())
@@ -229,7 +240,6 @@ public class TaskService {
                 .taskCode(taskCode)
                 .build();
         Task saved = repository.save(task);
-        //TODO all three items (creator, assignee, timeline) needs to be done async without blocking thread
         participantService.setCreator(saved.getId(), creatorId);
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         timelineService.createInitialTimelines(saved.getId(), request.getPlannedStart(), request.getPlannedEnd(), creatorId);

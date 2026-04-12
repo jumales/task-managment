@@ -5,6 +5,8 @@ providers:
     folder: Task Management
     type: file
     disableDeletion: true
-    editable: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
     options:
       path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

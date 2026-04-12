@@ -8,7 +8,6 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.BusinessLogicException;
 import com.demo.common.exception.ResourceNotFoundException;
-import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
 import com.demo.task.model.Task;
 import com.demo.task.model.TaskBookedWork;
@@ -39,7 +38,6 @@ public class TaskBookedWorkService {
     private final TaskBookedWorkRepository repository;
     private final TaskRepository taskRepository;
     private final TaskPhaseService phaseService;
-    private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
     private final TaskParticipantService participantService;
@@ -47,14 +45,12 @@ public class TaskBookedWorkService {
     public TaskBookedWorkService(TaskBookedWorkRepository repository,
                                  TaskRepository taskRepository,
                                  TaskPhaseService phaseService,
-                                 UserClient userClient,
                                  UserClientHelper userClientHelper,
                                  OutboxWriter outboxWriter,
                                  TaskParticipantService participantService) {
         this.repository = repository;
         this.taskRepository = taskRepository;
         this.phaseService = phaseService;
-        this.userClient = userClient;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
         this.participantService = participantService;
@@ -72,6 +68,10 @@ public class TaskBookedWorkService {
      * Blocked when the task is in PLANNING phase — use planned work for estimates instead.
      * Blocked when the task is in RELEASED or REJECTED phase — fully finished tasks are immutable.
      * Publishes a BOOKED_WORK_CREATED audit event.
+     *
+     * <p>Uses {@link UserClientHelper#fetchUser} (Caffeine cache + circuit breaker) instead of
+     * calling the Feign client directly, so repeated lookups for the same user are served from
+     * memory and the service degrades gracefully when user-service is temporarily unavailable.
      */
     @Transactional
     public TaskBookedWorkResponse create(UUID taskId, UUID userId, TaskBookedWorkRequest request) {
@@ -79,7 +79,10 @@ public class TaskBookedWorkService {
         TaskPhaseName phaseName = resolvePhaseName(task);
         validateNotPlanningPhase(phaseName);
         validateNotFinished(phaseName);
-        UserDto user = userClient.getUserById(userId);
+        UserDto user = userClientHelper.fetchUser(userId);
+        if (user == null) {
+            throw new ResourceNotFoundException("User", userId);
+        }
         TaskBookedWork saved = repository.save(TaskBookedWork.builder()
                 .taskId(taskId)
                 .userId(userId)
@@ -108,7 +111,10 @@ public class TaskBookedWorkService {
         validateNotPlanningPhase(phaseName);
         validateNotFinished(phaseName);
         TaskBookedWork entry = getOrThrow(bookedWorkId);
-        UserDto user = userClient.getUserById(userId);
+        UserDto user = userClientHelper.fetchUser(userId);
+        if (user == null) {
+            throw new ResourceNotFoundException("User", userId);
+        }
         entry.setUserId(userId);
         entry.setWorkType(request.getWorkType());
         entry.setBookedHours(request.getBookedHours() != null ? request.getBookedHours().intValue() : 0);
