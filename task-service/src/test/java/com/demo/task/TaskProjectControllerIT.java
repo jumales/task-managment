@@ -89,11 +89,12 @@ class TaskProjectControllerIT {
 
     @Test
     void getAllProjects_whenEmpty_returnsEmptyList() {
-        ResponseEntity<TaskProjectResponse[]> response =
-                restTemplate.getForEntity("/api/v1/projects", TaskProjectResponse[].class);
+        ResponseEntity<PageResponse<TaskProjectResponse>> response =
+                restTemplate.exchange("/api/v1/projects", HttpMethod.GET, null,
+                        new ParameterizedTypeReference<>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEmpty();
+        assertThat(response.getBody().getContent()).isEmpty();
     }
 
     @Test
@@ -101,12 +102,13 @@ class TaskProjectControllerIT {
         createProject("Alpha", "First project");
         createProject("Beta", "Second project");
 
-        ResponseEntity<TaskProjectResponse[]> response =
-                restTemplate.getForEntity("/api/v1/projects", TaskProjectResponse[].class);
+        ResponseEntity<PageResponse<TaskProjectResponse>> response =
+                restTemplate.exchange("/api/v1/projects", HttpMethod.GET, null,
+                        new ParameterizedTypeReference<>() {});
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).hasSize(2);
-        assertThat(response.getBody()).extracting("name")
+        assertThat(response.getBody().getContent()).hasSize(2);
+        assertThat(response.getBody().getContent()).extracting("name")
                 .containsExactlyInAnyOrder("Alpha", "Beta");
     }
 
@@ -225,7 +227,8 @@ class TaskProjectControllerIT {
         restTemplate.delete("/api/v1/projects/" + created.getId());
 
         // project no longer returned by GET
-        assertThat(restTemplate.getForEntity("/api/v1/projects", TaskProjectResponse[].class).getBody()).isEmpty();
+        assertThat(restTemplate.exchange("/api/v1/projects", HttpMethod.GET, null,
+                new ParameterizedTypeReference<PageResponse<TaskProjectResponse>>() {}).getBody().getContent()).isEmpty();
         // GET by id also returns 404
         assertThat(restTemplate.getForEntity("/api/v1/projects/" + created.getId(), String.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);

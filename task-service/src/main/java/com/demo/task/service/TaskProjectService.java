@@ -1,5 +1,6 @@
 package com.demo.task.service;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.exception.RelatedEntityActiveException;
@@ -34,8 +35,15 @@ public class TaskProjectService {
     }
 
     /** Returns a page of projects sorted and limited by the given {@link Pageable}. */
-    public Page<TaskProjectResponse> findAll(Pageable pageable) {
-        return repository.findAll(pageable).map(this::toResponse);
+    public PageResponse<TaskProjectResponse> findAll(Pageable pageable) {
+        Page<TaskProject> page = repository.findAll(pageable);
+        return new PageResponse<>(
+                page.getContent().stream().map(this::toResponse).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isLast());
     }
 
     /** Returns the project with the given ID, or throws {@link ResourceNotFoundException}. */

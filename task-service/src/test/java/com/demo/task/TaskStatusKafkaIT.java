@@ -191,7 +191,7 @@ class TaskStatusKafkaIT {
         updateTask(created.getId(), TaskStatus.IN_PROGRESS);
 
         await().atMost(15, SECONDS).untilAsserted(() ->
-                assertThat(outboxRepository.findUnpublishedForUpdate()).isEmpty()
+                assertThat(outboxRepository.findByPublishedFalse()).isEmpty()
         );
         assertThat(outboxRepository.findAll().get(0).isPublished()).isTrue();
     }

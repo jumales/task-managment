@@ -1,5 +1,6 @@
 package com.demo.task.controller;
 
+import com.demo.common.dto.PageResponse;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.task.service.TaskProjectService;
@@ -9,7 +10,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -33,7 +33,7 @@ public class TaskProjectController {
     @Operation(summary = "List projects (paginated)")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public Page<TaskProjectResponse> getAll(@PageableDefault(size = 50, sort = "name") Pageable pageable) {
+    public PageResponse<TaskProjectResponse> getAll(@PageableDefault(size = 50, sort = "name") Pageable pageable) {
         return service.findAll(pageable);
     }
 

@@ -18,4 +18,12 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, UUID> {
     @Query(value = "SELECT * FROM outbox_events WHERE published = false ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100",
             nativeQuery = true)
     List<OutboxEvent> findUnpublishedForUpdate();
+
+    /**
+     * Returns all unpublished outbox events without a row lock.
+     * Safe to call outside a transaction (no SKIP LOCKED side effects).
+     * Use this in test assertions — {@link #findUnpublishedForUpdate()} uses SKIP LOCKED
+     * which can silently skip rows locked by the scheduler and produce false-positive empty results.
+     */
+    List<OutboxEvent> findByPublishedFalse();
 }
