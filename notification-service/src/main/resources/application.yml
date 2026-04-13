@@ -61,6 +61,10 @@ spring:
           keycloak:
             token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/demo/protocol/openid-connect/token}
 
+websocket:
+  security:
+    path-matcher: /ws/tasks/**
+
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4173}
 

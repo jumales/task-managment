@@ -1,13 +1,15 @@
-package com.demo.notification.config;
+package com.demo.common.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.messaging.simp.config.ChannelRegistration;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -16,10 +18,11 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 import java.util.List;
 
 /**
- * Validates JWT tokens on STOMP CONNECT frames so that only authenticated clients
- * can subscribe to task push topics. The token is read from the STOMP {@code Authorization} header.
+ * Configures STOMP WebSocket security by validating JWT tokens on CONNECT frames.
+ * Active only when Spring WebSocket is on the classpath.
  */
 @Configuration
+@ConditionalOnClass(name = "org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer")
 public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -36,11 +39,15 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
         registration.interceptors(stompAuthInterceptor());
     }
 
+    /**
+     * Intercepts STOMP CONNECT frames and validates the JWT from the Authorization header.
+     * Throws {@link JwtException} if the token is missing, malformed, or invalid.
+     */
     @Bean
     public ChannelInterceptor stompAuthInterceptor() {
         return new ChannelInterceptor() {
             @Override
-            public Message<?> preSend(Message<?> message, org.springframework.messaging.MessageChannel channel) {
+            public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor =
                         MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
