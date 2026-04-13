@@ -93,7 +93,6 @@ export function TasksPage() {
 
   const refreshDropdowns = () => {
     getProjects().then(setProjects).catch(() => setError(t('projects.failedLoad')));
-    getUsers().then((data) => setUsers(data.content)).catch(() => setError(t('users.failedLoad')));
   };
 
   useEffect(() => {

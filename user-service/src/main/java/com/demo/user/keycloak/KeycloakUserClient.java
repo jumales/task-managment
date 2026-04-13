@@ -71,40 +71,41 @@ public class KeycloakUserClient implements KeycloakUserPort {
 
     /**
      * Returns a paginated page of enabled human users that have the {@value #ROLE_WEB_APP} realm role.
-     * Uses two Keycloak calls: one for the requested page, one to count all eligible users.
+     * Keycloak 24 does not expose a {@code /roles/{role}/users/count} endpoint, so all matching users
+     * are fetched in a single call and paginated in-memory. This is acceptable because the total number
+     * of application users is small in practice.
      * Service accounts (username prefix {@code service-account-}) and disabled users are excluded.
      */
     public PageResponse<UserDto> findAll(Pageable pageable) {
         int offset = (int) pageable.getOffset();
         int size = pageable.getPageSize();
 
-        // Fetch the requested page from the WEB_APP role users endpoint.
-        List<Map<String, Object>> pageReps = webClient.get()
+        // Fetch all WEB_APP role users in one call; Keycloak 24 has no /count endpoint for role users.
+        List<Map<String, Object>> allReps = webClient.get()
                 .uri(u -> u.path("/roles/" + ROLE_WEB_APP + "/users")
-                        .queryParam("first", offset)
-                        .queryParam("max", size)
+                        .queryParam("first", 0)
+                        .queryParam("max", Integer.MAX_VALUE)
                         .queryParam("briefRepresentation", false)
                         .build())
                 .retrieve()
                 .bodyToMono(USER_LIST_TYPE)
                 .block();
 
-        // Count all WEB_APP role members via the lightweight count endpoint (no payload to parse).
-        Long countResult = webClient.get()
-                .uri("/roles/" + ROLE_WEB_APP + "/users/count")
-                .retrieve()
-                .bodyToMono(Long.class)
-                .block();
-
-        List<UserDto> users = pageReps == null ? List.of() : pageReps.stream()
+        List<UserDto> allUsers = allReps == null ? List.of() : allReps.stream()
                 .filter(this::isHumanUser)
                 .map(this::toDto)
                 .toList();
-        long totalElements = countResult != null ? countResult : 0L;
+
+        long totalElements = allUsers.size();
         int totalPages = size == 0 ? 1 : (int) Math.ceil((double) totalElements / size);
         boolean isLast = (offset + size) >= totalElements;
 
-        return new PageResponse<>(users, pageable.getPageNumber(), size, totalElements, totalPages, isLast);
+        List<UserDto> page = allUsers.stream()
+                .skip(offset)
+                .limit(size)
+                .toList();
+
+        return new PageResponse<>(page, pageable.getPageNumber(), size, totalElements, totalPages, isLast);
     }
 
     /**
@@ -121,6 +122,7 @@ public class KeycloakUserClient implements KeycloakUserPort {
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
+            //TODO: control is rep null
             return toDto(rep);
         } catch (WebClientResponseException e) {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
