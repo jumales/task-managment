@@ -136,8 +136,8 @@ pkill -f "task-managment.*java"  2>/dev/null || true
 pkill -f "web-client.*vite" 2>/dev/null || true
 pkill -f "web-client.*node" 2>/dev/null || true
 
-# Free known service ports: eureka, gateway, microservices, web-client
-for port in 8761 8080 8081 8082 8083 8084 8085 8086 3000; do
+# Free known service ports: eureka (primary + HA peer), gateway, microservices, web-client
+for port in 8761 8762 8080 8081 8082 8083 8084 8085 8086 3000; do
   pids=$(lsof -ti:"$port" 2>/dev/null) || true
   if [[ -n "$pids" ]]; then
     log "Freeing port $port (pids: $pids)"
@@ -227,6 +227,9 @@ BANNER
 fi
 
 # ── Step 3: Eureka Server (service registry — must start first) ───────────────
+# Single-node mode (default for local dev). For HA testing, start a second node:
+#   mvn spring-boot:run -pl eureka-server -Dspring-boot.run.profiles=peer2 &
+# Alternatively, run both peers via Docker: docker compose up -d eureka-peer1 eureka-peer2
 
 log "Starting eureka-server ..."
 start_service eureka-server

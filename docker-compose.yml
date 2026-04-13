@@ -53,6 +53,58 @@ services:
     networks:
       - ms-network
 
+  # ── Eureka HA peers ──────────────────────────────────────────────────────────
+  # Two peer-aware Eureka nodes that replicate the registry to each other.
+  # Run with --spring.profiles.active=peer1 / peer2 so each node knows its peer.
+  # For local dev without HA, start only eureka-server via mvn spring-boot:run.
+
+  # ── Eureka HA peers ──────────────────────────────────────────────────────────
+  # Two peer-aware Eureka nodes that replicate the registry to each other.
+  # Run with --spring.profiles.active=peer1 / peer2 so each node knows its peer.
+  # For local dev without HA, start only eureka-server via mvn spring-boot:run.
+
+  eureka-peer1:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: ms-eureka-peer1
+    command: ["java", "-jar", "/app/app.jar", "--spring.profiles.active=peer1"]
+    ports:
+      - "8761:8761"
+    depends_on:
+      - eureka-peer2
+    environment:
+      SERVER_PORT: 8761
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    networks:
+      ms-network:
+        aliases:
+          - eureka-peer1
+
+  eureka-peer2:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: ms-eureka-peer2
+    command: ["java", "-jar", "/app/app.jar", "--spring.profiles.active=peer2"]
+    ports:
+      - "8762:8762"
+    environment:
+      SERVER_PORT: 8762
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8762/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    networks:
+      ms-network:
+        aliases:
+          - eureka-peer2
+
   web-client:
     build:
       context: ./web-client

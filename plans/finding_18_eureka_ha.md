@@ -1,7 +1,7 @@
 # Finding #18 — Configure Eureka in peer-aware HA mode with two nodes
 
 ## Status
-UNRESOLVED
+RESOLVED
 
 ## Severity
 LOW — architectural SPOF; services cache the registry locally so brief outages are tolerated
