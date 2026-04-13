@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,7 +29,7 @@ public class TaskEventConsumer {
 
     /** Receives a raw JSON task event and routes it to the appropriate index operation. */
     @KafkaListener(topics = KafkaTopics.TASK_EVENTS, groupId = "search-group", concurrency = "3")
-    public void consume(String message) {
+    public void consume(String message, Acknowledgment ack) {
         try {
             TaskEvent event = objectMapper.readValue(message, TaskEvent.class);
             log.info("Received TaskEvent: task={} type={}", event.getTaskId(), event.getEventType());
@@ -37,8 +38,10 @@ public class TaskEventConsumer {
                 case CREATED, UPDATED -> indexService.index(event);
                 case DELETED           -> indexService.delete(event);
             }
+            ack.acknowledge(); // commit offset only after successful index operation
         } catch (Exception e) {
             log.error("Failed to process task event: {}", e.getMessage(), e);
+            // Do not acknowledge — offset not committed, message will be retried
         }
     }
 }

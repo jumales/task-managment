@@ -15,6 +15,7 @@ import com.demo.common.event.TaskChangedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -48,17 +49,22 @@ public class TaskEventConsumer {
 
     /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "audit-group", concurrency = "3")
-    public void consume(TaskChangedEvent event) {
+    public void consume(TaskChangedEvent event, Acknowledgment ack) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
-
-        switch (event.getChangeType()) {
-            case STATUS_CHANGED      -> persistStatusChange(event);
-            case COMMENT_ADDED       -> persistCommentChange(event);
-            case PHASE_CHANGED       -> persistPhaseChange(event);
-            case PLANNED_WORK_CREATED -> persistPlannedWorkChange(event);
-            case BOOKED_WORK_CREATED,
-                 BOOKED_WORK_UPDATED,
-                 BOOKED_WORK_DELETED -> persistBookedWorkChange(event);
+        try {
+            switch (event.getChangeType()) {
+                case STATUS_CHANGED      -> persistStatusChange(event);
+                case COMMENT_ADDED       -> persistCommentChange(event);
+                case PHASE_CHANGED       -> persistPhaseChange(event);
+                case PLANNED_WORK_CREATED -> persistPlannedWorkChange(event);
+                case BOOKED_WORK_CREATED,
+                     BOOKED_WORK_UPDATED,
+                     BOOKED_WORK_DELETED -> persistBookedWorkChange(event);
+            }
+            ack.acknowledge(); // commit offset only after successful DB write
+        } catch (Exception e) {
+            log.error("Failed to process event {}: {}", event.getTaskId(), e.getMessage(), e);
+            // Do not acknowledge — offset not committed, message will be retried
         }
     }
 
