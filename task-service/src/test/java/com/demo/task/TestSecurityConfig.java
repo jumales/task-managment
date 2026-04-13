@@ -37,7 +37,7 @@ public class TestSecurityConfig {
      * Spring Boot wires the host/port automatically via {@code @ServiceConnection}.
      */
     @Bean
-    @ServiceConnection
+    @ServiceConnection(name = "redis")
     @SuppressWarnings("resource")
     GenericContainer<?> redisContainer() {
         return new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
