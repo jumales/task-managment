@@ -1,7 +1,7 @@
 # Finding #4 — Replace per-instance Caffeine caches with Redis
 
 ## Status
-UNRESOLVED
+RESOLVED
 
 ## Severity
 HIGH — stale reads across replicas under multi-instance deployment
