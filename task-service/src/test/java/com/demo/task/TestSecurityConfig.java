@@ -1,6 +1,7 @@
 package com.demo.task;
 
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.task.SyncTaskExecutor;
@@ -12,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.testcontainers.containers.GenericContainer;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +31,17 @@ public class TestSecurityConfig {
 
     /** Fixed UUID used as the authenticated user's ID in all integration tests. */
     public static final UUID TEST_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+    /**
+     * Shared Redis container for all task-service integration tests.
+     * Spring Boot wires the host/port automatically via {@code @ServiceConnection}.
+     */
+    @Bean
+    @ServiceConnection
+    @SuppressWarnings("resource")
+    GenericContainer<?> redisContainer() {
+        return new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+    }
 
     /** Makes @Async methods run synchronously in tests so IT assertions don't race the background thread. */
     @Bean
