@@ -103,11 +103,13 @@ public class TaskService {
     /**
      * Returns a paginated summary page of tasks. When {@code includeFinished} is {@code false},
      * tasks in RELEASED or REJECTED phases are excluded from the result.
+     * Falls back to returning all tasks when no finished phases exist yet (empty database).
      */
     public PageResponse<TaskSummaryResponse> findAll(boolean includeFinished, Pageable pageable) {
-        Page<Task> page = includeFinished
+        List<UUID> finishedPhaseIds = resolveFinishedPhaseIds();
+        Page<Task> page = (includeFinished || finishedPhaseIds.isEmpty())
                 ? repository.findAll(pageable)
-                : repository.findByPhaseIdNotIn(resolveFinishedPhaseIds(), pageable);
+                : repository.findByPhaseIdNotIn(finishedPhaseIds, pageable);
         return toSummaryPageResponse(page);
     }
 
@@ -147,37 +149,43 @@ public class TaskService {
     /**
      * Returns a paginated summary page of tasks assigned to the specified user.
      * When {@code includeFinished} is {@code false}, RELEASED and REJECTED tasks are excluded.
+     * Falls back to unfiltered when no finished phases exist yet (empty database).
      */
     public PageResponse<TaskSummaryResponse> findByUser(UUID userId, boolean includeFinished, Pageable pageable) {
-        Page<Task> page = includeFinished
+        List<UUID> finishedPhaseIds = resolveFinishedPhaseIds();
+        Page<Task> page = (includeFinished || finishedPhaseIds.isEmpty())
                 ? repository.findByAssignedUserId(userId, pageable)
-                : repository.findByAssignedUserIdAndPhaseIdNotIn(userId, resolveFinishedPhaseIds(), pageable);
+                : repository.findByAssignedUserIdAndPhaseIdNotIn(userId, finishedPhaseIds, pageable);
         return toSummaryPageResponse(page);
     }
 
     /**
      * Returns a paginated summary page of tasks whose status matches the given value (case-insensitive).
      * When {@code includeFinished} is {@code false}, RELEASED and REJECTED tasks are excluded.
+     * Falls back to unfiltered when no finished phases exist yet (empty database).
      *
      * @param status string representation of {@link TaskStatus}
      */
     public PageResponse<TaskSummaryResponse> findByStatus(String status, boolean includeFinished, Pageable pageable) {
         TaskStatus taskStatus = TaskStatus.valueOf(status.toUpperCase());
-        Page<Task> page = includeFinished
+        List<UUID> finishedPhaseIds = resolveFinishedPhaseIds();
+        Page<Task> page = (includeFinished || finishedPhaseIds.isEmpty())
                 ? repository.findByStatus(taskStatus, pageable)
-                : repository.findByStatusAndPhaseIdNotIn(taskStatus, resolveFinishedPhaseIds(), pageable);
+                : repository.findByStatusAndPhaseIdNotIn(taskStatus, finishedPhaseIds, pageable);
         return toSummaryPageResponse(page);
     }
 
     /**
      * Returns a paginated summary page of tasks belonging to the specified project.
      * When {@code includeFinished} is {@code false}, RELEASED and REJECTED tasks are excluded.
+     * Falls back to unfiltered when no finished phases exist yet (empty database).
      */
     public PageResponse<TaskSummaryResponse> findByProject(UUID projectId, boolean includeFinished, Pageable pageable) {
         projectService.getOrThrow(projectId);
-        Page<Task> page = includeFinished
+        List<UUID> finishedPhaseIds = resolveFinishedPhaseIds();
+        Page<Task> page = (includeFinished || finishedPhaseIds.isEmpty())
                 ? repository.findByProjectId(projectId, pageable)
-                : repository.findByProjectIdAndPhaseIdNotIn(projectId, resolveFinishedPhaseIds(), pageable);
+                : repository.findByProjectIdAndPhaseIdNotIn(projectId, finishedPhaseIds, pageable);
         return toSummaryPageResponse(page);
     }
 
@@ -189,12 +197,16 @@ public class TaskService {
     /**
      * Returns a paginated summary page of tasks filtered by completion status.
      * {@code FINISHED} returns tasks in RELEASED or REJECTED phase; {@code DEV_FINISHED} returns tasks in DONE phase.
+     * Returns an empty page when no matching phases exist yet (empty database).
      */
     public PageResponse<TaskSummaryResponse> findByCompletionStatus(TaskCompletionStatus status, Pageable pageable) {
         Set<TaskPhaseName> phaseNames = status == TaskCompletionStatus.FINISHED
                 ? TaskPhaseName.FINISHED_PHASES
                 : Set.of(TaskPhaseName.DONE);
         List<UUID> phaseIds = phaseService.findIdsByNameIn(phaseNames);
+        if (phaseIds.isEmpty()) {
+            return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0, true);
+        }
         return toSummaryPageResponse(repository.findByPhaseIdIn(phaseIds, pageable));
     }
 

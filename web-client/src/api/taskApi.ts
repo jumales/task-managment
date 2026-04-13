@@ -126,7 +126,7 @@ export function deleteTimeline(taskId: string, state: TimelineState) {
 
 /** Fetches all projects. */
 export function getProjects() {
-  return apiClient.get<TaskProjectResponse[]>(PROJECTS_URL).then((r) => r.data);
+  return apiClient.get<PageResponse<TaskProjectResponse>>(PROJECTS_URL).then((r) => r.data.content);
 }
 
 /** Creates a new project. */
