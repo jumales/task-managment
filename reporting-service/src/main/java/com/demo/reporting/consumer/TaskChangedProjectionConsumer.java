@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
@@ -42,8 +43,9 @@ public class TaskChangedProjectionConsumer {
         this.pushService = pushService;
     }
 
+    /** Receives a task changed event from Kafka and updates the reporting planned/booked work projections. */
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "reporting-group", concurrency = "3")
-    public void consume(String message) {
+    public void consume(String message, Acknowledgment ack) {
         try {
             TaskChangedEvent event = objectMapper.readValue(message, TaskChangedEvent.class);
             log.debug("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
@@ -54,8 +56,10 @@ public class TaskChangedProjectionConsumer {
                 case BOOKED_WORK_DELETED -> softDeleteBookedWork(event);
                 default -> { /* other change types are irrelevant to the hours report */ }
             }
+            ack.acknowledge(); // commit offset only after successful DB write
         } catch (Exception e) {
             log.error("Failed to process TaskChangedEvent: {}", e.getMessage(), e);
+            // Do not acknowledge — offset not committed, message will be retried
         }
     }
 

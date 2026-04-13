@@ -1,7 +1,7 @@
 # Finding #13 — Disable Kafka auto-commit; switch to manual ACK in all consumer services
 
 ## Status
-UNRESOLVED
+RESOLVED
 
 ## Severity
 MEDIUM — message loss on consumer crash (offset committed before processing completes)

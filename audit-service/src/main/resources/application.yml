@@ -30,11 +30,14 @@ spring:
     consumer:
       group-id: audit-group
       auto-offset-reset: earliest
+      enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.demo.common.event"
         spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
 
   security:
     oauth2:
