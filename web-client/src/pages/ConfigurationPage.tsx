@@ -23,6 +23,7 @@ import {
   getTemplatePlaceholders,
   upsertNotificationTemplate,
 } from '../api/taskApi';
+import { useAuth } from '../auth/AuthProvider';
 import type {
   ProjectNotificationTemplateResponse,
   TaskChangeType,
@@ -65,6 +66,7 @@ export function ConfigurationPage() {
 /** Templates tab — per-project email template management. */
 function TemplatesTab() {
   const { t } = useTranslation();
+  const { isSupervisor } = useAuth();
   const [projects,     setProjects]     = useState<TaskProjectResponse[]>([]);
   const [projectId,    setProjectId]    = useState<string | null>(null);
   const [templates,    setTemplates]    = useState<ProjectNotificationTemplateResponse[]>([]);
@@ -197,10 +199,10 @@ function TemplatesTab() {
           ? <Typography.Text ellipsis style={{ maxWidth: 300 }}>{row.template.bodyTemplate}</Typography.Text>
           : <Typography.Text type="secondary">{t('configuration.usingDefault')}</Typography.Text>,
     },
-    {
+    ...(!isSupervisor ? [{
       title: t('common.actions'),
       width: 120,
-      render: (_, row) => (
+      render: (_: unknown, row: TemplateRow) => (
         <span>
           <Tooltip title={t('configuration.editTemplate')}>
             <Button
@@ -231,7 +233,7 @@ function TemplatesTab() {
           )}
         </span>
       ),
-    },
+    }] : []),
   ];
 
   return (

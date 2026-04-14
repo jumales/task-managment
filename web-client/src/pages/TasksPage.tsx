@@ -36,7 +36,7 @@ const TYPE_COLORS: Record<TaskType, string> = {
 export function TasksPage() {
   const { t }        = useTranslation();
   const navigate     = useNavigate();
-  const { username } = useAuth();
+  const { username, isSupervisor } = useAuth();
 
   const [tasks,        setTasks]        = useState<TaskSummaryResponse[]>([]);
   const [totalTasks,   setTotalTasks]   = useState(0);
@@ -247,20 +247,22 @@ export function TasksPage() {
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => navigate(`/tasks/${record.id}`)}>{t('tasks.view')}</Button>
-          <Popconfirm
-            title={t('tasks.deleteConfirm')}
-            description={t('tasks.deleteDescription')}
-            onConfirm={() => handleDelete(record.id)}
-            okText={t('common.delete')}
-            okButtonProps={{ danger: true }}
-          >
-            <Button danger size="small" loading={deletingId === record.id}>{t('common.delete')}</Button>
-          </Popconfirm>
+          {!isSupervisor && (
+            <Popconfirm
+              title={t('tasks.deleteConfirm')}
+              description={t('tasks.deleteDescription')}
+              onConfirm={() => handleDelete(record.id)}
+              okText={t('common.delete')}
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger size="small" loading={deletingId === record.id}>{t('common.delete')}</Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [t, navigate, typeLabels, deletingId]);
+  ], [t, navigate, typeLabels, deletingId, isSupervisor]);
 
   if (loading) return <Spin />;
   if (error)   return <Alert type="error" message={error} />;
@@ -291,7 +293,7 @@ export function TasksPage() {
             autoFocus
             style={{ width: 240 }}
           />
-          <Button type="primary" onClick={openCreateModal}>{t('tasks.newTask')}</Button>
+          {!isSupervisor && <Button type="primary" onClick={openCreateModal}>{t('tasks.newTask')}</Button>}
         </Space>
       </div>
 

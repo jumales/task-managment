@@ -64,7 +64,7 @@ function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (upd
 /** Displays all users with name, role and status. Admins can create, edit, and upload avatars. */
 export function UsersPage() {
   const { t } = useTranslation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSupervisor } = useAuth();
 
   const [users,       setUsers]       = useState<UserResponse[]>([]);
   const [totalUsers,  setTotalUsers]  = useState(0);
@@ -209,11 +209,11 @@ export function UsersPage() {
     },
     { title: t('common.status'),   dataIndex: 'active',   key: 'active',
       render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? t('common.active') : t('common.inactive')}</Tag> },
-    {
+    ...(!isSupervisor ? [{
       title: t('users.uploadAvatar'),
       key: 'upload',
-      render: (_, user) => <AvatarUploadButton user={user} onDone={handleAvatarUpdated} />,
-    },
+      render: (_: unknown, user: UserResponse) => <AvatarUploadButton user={user} onDone={handleAvatarUpdated} />,
+    }] : []),
     ...(isAdmin ? [{
       title: t('common.actions'), key: 'actions',
       render: (_: unknown, record: UserResponse) => (
@@ -221,7 +221,7 @@ export function UsersPage() {
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [t, isAdmin]);
+  ], [t, isAdmin, isSupervisor]);
 
   if (loading) return <Spin />;
   if (error)   return <Alert type="error" message={error} />;

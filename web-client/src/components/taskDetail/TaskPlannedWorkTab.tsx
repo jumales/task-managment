@@ -11,6 +11,8 @@ const PAGE_SIZE = 5;
 
 type Props = ReturnType<typeof useTaskPlannedWork> & {
   taskPhaseName: TaskPhaseName;
+  /** When true (supervisor role), the add-planned-work form is hidden. */
+  readOnly?: boolean;
 };
 
 /** Renders the add-planned-work form (top, PLANNING phase only) followed by the paginated planned-work list. */
@@ -18,7 +20,7 @@ export function TaskPlannedWorkTab({
   plannedWork,
   pwType, setPwType, pwHours, setPwHours,
   savingPw, handleSavePlannedWork,
-  taskPhaseName,
+  taskPhaseName, readOnly,
 }: Props) {
   const { t } = useTranslation();
 
@@ -34,7 +36,7 @@ export function TaskPlannedWorkTab({
       .map((w) => ({ label: workTypeLabels[w], value: w }));
   }, [workTypeLabels, plannedWork]);
 
-  const showForm = taskPhaseName === 'PLANNING' && workTypeOptions.length > 0;
+  const showForm = taskPhaseName === 'PLANNING' && workTypeOptions.length > 0 && !readOnly;
 
   return (
     <>

@@ -13,6 +13,8 @@ type Props = ReturnType<typeof useTaskBookedWork> & {
   taskPhaseName: TaskPhaseName;
   /** When true, the task is fully finished (RELEASED/REJECTED) — add/edit/delete actions are hidden. */
   finished?: boolean;
+  /** When true (supervisor role), add/edit/delete actions are hidden. */
+  readOnly?: boolean;
 };
 
 /** Renders the booked-work list with an "Add" button and a modal dialog for add/edit. */
@@ -23,7 +25,7 @@ export function TaskBookedWorkTab({
   plannedHoursForType, bookedHoursForType,
   savingBw, deletingBwId,
   openAddDialog, startEditing, resetBwForm, handleSaveBookedWork, handleDeleteBookedWork,
-  taskPhaseName, finished,
+  taskPhaseName, finished, readOnly,
 }: Props) {
   const { t } = useTranslation();
 
@@ -37,7 +39,7 @@ export function TaskBookedWorkTab({
     [workTypeLabels],
   );
 
-  const showActions = taskPhaseName !== 'PLANNING' && !finished;
+  const showActions = taskPhaseName !== 'PLANNING' && !finished && !readOnly;
 
   return (
     <>

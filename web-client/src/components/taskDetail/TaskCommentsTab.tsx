@@ -8,11 +8,13 @@ const PAGE_SIZE = 5;
 type Props = ReturnType<typeof useTaskComments> & {
   /** When true, the task is fully finished (RELEASED/REJECTED) — the add-comment form is hidden. */
   finished?: boolean;
+  /** When true (supervisor role), the add-comment form is hidden. */
+  readOnly?: boolean;
 };
 
 /** Renders the add-comment form (top) followed by the paginated comments list. Form is hidden when the task is finished (RELEASED/REJECTED). */
 export function TaskCommentsTab({
-  comments, newComment, setNewComment, addingCmt, handleAddComment, finished,
+  comments, newComment, setNewComment, addingCmt, handleAddComment, finished, readOnly,
 }: Props) {
   const { t } = useTranslation();
 
@@ -23,7 +25,7 @@ export function TaskCommentsTab({
 
   return (
     <>
-      {!finished && (
+      {!finished && !readOnly && (
         <>
           <Space direction="vertical" style={{ width: '100%', maxWidth: 600 }}>
             <Input.TextArea
