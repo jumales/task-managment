@@ -10,6 +10,8 @@ interface AuthContextValue {
   userId: string;
   /** True when the current user has the ADMIN realm role in Keycloak. */
   isAdmin: boolean;
+  /** True when the current user has the SUPERVISOR realm role (read-only access). */
+  isSupervisor: boolean;
   /** Logs out and redirects to the Keycloak logout page. */
   logout: () => void;
 }
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username: keycloak.tokenParsed?.preferred_username ?? '',
         userId: keycloak.tokenParsed?.sub ?? '',
         isAdmin: (keycloak.tokenParsed?.realm_access?.roles ?? []).includes('ADMIN'),
+        isSupervisor: (keycloak.tokenParsed?.realm_access?.roles ?? []).includes('SUPERVISOR'),
         logout: () => keycloak.logout(),
       }}
     >

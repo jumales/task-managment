@@ -7,10 +7,13 @@ import apiClient from '../../api/client';
 
 const PAGE_SIZE = 5;
 
-type Props = ReturnType<typeof useTaskAttachments>;
+type Props = ReturnType<typeof useTaskAttachments> & {
+  /** When true (supervisor role), upload and delete controls are hidden. */
+  readOnly?: boolean;
+};
 
-/** Lists task attachments with upload control on top and paginated list below. */
-export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload, handleDelete }: Props) {
+/** Lists task attachments with upload control on top and paginated list below. Upload and delete are hidden for read-only (supervisor) users. */
+export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload, handleDelete, readOnly }: Props) {
   const { t }     = useTranslation();
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -50,14 +53,16 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
         style={{ display: 'none' }}
         onChange={onFileChange}
       />
-      <Button
-        icon={<UploadOutlined />}
-        loading={uploading}
-        onClick={() => fileInput.current?.click()}
-        style={{ marginBottom: 12 }}
-      >
-        {t('tasks.uploadAttachment')}
-      </Button>
+      {!readOnly && (
+        <Button
+          icon={<UploadOutlined />}
+          loading={uploading}
+          onClick={() => fileInput.current?.click()}
+          style={{ marginBottom: 12 }}
+        >
+          {t('tasks.uploadAttachment')}
+        </Button>
+      )}
 
       <Divider style={{ marginTop: 0, marginBottom: 8 }} />
 
@@ -76,16 +81,19 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
               >
                 {t('tasks.download')}
               </Button>,
-              <Popconfirm
-                title={t('tasks.confirmDeleteAttachment')}
-                onConfirm={() => handleDelete(a.id)}
-                okText={t('common.delete')}
-                cancelText={t('common.cancel')}
-              >
-                <Button danger size="small" icon={<DeleteOutlined />}>
-                  {t('tasks.deleteAttachment')}
-                </Button>
-              </Popconfirm>,
+              ...(!readOnly ? [
+                <Popconfirm
+                  key="delete"
+                  title={t('tasks.confirmDeleteAttachment')}
+                  onConfirm={() => handleDelete(a.id)}
+                  okText={t('common.delete')}
+                  cancelText={t('common.cancel')}
+                >
+                  <Button danger size="small" icon={<DeleteOutlined />}>
+                    {t('tasks.deleteAttachment')}
+                  </Button>
+                </Popconfirm>,
+              ] : []),
             ]}
           >
             <List.Item.Meta

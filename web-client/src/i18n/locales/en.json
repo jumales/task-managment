@@ -192,6 +192,7 @@
     "title": "Users",
     "newUser": "New User",
     "editUser": "Edit User",
+    "avatar": "Avatar",
     "uploadAvatar": "Upload Avatar",
     "searchPlaceholder": "Search users…",
     "roles": "Roles",

@@ -5,7 +5,10 @@ import type { useTaskParticipants } from '../../hooks/useTaskParticipants';
 
 const PAGE_SIZE = 5;
 
-type Props = ReturnType<typeof useTaskParticipants>;
+type Props = ReturnType<typeof useTaskParticipants> & {
+  /** When true (supervisor role), the unwatch action is hidden. */
+  readOnly?: boolean;
+};
 
 /** Renders a paginated list of task participants. */
 export function TaskParticipantsTab({
@@ -14,6 +17,7 @@ export function TaskParticipantsTab({
   removingPId,
   error,
   handleRemoveParticipant,
+  readOnly,
 }: Props) {
   const { t } = useTranslation();
 
@@ -36,7 +40,7 @@ export function TaskParticipantsTab({
             <List.Item
               key={p.id}
               actions={
-                isOwnWatcher
+                isOwnWatcher && !readOnly
                   ? [
                       <Popconfirm
                         key="remove"

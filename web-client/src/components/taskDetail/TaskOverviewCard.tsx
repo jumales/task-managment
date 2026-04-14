@@ -18,10 +18,12 @@ interface Props {
   onSave:         (patch: EditPatch) => Promise<void>;
   saving?:        boolean;
   onChangePhase?: () => void;
+  /** When true (supervisor role), all edit and phase-change controls are hidden. */
+  readOnly?:      boolean;
 }
 
 /** Renders the task metadata panel: phase, project, assignee, progress, and description. Supports inline editing. Edit is locked in DONE/RELEASED/REJECTED phases; phase change is locked in RELEASED/REJECTED. Title and status/type tags are rendered by the parent page header. */
-export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }: Props) {
+export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase, readOnly }: Props) {
   const { t } = useTranslation();
 
   const finished     = isTaskFinished(task.phase.name);
@@ -53,7 +55,7 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
 
   return (
     <div>
-      {!editing && !fieldsLocked && (
+      {!editing && !fieldsLocked && !readOnly && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
           <Button type="text" size="small" icon={<EditOutlined />} onClick={startEditing}>
             {t('common.edit')}
@@ -72,7 +74,7 @@ export function TaskOverviewCard({ task, users, onSave, saving, onChangePhase }:
         <Descriptions.Item label={t('tasks.phase')}>
           <Space>
             {resolvePhaseLabel(task.phase)}
-            {onChangePhase && !finished && (
+            {onChangePhase && !finished && !readOnly && (
               <Button
                 type="link"
                 size="small"

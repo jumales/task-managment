@@ -7,6 +7,7 @@ import { useTaskDetailData } from '../hooks/useTaskDetailData';
 import { updateTask } from '../api/taskApi';
 import type { TaskRequest } from '../api/types';
 import { isTaskFinished } from '../utils/phaseUtils';
+import { useAuth } from '../auth/AuthProvider';
 import { useTaskTimeline }     from '../hooks/useTaskTimeline';
 import { useTaskPlannedWork }  from '../hooks/useTaskPlannedWork';
 import { useTaskBookedWork }   from '../hooks/useTaskBookedWork';
@@ -30,6 +31,7 @@ export function TaskDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t }    = useTranslation();
+  const { isSupervisor } = useAuth();
 
   const { data, setData, loading, error } = useTaskDetailData(id);
 
@@ -109,7 +111,7 @@ export function TaskDetailPage() {
             {data.task.taskCode && (
               <Typography.Text type="secondary">{data.task.taskCode}</Typography.Text>
             )}
-            {!participants.isAlreadyActiveParticipant && (
+            {!isSupervisor && !participants.isAlreadyActiveParticipant && (
               participants.myWatcherEntry ? (
                 <Popconfirm
                   title={t('tasks.unwatchConfirm')}
@@ -159,6 +161,7 @@ export function TaskDetailPage() {
             onSave={handleOverviewSave}
             saving={saving}
             onChangePhase={phaseChange.openModal}
+            readOnly={isSupervisor}
           />
           <Divider orientation="left" style={{ marginTop: 24 }}>{t('tasks.timeline')}</Divider>
           <TaskTimelineTab {...timeline} users={data.users} taskPhaseName={data.task.phase.name} />
@@ -173,15 +176,15 @@ export function TaskDetailPage() {
                 label: t('tasks.comments'),
                 children: (
                   <>
-                    <TaskCommentsTab {...comments} finished={finished} />
+                    <TaskCommentsTab {...comments} finished={finished} readOnly={isSupervisor} />
                     <Divider />
-                    <TaskAttachmentsTab {...attachments} />
+                    <TaskAttachmentsTab {...attachments} readOnly={isSupervisor} />
                   </>
                 ),
               },
-              { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} /> },
-              { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   taskPhaseName={data.task.phase.name} finished={finished} /> },
-              { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} /> },
+              { key: 'plannedwork',  label: t('tasks.plannedWork'),  children: <TaskPlannedWorkTab  {...plannedWork}  taskPhaseName={data.task.phase.name} readOnly={isSupervisor} /> },
+              { key: 'bookedwork',   label: t('tasks.bookedWork'),   children: <TaskBookedWorkTab   {...bookedWork}   taskPhaseName={data.task.phase.name} finished={finished} readOnly={isSupervisor} /> },
+              { key: 'participants', label: t('tasks.participants'), children: <TaskParticipantsTab {...participants} readOnly={isSupervisor} /> },
             ]}
           />
         </Col>
