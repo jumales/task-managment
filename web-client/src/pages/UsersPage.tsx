@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, Select, message } from 'antd';
-import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
+import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, Select, message, Avatar } from 'antd';
+import { UploadOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { InputRef } from 'antd';
 import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, getUserRoles, setUserRoles } from '../api/userApi';
+import { useAvatarBlobUrl } from '../hooks/useAvatarBlobUrl';
 import { searchUsers } from '../api/searchApi';
 import { useAuth } from '../auth/AuthProvider';
 import type { RealmRole, UserResponse } from '../api/types';
@@ -59,6 +60,14 @@ function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (upd
       </Button>
     </>
   );
+}
+
+/** Renders a small avatar image for the given fileId, falling back to a generic user icon. */
+function UserAvatarCell({ fileId }: { fileId: string | null }) {
+  const url = useAvatarBlobUrl(fileId);
+  return url
+    ? <Avatar src={url} size="small" />
+    : <Avatar icon={<UserOutlined />} size="small" />;
 }
 
 /** Displays all users with name, role and status. Admins can create, edit, and upload avatars. */
@@ -196,6 +205,8 @@ export function UsersPage() {
   }
 
   const columns: ColumnsType<UserResponse> = useMemo(() => [
+    { title: t('users.avatar'),    key: 'avatar',         width: 60,
+      render: (_: unknown, user: UserResponse) => <UserAvatarCell fileId={user.avatarFileId} /> },
     { title: t('common.name'),     dataIndex: 'name',     key: 'name' },
     { title: t('common.username'), dataIndex: 'username', key: 'username',
       render: (v: string | null) => v ?? '—' },
