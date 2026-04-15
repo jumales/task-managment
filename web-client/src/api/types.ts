@@ -386,3 +386,11 @@ export interface DetailedHoursRow {
   plannedHours: number;
   bookedHours: number;
 }
+
+/** Mirrors com.demo.reporting.dto.ProjectTaskCountResponse */
+export interface ProjectTaskCountRow {
+  projectId: string;
+  projectName: string | null;
+  myOpenCount: number;
+  totalOpenCount: number;
+}

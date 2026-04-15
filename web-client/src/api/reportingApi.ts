@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { MyTaskReport, TaskHoursRow, ProjectHoursRow, DetailedHoursRow } from './types';
+import type { MyTaskReport, TaskHoursRow, ProjectHoursRow, DetailedHoursRow, ProjectTaskCountRow } from './types';
 
 /** Fetch open tasks assigned to the current user (RELEASED/REJECTED excluded). */
 export function getMyTasks(): Promise<MyTaskReport[]> {
@@ -30,4 +30,9 @@ export function getHoursByProject(): Promise<ProjectHoursRow[]> {
 /** Fetch planned vs booked hours for a task broken down by user and work type. */
 export function getHoursDetailed(taskId: string): Promise<DetailedHoursRow[]> {
   return apiClient.get<DetailedHoursRow[]>(`/api/v1/reports/hours/detailed?taskId=${taskId}`).then((r) => r.data);
+}
+
+/** Fetch open task counts per project split by total and the current user's assigned count. */
+export function getOpenTasksByProject(): Promise<ProjectTaskCountRow[]> {
+  return apiClient.get<ProjectTaskCountRow[]>('/api/v1/reports/tasks/open-by-project').then((r) => r.data);
 }

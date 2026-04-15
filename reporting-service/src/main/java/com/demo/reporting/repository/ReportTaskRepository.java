@@ -53,4 +53,19 @@ public interface ReportTaskRepository extends JpaRepository<ReportTask, UUID> {
      */
     @Query("SELECT DISTINCT t.projectId, t.projectName FROM ReportTask t WHERE t.projectId IN :ids")
     List<Object[]> findProjectNamesByIds(@Param("ids") Set<UUID> ids);
+
+    /**
+     * Counts open tasks per project, split by total and "mine" (assigned to {@code userId}).
+     * "Open" means phaseName IS NULL or not in the finished set (RELEASED / REJECTED).
+     * The {@code SUM(CASE WHEN ...)} may return {@code null} when no rows match — callers must null-coalesce.
+     */
+    @Query("SELECT t.projectId AS projectId, t.projectName AS projectName, " +
+           "COUNT(t) AS totalOpenCount, " +
+           "SUM(CASE WHEN t.assignedUserId = :userId THEN 1 ELSE 0 END) AS myOpenCount " +
+           "FROM ReportTask t " +
+           "WHERE (t.phaseName IS NULL OR t.phaseName NOT IN :finishedPhaseNames) " +
+           "GROUP BY t.projectId, t.projectName")
+    List<ProjectTaskCountProjection> countOpenByProject(
+            @Param("userId") UUID userId,
+            @Param("finishedPhaseNames") Collection<String> finishedPhaseNames);
 }

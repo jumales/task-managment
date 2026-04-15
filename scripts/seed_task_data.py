@@ -79,6 +79,16 @@ PROJECT_NAMES = [
     ("Seed Project Epsilon", "Infrastructure automation and DevOps tooling"),
 ]
 
+# Per-project user weights (index matches USER_IDS order: admin, dev, qa, devops, pm, supervisor).
+# Different rates make the "My Open Tasks vs Total" chart visually interesting.
+PROJECT_USER_WEIGHTS = {
+    "Seed Project Alpha":   [5, 1, 1, 1, 1, 1],  # admin ~50 %
+    "Seed Project Beta":    [1, 4, 3, 2, 2, 2],  # admin ~7 %
+    "Seed Project Gamma":   [2, 2, 2, 2, 2, 2],  # even ~17 %
+    "Seed Project Delta":   [3, 1, 1, 2, 1, 1],  # admin ~33 %
+    "Seed Project Epsilon": [1, 1, 1, 1, 3, 2],  # pm-heavy, admin ~11 %
+}
+
 PHASE_NAMES = [
     "PLANNING", "BACKLOG", "TODO", "IN_PROGRESS",
     "IN_REVIEW", "TESTING", "DONE", "RELEASED", "REJECTED",
@@ -243,9 +253,14 @@ def progress_for_status(status: str) -> int:
 
 
 def make_task(task_number: int, project_id: str, phase_id: str,
-              phase_name: str, fake: Faker) -> dict:
-    """Build a tasks row dict."""
-    assigned_user_id = random.choice(USER_IDS)
+              phase_name: str, fake: Faker, project_name: str = "") -> dict:
+    """Build a tasks row dict. Uses per-project user weights when project_name is supplied."""
+    weights = PROJECT_USER_WEIGHTS.get(project_name)
+    assigned_user_id = (
+        random.choices(USER_IDS, weights=weights, k=1)[0]
+        if weights
+        else random.choice(USER_IDS)
+    )
     status = status_for_phase(phase_name)
     return {
         "id": uid(),
@@ -509,7 +524,7 @@ def seed(args) -> None:
         for task_number in range(1, TASKS_PER_PROJECT + 1):
             phase_name  = pick_phase_name()
             phase_id    = phase_index[project_id][phase_name]
-            task        = make_task(task_number, project_id, phase_id, phase_name, fake)
+            task        = make_task(task_number, project_id, phase_id, phase_name, fake, project["name"])
             task["_base_date"] = random_past_dt(730)
             project_tasks.append(task)
             task_rows.append((

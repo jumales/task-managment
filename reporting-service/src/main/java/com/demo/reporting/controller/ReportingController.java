@@ -3,6 +3,7 @@ package com.demo.reporting.controller;
 import com.demo.reporting.dto.DetailedHoursResponse;
 import com.demo.reporting.dto.MyTaskResponse;
 import com.demo.reporting.dto.ProjectHoursResponse;
+import com.demo.reporting.dto.ProjectTaskCountResponse;
 import com.demo.reporting.dto.TaskHoursResponse;
 import com.demo.reporting.service.HoursReportService;
 import com.demo.reporting.service.MyTasksService;
@@ -54,6 +55,19 @@ public class ReportingController {
             @RequestParam(defaultValue = "false") boolean finished,
             Authentication authentication) {
         return myTasksService.findMyTasks(resolveUserId(authentication), days, finished);
+    }
+
+    /**
+     * Returns open task counts per project, split by total and "mine" (assigned to the current user).
+     * Projects with zero open tasks are omitted from the response.
+     */
+    @Operation(summary = "Open tasks by project",
+               description = "Per-project count of open tasks (not RELEASED/REJECTED): "
+                           + "total across all users and the authenticated user's own count.")
+    @GetMapping("/tasks/open-by-project")
+    @PreAuthorize("isAuthenticated()")
+    public List<ProjectTaskCountResponse> getOpenTasksByProject(Authentication authentication) {
+        return myTasksService.countOpenByProject(resolveUserId(authentication));
     }
 
     /** Planned vs booked hours per task, optionally filtered by {@code projectId}. */
