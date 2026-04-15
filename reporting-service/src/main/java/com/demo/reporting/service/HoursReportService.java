@@ -91,30 +91,25 @@ public class HoursReportService {
 
     /** Returns planned vs booked hours for a task broken down by (user, workType). */
     public List<DetailedHoursResponse> detailed(UUID taskId) {
-        Map<String, Long> planned = new HashMap<>();
-        for (DetailedHoursProjection p : plannedRepository.sumPlannedHoursByUserAndType(taskId)) {
-            planned.put(key(p.getUserId(), p.getWorkType()), p.getTotalHours());
-        }
-        Map<String, Long> booked = new HashMap<>();
-        for (DetailedHoursProjection p : bookedRepository.sumBookedHoursByUserAndType(taskId)) {
-            booked.put(key(p.getUserId(), p.getWorkType()), p.getTotalHours());
-        }
+        List<DetailedHoursProjection> plannedRows = plannedRepository.sumPlannedHoursByUserAndType(taskId);
+        List<DetailedHoursProjection> bookedRows  = bookedRepository.sumBookedHoursByUserAndType(taskId);
 
-        Set<String> keys = new HashSet<>();
-        keys.addAll(planned.keySet());
-        keys.addAll(booked.keySet());
-
-        // Preserve the original (userId, workType) pairs by re-reading them from the planned list first.
         record UserWorkTypeKey(UUID userId, WorkType workType) {}
         Map<String, UserWorkTypeKey> pairs = new HashMap<>();
-        for (DetailedHoursProjection p : plannedRepository.sumPlannedHoursByUserAndType(taskId)) {
-            pairs.put(key(p.getUserId(), p.getWorkType()), new UserWorkTypeKey(p.getUserId(), p.getWorkType()));
+        Map<String, Long> planned = new HashMap<>();
+        for (DetailedHoursProjection p : plannedRows) {
+            String k = key(p.getUserId(), p.getWorkType());
+            planned.put(k, p.getTotalHours());
+            pairs.put(k, new UserWorkTypeKey(p.getUserId(), p.getWorkType()));
         }
-        for (DetailedHoursProjection p : bookedRepository.sumBookedHoursByUserAndType(taskId)) {
-            pairs.putIfAbsent(key(p.getUserId(), p.getWorkType()), new UserWorkTypeKey(p.getUserId(), p.getWorkType()));
+        Map<String, Long> booked = new HashMap<>();
+        for (DetailedHoursProjection p : bookedRows) {
+            String k = key(p.getUserId(), p.getWorkType());
+            booked.put(k, p.getTotalHours());
+            pairs.putIfAbsent(k, new UserWorkTypeKey(p.getUserId(), p.getWorkType()));
         }
 
-        return keys.stream()
+        return pairs.keySet().stream()
                 .map(k -> {
                     UserWorkTypeKey pair = pairs.get(k);
                     return new DetailedHoursResponse(
