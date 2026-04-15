@@ -1,0 +1,207 @@
+name: E2E Tests
+
+# Manually triggered only — starts the full stack, runs Playwright browser tests,
+# and uploads the HTML report + per-test screenshots/videos as a downloadable artifact.
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+
+      # ── Checkout ─────────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Java ─────────────────────────────────────────────────────────────────
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      # ── Node.js ──────────────────────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: e2e-playwright/package-lock.json
+
+      # ── Build all service JARs (no tests) ────────────────────────────────────
+      # -T 4 parallelises the build across Maven's dependency graph.
+      # e2e-tests is excluded — it is a Testcontainers-based module with no JAR to run.
+      - name: Build all JARs
+        run: |
+          mvn package -DskipTests --batch-mode -T 4 \
+            --projects common,eureka-server,api-gateway,user-service,task-service,audit-service,file-service,search-service,notification-service,reporting-service \
+            --also-make
+
+      # ── Pre-pull Docker images ────────────────────────────────────────────────
+      - name: Pre-pull Docker images
+        run: |
+          docker pull postgres:16-alpine
+          docker pull confluentinc/cp-kafka:7.6.0
+          docker pull quay.io/keycloak/keycloak:24.0
+          docker pull minio/minio:RELEASE.2024-01-18T22-51-28Z
+          docker pull minio/mc:latest
+          docker pull redis:7-alpine
+          docker pull mailhog/mailhog:v1.0.1
+
+      # ── Start infrastructure (ELK excluded to save RAM) ───────────────────────
+      # docker-compose.override.yml exposes Kafka on localhost:9092 so that
+      # Spring Boot services running on the host can connect as consumers/producers.
+      - name: Start infrastructure
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.override.yml \
+            up -d \
+            postgres kafka keycloak minio minio-init redis mailhog
+
+      # ── Wait for infrastructure health ────────────────────────────────────────
+      - name: Wait for infrastructure health
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for Postgres..."
+          until docker inspect --format='{{.State.Health.Status}}' ms-postgres 2>/dev/null | grep -q "healthy"; do sleep 3; done
+          echo "  Postgres OK"
+
+          echo "Waiting for Kafka..."
+          until docker inspect --format='{{.State.Health.Status}}' ms-kafka 2>/dev/null | grep -q "healthy"; do sleep 5; done
+          echo "  Kafka OK"
+
+          echo "Waiting for Redis..."
+          until docker inspect --format='{{.State.Health.Status}}' ms-redis 2>/dev/null | grep -q "healthy"; do sleep 3; done
+          echo "  Redis OK"
+
+          echo "Waiting for MinIO..."
+          until docker inspect --format='{{.State.Health.Status}}' ms-minio 2>/dev/null | grep -q "healthy"; do sleep 3; done
+          echo "  MinIO OK"
+
+          echo "Waiting for Keycloak (realm endpoint)..."
+          until curl -sf http://localhost:8180/realms/demo > /dev/null 2>&1; do sleep 5; done
+          echo "  Keycloak OK"
+
+      # ── Start Eureka (single-node; default profile is standalone) ─────────────
+      - name: Start Eureka server
+        run: |
+          java -jar eureka-server/target/eureka-server-*.jar \
+            > /tmp/eureka.log 2>&1 &
+
+          echo "Waiting for Eureka..."
+          until curl -sf http://localhost:8761/actuator/health > /dev/null 2>&1; do sleep 3; done
+          echo "  Eureka OK"
+
+      # ── Start microservices ───────────────────────────────────────────────────
+      # All services default to localhost:* for Kafka, Postgres, Keycloak, Eureka —
+      # no extra env vars needed. Services use server.port=0 (random), register with
+      # Eureka, and the gateway routes to them by service name.
+      - name: Start microservices
+        run: |
+          java -jar api-gateway/target/api-gateway-*.jar \
+            --server.port=8080 \
+            > /tmp/api-gateway.log 2>&1 &
+
+          java -jar user-service/target/user-service-*.jar \
+            > /tmp/user-service.log 2>&1 &
+
+          java -jar task-service/target/task-service-*.jar \
+            > /tmp/task-service.log 2>&1 &
+
+          java -jar audit-service/target/audit-service-*.jar \
+            > /tmp/audit-service.log 2>&1 &
+
+          java -jar file-service/target/file-service-*.jar \
+            > /tmp/file-service.log 2>&1 &
+
+          java -jar notification-service/target/notification-service-*.jar \
+            > /tmp/notification-service.log 2>&1 &
+
+          java -jar reporting-service/target/reporting-service-*.jar \
+            > /tmp/reporting-service.log 2>&1 &
+
+          # search-service needs Elasticsearch which is excluded from this run.
+          # It is intentionally omitted here; search routes will return 503 via
+          # the gateway but no test exercises them.
+          echo "All microservices started in background."
+
+      # ── Wait for gateway and Eureka registration ──────────────────────────────
+      - name: Wait for gateway and service registration
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for API Gateway health endpoint..."
+          until curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; do sleep 3; done
+          echo "  Gateway OK"
+
+          echo "Waiting for services to register with Eureka (grace period)..."
+          sleep 60
+
+          echo "Verifying task-service route via gateway..."
+          RETRIES=0
+          until curl -sf -o /dev/null -w "%{http_code}" \
+              http://localhost:8080/api/v1/tasks \
+              -H "Authorization: Bearer dummy" \
+              2>/dev/null | grep -qv "503"; do
+            RETRIES=$((RETRIES+1))
+            if [ "$RETRIES" -ge 10 ]; then
+              echo "task-service route not available after 10 retries. Dumping gateway log:";
+              tail -50 /tmp/api-gateway.log; exit 1;
+            fi
+            echo "  Still waiting for task-service route... ($RETRIES/10)"
+            sleep 10
+          done
+          echo "  task-service route OK"
+
+      # ── Start React dev server ────────────────────────────────────────────────
+      # Faster than building a Docker image; .env already points to localhost:8080
+      # for the API and localhost:8180 for Keycloak.
+      - name: Start web-client dev server
+        working-directory: web-client
+        run: |
+          npm ci
+          npm run dev &
+
+          echo "Waiting for Vite dev server on port 3000..."
+          until curl -sf http://localhost:3000 > /dev/null 2>&1; do sleep 2; done
+          echo "  Vite dev server OK"
+
+      # ── Install Playwright ────────────────────────────────────────────────────
+      - name: Install Playwright
+        working-directory: e2e-playwright
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+
+      # ── Run tests ─────────────────────────────────────────────────────────────
+      - name: Run Playwright tests
+        working-directory: e2e-playwright
+        env:
+          CI: 'true'
+        run: npx playwright test
+
+      # ── Upload results (always — even on test failure) ────────────────────────
+      # playwright-report/ — HTML report with all results, screenshots, and traces.
+      # test-results/      — raw per-test artifacts (screenshots, videos, traces).
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e-playwright/playwright-report/
+            e2e-playwright/test-results/
+          retention-days: 30
+
+      # ── Dump service logs on failure for diagnosis ────────────────────────────
+      - name: Dump service logs on failure
+        if: failure()
+        run: |
+          for svc in eureka api-gateway user-service task-service audit-service file-service notification-service reporting-service; do
+            echo "====== $svc ======"
+            tail -100 /tmp/${svc}.log 2>/dev/null || echo "(no log)"
+          done
