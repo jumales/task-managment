@@ -1,7 +1,9 @@
 package com.demo.reporting.service;
 
 import com.demo.reporting.dto.MyTaskResponse;
+import com.demo.reporting.dto.ProjectTaskCountResponse;
 import com.demo.reporting.model.ReportTask;
+import com.demo.reporting.repository.ProjectTaskCountProjection;
 import com.demo.reporting.repository.ReportTaskRepository;
 import org.springframework.stereotype.Service;
 
@@ -58,6 +60,23 @@ public class MyTasksService {
         }
         return repository.findByAssignedUserIdAndUpdatedAtGreaterThanEqualAndPhaseNameInOrderByUpdatedAtDesc(
                 userId, Instant.now().minus(days, ChronoUnit.DAYS), FINISHED_PHASE_NAMES);
+    }
+
+    /**
+     * Returns open task counts per project, split by total and the given user's assigned tasks.
+     * Projects with zero open tasks are excluded (no row in the projection).
+     */
+    public List<ProjectTaskCountResponse> countOpenByProject(UUID userId) {
+        return repository.countOpenByProject(userId, FINISHED_PHASE_NAMES)
+                .stream()
+                .map(this::toCountResponse)
+                .toList();
+    }
+
+    /** Maps a JPQL projection row to a response DTO, defaulting null myOpenCount to 0. */
+    private ProjectTaskCountResponse toCountResponse(ProjectTaskCountProjection p) {
+        long myOpen = p.getMyOpenCount() != null ? p.getMyOpenCount() : 0L;
+        return new ProjectTaskCountResponse(p.getProjectId(), p.getProjectName(), myOpen, p.getTotalOpenCount());
     }
 
     private MyTaskResponse toResponse(ReportTask t) {

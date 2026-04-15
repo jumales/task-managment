@@ -4,6 +4,7 @@ import com.demo.common.config.KafkaTopics;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.event.TaskEvent;
 import com.demo.reporting.dto.MyTaskResponse;
+import com.demo.reporting.dto.ProjectTaskCountResponse;
 import com.demo.reporting.model.ReportTask;
 import com.demo.reporting.repository.ReportTaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -109,6 +110,43 @@ class ReportingControllerIT {
         assertThat(body).anyMatch(t -> "KAFKA-1".equals(t.getTaskCode()));
     }
 
+    @Test
+    void openTasksByProject_returnsCounts() {
+        UUID projectAId = UUID.randomUUID();
+        UUID projectBId = UUID.randomUUID();
+        UUID otherUser  = UUID.randomUUID();
+
+        // Project A: 2 mine + 1 other = 3 total
+        repository.save(buildTaskInProject(UUID.randomUUID(), TestSecurityConfig.TEST_USER_ID, "A-1",
+                projectAId, "Project A"));
+        repository.save(buildTaskInProject(UUID.randomUUID(), TestSecurityConfig.TEST_USER_ID, "A-2",
+                projectAId, "Project A"));
+        repository.save(buildTaskInProject(UUID.randomUUID(), otherUser, "A-3",
+                projectAId, "Project A"));
+
+        // Project B: 1 mine = 1 total
+        repository.save(buildTaskInProject(UUID.randomUUID(), TestSecurityConfig.TEST_USER_ID, "B-1",
+                projectBId, "Project B"));
+
+        ResponseEntity<List<ProjectTaskCountResponse>> response = restTemplate.exchange(
+                "/api/v1/reports/tasks/open-by-project", HttpMethod.GET, null,
+                new ParameterizedTypeReference<>() {});
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        List<ProjectTaskCountResponse> body = response.getBody();
+        assertThat(body).isNotNull();
+
+        ProjectTaskCountResponse projA = body.stream()
+                .filter(r -> projectAId.equals(r.getProjectId())).findFirst().orElseThrow();
+        assertThat(projA.getTotalOpenCount()).isEqualTo(3);
+        assertThat(projA.getMyOpenCount()).isEqualTo(2);
+
+        ProjectTaskCountResponse projB = body.stream()
+                .filter(r -> projectBId.equals(r.getProjectId())).findFirst().orElseThrow();
+        assertThat(projB.getTotalOpenCount()).isEqualTo(1);
+        assertThat(projB.getMyOpenCount()).isEqualTo(1);
+    }
+
     private List<MyTaskResponse> getMyTasks(Integer days) {
         String url = days == null ? "/api/v1/reports/my-tasks" : "/api/v1/reports/my-tasks?days=" + days;
         ResponseEntity<List<MyTaskResponse>> response = restTemplate.exchange(
@@ -127,6 +165,15 @@ class ReportingControllerIT {
         t.setStatus(TaskStatus.TODO);
         t.setAssignedUserId(assignedUserId);
         t.setUpdatedAt(updatedAt);
+        return t;
+    }
+
+    /** Builds a task with project info set — used for open-tasks-by-project tests. */
+    private ReportTask buildTaskInProject(UUID id, UUID assignedUserId, String taskCode,
+                                          UUID projectId, String projectName) {
+        ReportTask t = buildTask(id, assignedUserId, taskCode, Instant.now());
+        t.setProjectId(projectId);
+        t.setProjectName(projectName);
         return t;
     }
 }

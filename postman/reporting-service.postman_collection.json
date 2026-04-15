@@ -87,6 +87,30 @@
               }
             }
           ]
+        },
+        {
+          "name": "Open task counts by project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/tasks/open-by-project",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "reports", "tasks", "open-by-project"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
