@@ -31,11 +31,13 @@ import com.demo.task.model.OutboxAggregateType;
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.Task;
+import com.demo.task.model.TaskCodeJob;
 import com.demo.task.model.TaskComment;
 import com.demo.task.model.TaskPhase;
 import com.demo.task.model.TaskProject;
 import com.demo.task.outbox.OutboxWriter;
 import com.demo.task.repository.OutboxRepository;
+import com.demo.task.repository.TaskCodeJobRepository;
 import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -70,6 +72,7 @@ public class TaskService {
     private final TaskBookedWorkService bookedWorkService;
     private final OutboxWriter outboxWriter;
     private final ObjectMapper objectMapper;
+    private final TaskCodeJobRepository taskCodeJobRepository;
 
     public TaskService(TaskRepository repository,
                        TaskCommentRepository commentRepository,
@@ -83,7 +86,8 @@ public class TaskService {
                        TaskPlannedWorkService plannedWorkService,
                        TaskBookedWorkService bookedWorkService,
                        OutboxWriter outboxWriter,
-                       ObjectMapper objectMapper) {
+                       ObjectMapper objectMapper,
+                       TaskCodeJobRepository taskCodeJobRepository) {
         this.repository = repository;
         this.commentRepository = commentRepository;
         this.outboxRepository = outboxRepository;
@@ -97,6 +101,7 @@ public class TaskService {
         this.bookedWorkService = bookedWorkService;
         this.outboxWriter = outboxWriter;
         this.objectMapper = objectMapper;
+        this.taskCodeJobRepository = taskCodeJobRepository;
     }
 
     /**
@@ -226,13 +231,6 @@ public class TaskService {
             throw new ResourceNotFoundException("User", request.getAssignedUserId());
         }
 
-        // nextTaskCode MUST be called before getOrThrow so the project entity is not yet
-        // in the Hibernate L1 session cache. If getOrThrow ran first, Hibernate would serve
-        // the cached entity for the subsequent SELECT … FOR UPDATE query inside nextTaskCode,
-        // skipping the row lock and causing duplicate task codes under concurrent load.
-        String taskCode = projectService.nextTaskCode(request.getProjectId());
-
-        // getOrThrow returns the entity now cached by nextTaskCode (cache hit, no extra query).
         TaskProject project = projectService.getOrThrow(request.getProjectId());
 
         // Every new task starts in the PLANNING phase; any phaseId in the request is ignored.
@@ -247,9 +245,19 @@ public class TaskService {
                 .assignedUserId(request.getAssignedUserId())
                 .projectId(request.getProjectId())
                 .phaseId(phaseId)
-                .taskCode(taskCode)
+                // taskCode is intentionally null here; the background TaskCodeAssignmentService
+                // will assign it within ~1 second and push a TASK_CODE_ASSIGNED event to the frontend.
                 .build();
         Task saved = repository.save(task);
+
+        // Insert a job row atomically with the task so the scheduler never misses an assignment,
+        // even if the application crashes immediately after saving the task.
+        taskCodeJobRepository.save(TaskCodeJob.builder()
+                .taskId(saved.getId())
+                .projectId(saved.getProjectId())
+                .createdAt(Instant.now())
+                .build());
+
         participantService.setCreator(saved.getId(), creatorId);
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         timelineService.createInitialTimelines(saved.getId(), request.getPlannedStart(), request.getPlannedEnd(), creatorId);

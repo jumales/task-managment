@@ -19,11 +19,13 @@ import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
+import com.demo.task.repository.TaskCodeJobRepository;
 import com.demo.task.repository.TaskParticipantRepository;
 import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
+import com.demo.task.service.TaskCodeAssignmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +82,12 @@ class TaskControllerIT {
     @Autowired
     TaskPhaseRepository phaseRepository;
 
+    @Autowired
+    TaskCodeJobRepository taskCodeJobRepository;
+
+    @Autowired
+    TaskCodeAssignmentService codeAssignmentService;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     private static final UUID BOB_ID   = UUID.randomUUID();
 
@@ -91,6 +99,7 @@ class TaskControllerIT {
 
     @BeforeEach
     void setUp() {
+        taskCodeJobRepository.deleteAll();
         participantRepository.deleteAll();
         timelineRepository.deleteAll();
         repository.deleteAll();
@@ -261,19 +270,37 @@ class TaskControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getTitle()).isEqualTo("New feature");
-        assertThat(response.getBody().getTaskCode()).isEqualTo("TASK_1");
+        // taskCode is null at creation — assigned asynchronously by TaskCodeAssignmentService
+        assertThat(response.getBody().getTaskCode()).isNull();
         assertThat(repository.count()).isEqualTo(1);
+
+        // After scheduler runs, the task receives its code
+        codeAssignmentService.assignPendingCodes();
+        TaskResponse fetched = restTemplate.getForEntity("/api/v1/tasks/" + response.getBody().getId(), TaskResponse.class).getBody();
+        assertThat(fetched.getTaskCode()).isEqualTo("TASK_1");
     }
 
     @Test
     void createTask_taskCodesAreSequentialPerProject() {
+        // Creation returns null code — the scheduler assigns codes asynchronously
         TaskResponse first  = restTemplate.postForEntity("/api/v1/tasks", request("Task 1", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
         TaskResponse second = restTemplate.postForEntity("/api/v1/tasks", request("Task 2", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
         TaskResponse third  = restTemplate.postForEntity("/api/v1/tasks", request("Task 3", "desc", TaskStatus.TODO, ALICE_ID), TaskResponse.class).getBody();
 
-        assertThat(first.getTaskCode()).isEqualTo("TASK_1");
-        assertThat(second.getTaskCode()).isEqualTo("TASK_2");
-        assertThat(third.getTaskCode()).isEqualTo("TASK_3");
+        assertThat(first.getTaskCode()).isNull();
+        assertThat(second.getTaskCode()).isNull();
+        assertThat(third.getTaskCode()).isNull();
+
+        // Trigger the scheduler synchronously and verify sequential codes were assigned
+        codeAssignmentService.assignPendingCodes();
+
+        TaskResponse firstFetched  = restTemplate.getForEntity("/api/v1/tasks/" + first.getId(),  TaskResponse.class).getBody();
+        TaskResponse secondFetched = restTemplate.getForEntity("/api/v1/tasks/" + second.getId(), TaskResponse.class).getBody();
+        TaskResponse thirdFetched  = restTemplate.getForEntity("/api/v1/tasks/" + third.getId(),  TaskResponse.class).getBody();
+
+        assertThat(firstFetched.getTaskCode()).isEqualTo("TASK_1");
+        assertThat(secondFetched.getTaskCode()).isEqualTo("TASK_2");
+        assertThat(thirdFetched.getTaskCode()).isEqualTo("TASK_3");
     }
 
     @Test

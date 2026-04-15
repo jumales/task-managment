@@ -5,6 +5,9 @@ import com.demo.task.model.Task;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -30,4 +33,9 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     boolean existsByProjectId(UUID projectId);
     /** Returns {@code true} if any non-deleted task references the given phase. */
     boolean existsByPhaseId(UUID phaseId);
+
+    /** Sets the task code on a single task; used by the async code-assignment scheduler. */
+    @Modifying
+    @Query("UPDATE Task t SET t.taskCode = :code WHERE t.id = :taskId")
+    void updateTaskCode(@Param("taskId") UUID taskId, @Param("code") String code);
 }

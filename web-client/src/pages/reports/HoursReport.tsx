@@ -62,7 +62,8 @@ function HoursByTask() {
         size="small"
         pagination={{ pageSize: 20 }}
         columns={[
-          { title: 'Code',    dataIndex: 'taskCode',     key: 'taskCode', width: 100 },
+          { title: 'Code',    dataIndex: 'taskCode',     key: 'taskCode', width: 100,
+            render: (code: string | null) => code ?? '—' },
           { title: 'Task',    dataIndex: 'title',        key: 'title' },
           { title: 'Planned (h)', dataIndex: 'plannedHours', key: 'planned', width: 120, align: 'right' },
           { title: 'Booked (h)',  dataIndex: 'bookedHours',  key: 'booked',  width: 120, align: 'right' },

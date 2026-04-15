@@ -87,7 +87,8 @@ function MyTasksTab({ days, finished }: { days: number | null; finished: boolean
         size="small"
         pagination={{ pageSize: 20 }}
         columns={[
-          { title: 'Code',        dataIndex: 'taskCode',    key: 'taskCode', width: 110 },
+          { title: 'Code',        dataIndex: 'taskCode',    key: 'taskCode', width: 110,
+            render: (code: string | null) => code ?? '—' },
           { title: 'Title',       dataIndex: 'title',       key: 'title' },
           { title: 'Description', dataIndex: 'description', key: 'description', ellipsis: true },
           {

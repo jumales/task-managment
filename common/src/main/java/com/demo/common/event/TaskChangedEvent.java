@@ -254,6 +254,22 @@ public class TaskChangedEvent {
         return e;
     }
 
+    /**
+     * Factory for task-code assigned events — no email is sent; purpose is to signal
+     * the frontend to re-fetch the task and display the newly assigned code.
+     */
+    public static TaskChangedEvent taskCodeAssigned(UUID taskId, UUID assignedUserId,
+                                                    UUID projectId, String taskTitle) {
+        TaskChangedEvent e = new TaskChangedEvent();
+        e.taskId = taskId;
+        e.assignedUserId = assignedUserId;
+        e.projectId = projectId;
+        e.taskTitle = taskTitle;
+        e.changeType = TaskChangeType.TASK_CODE_ASSIGNED;
+        e.changedAt = Instant.now();
+        return e;
+    }
+
     /** Factory for attachment deleted events. */
     public static TaskChangedEvent attachmentDeleted(UUID taskId, UUID projectId, String taskTitle,
                                                      UUID attachmentId, String fileName) {

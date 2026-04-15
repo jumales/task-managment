@@ -48,8 +48,9 @@ public class Task {
     @Column(name = "phase_id", nullable = false)
     private UUID phaseId;
 
-    /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1"). */
-    @Column(name = "task_code", nullable = false)
+    /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1").
+     *  Null briefly after creation until the background scheduler assigns it. */
+    @Column(name = "task_code")
     private String taskCode;
 
     private Instant deletedAt;
