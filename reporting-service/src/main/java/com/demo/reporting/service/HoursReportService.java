@@ -92,12 +92,10 @@ public class HoursReportService {
     /** Returns planned vs booked hours for a task broken down by (user, workType). */
     public List<DetailedHoursResponse> detailed(UUID taskId) {
         Map<String, Long> planned = new HashMap<>();
-        //TODO why two times this sumPlannedHoursByUserAndType.
         for (DetailedHoursProjection p : plannedRepository.sumPlannedHoursByUserAndType(taskId)) {
             planned.put(key(p.getUserId(), p.getWorkType()), p.getTotalHours());
         }
         Map<String, Long> booked = new HashMap<>();
-        //TODO why two times this sumBookedHoursByUserAndType
         for (DetailedHoursProjection p : bookedRepository.sumBookedHoursByUserAndType(taskId)) {
             booked.put(key(p.getUserId(), p.getWorkType()), p.getTotalHours());
         }
