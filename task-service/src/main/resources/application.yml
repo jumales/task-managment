@@ -18,7 +18,7 @@ spring:
     hikari:
       maximum-pool-size: 30     # increased from 20; headroom for write-heavy concurrent load
       minimum-idle: 5           # keep warm connections ready at all times
-      connection-timeout: 8000  # 8 s — fail fast when pool exhausted; 30 s just hides contention
+      connection-timeout: 20000 # 20 s — balanced: fail fast vs pool-30 serving 100 VUs each holding connections for multi-op transactions
   flyway:
 
   jpa:

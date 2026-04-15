@@ -563,8 +563,8 @@ public class TaskService {
     /**
      * Converts a list of tasks to response DTOs using batch queries for projects, phases, and participants,
      * avoiding N+1 database and HTTP round-trips.
-     * The three independent batch fetches (projects, phases, participants) run concurrently to reduce
-     * overall latency from sum(t1+t2+t3) to max(t1,t2,t3).
+     * All three fetches are DB calls sharing the same HikariCP pool, so they run sequentially
+     * to avoid multiplying connection demand under concurrent load.
      */
     private List<TaskResponse> toResponseList(List<Task> tasks) {
         if (tasks.isEmpty()) return List.of();
@@ -573,25 +573,21 @@ public class TaskService {
         Set<UUID> projectIds = tasks.stream().map(Task::getProjectId).collect(Collectors.toSet());
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).collect(Collectors.toSet());
 
-        CompletableFuture<Map<UUID, TaskProjectResponse>> projectsFuture = CompletableFuture.supplyAsync(() ->
-                projectService.findAllByIds(projectIds).stream()
-                        .collect(Collectors.toMap(TaskProject::getId, p ->
-                                new TaskProjectResponse(p.getId(), p.getName(), p.getDescription(),
-                                        p.getTaskCodePrefix(), p.getDefaultPhaseId()))));
+        Map<UUID, TaskProjectResponse> projectsById = projectService.findAllByIds(projectIds)
+                .stream()
+                .collect(Collectors.toMap(TaskProject::getId, p ->
+                        new TaskProjectResponse(p.getId(), p.getName(), p.getDescription(),
+                                p.getTaskCodePrefix(), p.getDefaultPhaseId())));
 
-        CompletableFuture<Map<UUID, TaskPhaseResponse>> phasesFuture = CompletableFuture.supplyAsync(() ->
-                phaseService.findAllByIds(phaseIds).stream()
-                        .collect(Collectors.toMap(TaskPhase::getId, p ->
-                                new TaskPhaseResponse(p.getId(), p.getName(), p.getDescription(),
-                                        p.getCustomName(), p.getProjectId()))));
+        Map<UUID, TaskPhaseResponse> phasesById = phaseService.findAllByIds(phaseIds)
+                .stream()
+                .collect(Collectors.toMap(TaskPhase::getId, p ->
+                        new TaskPhaseResponse(p.getId(), p.getName(), p.getDescription(),
+                                p.getCustomName(), p.getProjectId())));
 
         // Batch-load all participants for these tasks in two queries (DB + user-service batch)
-        CompletableFuture<Map<UUID, List<TaskParticipantResponse>>> participantsFuture =
-                CompletableFuture.supplyAsync(() -> participantService.findByTaskIds(taskIds));
-
-        Map<UUID, TaskProjectResponse> projectsById   = projectsFuture.join();
-        Map<UUID, TaskPhaseResponse> phasesById       = phasesFuture.join();
-        Map<UUID, List<TaskParticipantResponse>> participantsByTaskId = participantsFuture.join();
+        Map<UUID, List<TaskParticipantResponse>> participantsByTaskId =
+                participantService.findByTaskIds(taskIds);
 
         return tasks.stream().map(task -> new TaskResponse(
                 task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(), task.getStatus(),
@@ -605,8 +601,8 @@ public class TaskService {
     /**
      * Converts a list of tasks to lightweight summary DTOs using batch queries for projects,
      * phases, and user names — no per-task participant loading.
-     * The three independent batch fetches (projects=DB, phases=DB, userNames=Redis/HTTP) run
-     * concurrently to reduce overall latency from sum(t1+t2+t3) to max(t1,t2,t3).
+     * DB calls (projects, phases) run sequentially to avoid multiplying connection demand.
+     * User-name resolution (Redis/HTTP) is fired async first so it overlaps with the DB queries.
      */
     private List<TaskSummaryResponse> toSummaryResponseList(List<Task> tasks) {
         if (tasks.isEmpty()) return List.of();
@@ -615,20 +611,18 @@ public class TaskService {
         Set<UUID> phaseIds   = tasks.stream().map(Task::getPhaseId).collect(Collectors.toSet());
         Set<UUID> userIds    = tasks.stream().map(Task::getAssignedUserId).filter(Objects::nonNull).collect(Collectors.toSet());
 
-        CompletableFuture<Map<UUID, TaskProject>> projectsFuture = CompletableFuture.supplyAsync(() ->
-                projectService.findAllByIds(projectIds).stream()
-                        .collect(Collectors.toMap(TaskProject::getId, p -> p)));
-
-        CompletableFuture<Map<UUID, TaskPhase>> phasesFuture = CompletableFuture.supplyAsync(() ->
-                phaseService.findAllByIds(phaseIds).stream()
-                        .collect(Collectors.toMap(TaskPhase::getId, p -> p)));
-
+        // Fire user-name resolution async first (Redis/HTTP — no DB connection consumed).
+        // The result is joined after the DB queries complete, so the two I/O paths overlap.
         CompletableFuture<Map<UUID, String>> userNamesFuture = CompletableFuture.supplyAsync(() ->
                 userIds.isEmpty() ? Map.of() : userClientHelper.fetchUserNames(userIds));
 
-        Map<UUID, TaskProject> projectsById = projectsFuture.join();
-        Map<UUID, TaskPhase> phasesById     = phasesFuture.join();
-        Map<UUID, String> userNamesById     = userNamesFuture.join();
+        Map<UUID, TaskProject> projectsById = projectService.findAllByIds(projectIds).stream()
+                .collect(Collectors.toMap(TaskProject::getId, p -> p));
+
+        Map<UUID, TaskPhase> phasesById = phaseService.findAllByIds(phaseIds).stream()
+                .collect(Collectors.toMap(TaskPhase::getId, p -> p));
+
+        Map<UUID, String> userNamesById = userNamesFuture.join();
 
         return tasks.stream().map(task -> {
             TaskProject project = projectsById.get(task.getProjectId());
