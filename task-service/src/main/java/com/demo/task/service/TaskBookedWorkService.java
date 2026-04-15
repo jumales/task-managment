@@ -94,6 +94,7 @@ public class TaskBookedWorkService {
                 saved.getId(), saved.getUserId(), saved.getWorkType(),
                 BigInteger.valueOf(saved.getBookedHours())));
         // Auto-register the user as a CONTRIBUTOR if not already a participant
+        //TODO remove tightCoupling with participant service. call from frontend directly
         participantService.addIfNotPresent(taskId, userId, TaskParticipantRole.CONTRIBUTOR);
         return toResponse(saved, user.getName());
     }

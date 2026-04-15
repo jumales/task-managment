@@ -79,6 +79,7 @@ public class TaskAttachmentService {
         outboxWriter.write(TaskChangedEvent.attachmentAdded(
                 taskId, task.getProjectId(), task.getTitle(),
                 saved.getId(), saved.getFileName(), uploadedByUserId));
+        //TODO: tight coupling with participantService, replace with call from frontend
         // Auto-register the uploader as a CONTRIBUTOR if not already a participant
         participantService.addIfNotPresent(taskId, uploadedByUserId, TaskParticipantRole.CONTRIBUTOR);
         String uploaderName = userClientHelper.resolveUserName(uploadedByUserId);
