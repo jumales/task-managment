@@ -13,10 +13,12 @@ import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
 import com.demo.task.client.UserClient;
+import com.demo.task.repository.TaskCodeJobRepository;
 import com.demo.task.repository.TaskPhaseRepository;
 import com.demo.task.repository.TaskProjectRepository;
 import com.demo.task.repository.TaskRepository;
 import com.demo.task.repository.TaskTimelineRepository;
+import com.demo.task.service.TaskCodeAssignmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,12 +72,19 @@ class TaskProjectControllerIT {
     @Autowired
     TaskTimelineRepository timelineRepository;
 
+    @Autowired
+    TaskCodeJobRepository taskCodeJobRepository;
+
+    @Autowired
+    TaskCodeAssignmentService codeAssignmentService;
+
     private static final UUID ALICE_ID = UUID.randomUUID();
     /** Tracks the default BACKLOG phase per project so tasks can always be created with a valid phase. */
     private final java.util.Map<UUID, UUID> defaultPhaseByProject = new java.util.HashMap<>();
 
     @BeforeEach
     void setUp() {
+        taskCodeJobRepository.deleteAll();
         timelineRepository.deleteAll();
         taskRepository.deleteAll();
         phaseRepository.deleteAll();
@@ -167,11 +176,21 @@ class TaskProjectControllerIT {
         req.setTaskCodePrefix("CP_");
         TaskProjectResponse project = restTemplate.postForEntity("/api/v1/projects", req, TaskProjectResponse.class).getBody();
 
+        // Creation returns null code — scheduler assigns asynchronously
         TaskResponse first  = createTask("Task A", TaskStatus.TODO, ALICE_ID, project.getId());
         TaskResponse second = createTask("Task B", TaskStatus.TODO, ALICE_ID, project.getId());
 
-        assertThat(first.getTaskCode()).isEqualTo("CP_1");
-        assertThat(second.getTaskCode()).isEqualTo("CP_2");
+        assertThat(first.getTaskCode()).isNull();
+        assertThat(second.getTaskCode()).isNull();
+
+        // Trigger the scheduler synchronously and verify prefix-based sequential codes
+        codeAssignmentService.assignPendingCodes();
+
+        TaskResponse firstFetched  = restTemplate.getForEntity("/api/v1/tasks/" + first.getId(),  TaskResponse.class).getBody();
+        TaskResponse secondFetched = restTemplate.getForEntity("/api/v1/tasks/" + second.getId(), TaskResponse.class).getBody();
+
+        assertThat(firstFetched.getTaskCode()).isEqualTo("CP_1");
+        assertThat(secondFetched.getTaskCode()).isEqualTo("CP_2");
     }
 
     // ── Auto-create phases on project creation ───────────────────────

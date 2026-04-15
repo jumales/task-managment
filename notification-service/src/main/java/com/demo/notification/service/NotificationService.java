@@ -256,6 +256,13 @@ public class NotificationService {
                 "Timeline updated on task: " + title,
                 "A timeline date was changed on task '" + title + "'."
             };
+            // System event — no user-facing email; exists only to trigger the WebSocket push.
+            // resolveRecipientId returns assignedUserId which may send an email to the assignee,
+            // but the primary purpose is the real-time frontend update.
+            case TASK_CODE_ASSIGNED -> new String[]{
+                "Task code assigned: " + title,
+                "Task '" + title + "' has been assigned a task code."
+            };
         };
     }
 

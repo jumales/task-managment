@@ -78,6 +78,10 @@ export function useTaskRealtime(
         case 'TIMELINE_CHANGED':
           getTimelines(taskId).then(callbacks.onTimelinesUpdated).catch(() => {});
           break;
+        case 'TASK_CODE_ASSIGNED':
+          // Background scheduler assigned the sequential code — re-fetch to show it
+          getTask(taskId).then(callbacks.onTaskUpdated).catch(() => {});
+          break;
       }
     });
 

@@ -108,9 +108,9 @@ export function TaskDetailPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <div>
           <Space align="center" style={{ marginBottom: 2 }}>
-            {data.task.taskCode && (
-              <Typography.Text type="secondary">{data.task.taskCode}</Typography.Text>
-            )}
+            <Typography.Text type="secondary">
+              {data.task.taskCode ?? '…'}
+            </Typography.Text>
             {!isSupervisor && !participants.isAlreadyActiveParticipant && (
               participants.myWatcherEntry ? (
                 <Popconfirm
