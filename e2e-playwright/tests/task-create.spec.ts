@@ -93,13 +93,13 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   const projectSelect = page.locator('.ant-form-item').filter({ hasText: 'Project' }).locator('.ant-select-selector');
   await projectSelect.click();
   // Wait for dropdown to appear, then pick first option via keyboard.
-  await page.locator('.ant-select-dropdown').first().waitFor({ state: 'visible' });
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').waitFor({ state: 'visible' });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 
   const typeSelect = page.locator('.ant-form-item').filter({ hasText: 'Type' }).locator('.ant-select-selector');
   await typeSelect.click();
-  await page.locator('.ant-select-dropdown').first().waitFor({ state: 'visible' });
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').waitFor({ state: 'visible' });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 
@@ -108,7 +108,7 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   // ── Step 3: Assignee & Dates ───────────────────────────────────────────────
   const userSelect = page.locator('.ant-form-item').filter({ hasText: 'Assigned to' }).locator('.ant-select-selector');
   await userSelect.click();
-  await page.locator('.ant-select-dropdown').first().waitFor({ state: 'visible' });
+  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').waitFor({ state: 'visible' });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 
