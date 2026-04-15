@@ -15,8 +15,8 @@ import java.util.UUID;
 
 /**
  * Endpoints for managing participants (user-role associations) on a task.
- * Participants are added automatically when users interact with the task (comment,
- * upload, book hours). The only manual action is Watch / Unwatch (WATCHER role).
+ * Users register themselves as CONTRIBUTOR via {@code POST /join} after commenting,
+ * uploading, or logging booked work. The Watch / Unwatch flow uses the WATCHER role.
  */
 @RestController
 @RequestMapping("/api/v1/tasks/{taskId}/participants")
@@ -51,6 +51,20 @@ public class TaskParticipantController {
     public TaskParticipantResponse watch(@PathVariable UUID taskId, Authentication authentication) {
         UUID userId = userClientHelper.resolveUserId(authentication);
         return service.watch(taskId, userId);
+    }
+
+    /**
+     * Adds the authenticated user as a CONTRIBUTOR on the task.
+     * Idempotent: if the user already has any role on the task, returns their existing entry.
+     * Called by the frontend after the user comments, uploads an attachment, or logs booked work.
+     */
+    @PostMapping("/join")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Join a task as CONTRIBUTOR (called after comment, upload, or booked work)")
+    public TaskParticipantResponse join(@PathVariable UUID taskId, Authentication authentication) {
+        UUID userId = userClientHelper.resolveUserId(authentication);
+        return service.join(taskId, userId);
     }
 
     /**
