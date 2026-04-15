@@ -9,8 +9,6 @@ This plan:
 2. Makes the backend auto-assign the authenticated user (removes the user selector entirely).
 3. Adds a contextual info message inside the dialog that shows planned hours and total already-booked hours for the selected work type.
 
----
-
 ## Changes
 
 ### Backend
