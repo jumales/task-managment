@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Divider, List, Popconfirm, Space, Tag } from 'antd';
+import { Alert, Button, Divider, List, Popconfirm, Space, Tag, Tooltip } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import type { useTaskParticipants } from '../../hooks/useTaskParticipants';
 
 const PAGE_SIZE = 5;
@@ -49,9 +50,9 @@ export function TaskParticipantsTab({
                         okText={t('tasks.unwatch')}
                         okButtonProps={{ danger: true }}
                       >
-                        <Button danger size="small" loading={removingPId === p.id}>
-                          {t('tasks.unwatch')}
-                        </Button>
+                        <Tooltip title={t('tasks.unwatch')}>
+                          <Button danger size="small" type="text" icon={<BellOutlined />} loading={removingPId === p.id} />
+                        </Tooltip>
                       </Popconfirm>,
                     ]
                   : []

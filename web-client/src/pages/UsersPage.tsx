@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, Select, message, Avatar } from 'antd';
-import { UploadOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
+import { Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Switch, Space, Select, message, Avatar, Tooltip } from 'antd';
+import { UploadOutlined, SearchOutlined, UserOutlined, EditOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { InputRef } from 'antd';
 import { getUsers, createUser, updateUser, uploadAvatar, updateUserAvatar, getUserRoles, setUserRoles } from '../api/userApi';
@@ -50,14 +50,14 @@ function AvatarUploadButton({ user, onDone }: { user: UserResponse; onDone: (upd
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
-      <Button
-        size="small"
-        icon={<UploadOutlined />}
-        loading={loading}
-        onClick={() => inputRef.current?.click()}
-      >
-        {t('common.upload')}
-      </Button>
+      <Tooltip title={t('common.upload')}>
+        <Button
+          size="small"
+          icon={<UploadOutlined />}
+          loading={loading}
+          onClick={() => inputRef.current?.click()}
+        />
+      </Tooltip>
     </>
   );
 }
@@ -228,7 +228,9 @@ export function UsersPage() {
     ...(isAdmin ? [{
       title: t('common.actions'), key: 'actions',
       render: (_: unknown, record: UserResponse) => (
-        <Button size="small" onClick={() => openEditModal(record)}>{t('common.edit')}</Button>
+        <Tooltip title={t('common.edit')}>
+          <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+        </Tooltip>
       ),
     }] : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps

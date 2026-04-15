@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Button, InputNumber, List, Modal, Popconfirm, Select, Space, Tag, Typography,
+  Button, InputNumber, List, Modal, Popconfirm, Select, Space, Tag, Typography, Tooltip,
 } from 'antd';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { TaskPhaseName, WorkType } from '../../api/types';
 import type { useTaskBookedWork } from '../../hooks/useTaskBookedWork';
 import { getWorkTypeLabels } from '../../pages/taskDetail/taskDetailConstants';
@@ -96,9 +97,9 @@ export function TaskBookedWorkTab({
           <List.Item
             key={bw.id}
             actions={showActions ? [
-              <Button key="edit" size="small" onClick={() => startEditing(bw)}>
-                {t('common.edit')}
-              </Button>,
+              <Tooltip key="edit" title={t('common.edit')}>
+                <Button size="small" type="text" icon={<EditOutlined />} onClick={() => startEditing(bw)} />
+              </Tooltip>,
               <Popconfirm
                 key="del"
                 title={t('tasks.deleteBookedWork')}
@@ -106,7 +107,9 @@ export function TaskBookedWorkTab({
                 okText={t('common.delete')}
                 okButtonProps={{ danger: true }}
               >
-                <Button danger size="small" loading={deletingBwId === bw.id}>{t('common.delete')}</Button>
+                <Tooltip title={t('common.delete')}>
+                  <Button danger size="small" type="text" icon={<DeleteOutlined />} loading={deletingBwId === bw.id} />
+                </Tooltip>
               </Popconfirm>,
             ] : []}
           >

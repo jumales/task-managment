@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Tabs, Tag, Typography, Spin, Alert, Button } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Table, Tabs, Tag, Typography, Spin, Alert, Button, Tooltip } from 'antd';
+import { ReloadOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { getMyTasks, getMyTasksFiltered, getMyFinishedTasks } from '../api/reportingApi';
 import { reportingSocket } from '../realtime/reportingSocket';
 import { HoursReport } from './reports/HoursReport';
@@ -117,9 +117,9 @@ function MyTasksTab({ days, finished }: { days: number | null; finished: boolean
             key: 'action',
             width: 80,
             render: (_: unknown, row: MyTaskReport) => (
-              <Button size="small" type="link" onClick={() => navigate(`/tasks/${row.id}`)}>
-                Open
-              </Button>
+              <Tooltip title="Open">
+                <Button size="small" type="text" icon={<ArrowRightOutlined />} onClick={() => navigate(`/tasks/${row.id}`)} />
+              </Tooltip>
             ),
           },
         ]}
