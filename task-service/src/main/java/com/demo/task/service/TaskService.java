@@ -19,7 +19,6 @@ import com.demo.common.dto.TimelineState;
 import com.demo.common.dto.TaskSummaryResponse;
 import com.demo.common.dto.TaskTimelineResponse;
 import com.demo.common.dto.UserDto;
-import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.event.TaskEvent;
 import com.demo.common.exception.BusinessLogicException;
@@ -27,8 +26,6 @@ import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
-import com.demo.task.model.OutboxAggregateType;
-import com.demo.task.model.OutboxEvent;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.Task;
 import com.demo.task.model.TaskCodeJob;
@@ -36,12 +33,9 @@ import com.demo.task.model.TaskComment;
 import com.demo.task.model.TaskPhase;
 import com.demo.task.model.TaskProject;
 import com.demo.task.outbox.OutboxWriter;
-import com.demo.task.repository.OutboxRepository;
 import com.demo.task.repository.TaskCodeJobRepository;
 import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -61,7 +55,6 @@ public class TaskService {
 
     private final TaskRepository repository;
     private final TaskCommentRepository commentRepository;
-    private final OutboxRepository outboxRepository;
     private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final TaskProjectService projectService;
@@ -71,12 +64,10 @@ public class TaskService {
     private final TaskPlannedWorkService plannedWorkService;
     private final TaskBookedWorkService bookedWorkService;
     private final OutboxWriter outboxWriter;
-    private final ObjectMapper objectMapper;
     private final TaskCodeJobRepository taskCodeJobRepository;
 
     public TaskService(TaskRepository repository,
                        TaskCommentRepository commentRepository,
-                       OutboxRepository outboxRepository,
                        UserClient userClient,
                        UserClientHelper userClientHelper,
                        TaskProjectService projectService,
@@ -86,11 +77,9 @@ public class TaskService {
                        TaskPlannedWorkService plannedWorkService,
                        TaskBookedWorkService bookedWorkService,
                        OutboxWriter outboxWriter,
-                       ObjectMapper objectMapper,
                        TaskCodeJobRepository taskCodeJobRepository) {
         this.repository = repository;
         this.commentRepository = commentRepository;
-        this.outboxRepository = outboxRepository;
         this.userClient = userClient;
         this.userClientHelper = userClientHelper;
         this.projectService = projectService;
@@ -100,7 +89,6 @@ public class TaskService {
         this.plannedWorkService = plannedWorkService;
         this.bookedWorkService = bookedWorkService;
         this.outboxWriter = outboxWriter;
-        this.objectMapper = objectMapper;
         this.taskCodeJobRepository = taskCodeJobRepository;
     }
 
@@ -514,19 +502,7 @@ public class TaskService {
 
     /** Serializes a lifecycle event to JSON and saves it to the outbox for the {@code task-events} topic. */
     private void writeLifecycleToOutbox(UUID taskId, OutboxEventType eventType, TaskEvent event) {
-        try {
-            outboxRepository.save(OutboxEvent.builder()
-                    .aggregateType(OutboxAggregateType.TASK)
-                    .aggregateId(taskId)
-                    .eventType(eventType)
-                    .topic(KafkaTopics.TASK_EVENTS)
-                    .payload(objectMapper.writeValueAsString(event))
-                    .published(false)
-                    .createdAt(Instant.now())
-                    .build());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize task lifecycle outbox event", e);
-        }
+        outboxWriter.writeTaskEvent(taskId, eventType, event);
     }
 
     private Task getOrThrow(UUID id) {
