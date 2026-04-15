@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { addComment } from '../api/taskApi';
+import { addComment, joinTask } from '../api/taskApi';
 import type { TaskCommentResponse } from '../api/types';
 
 /** Manages comment list, new-comment input state, and the add-comment handler for a task. */
@@ -21,6 +21,7 @@ export function useTaskComments(taskId: string | undefined, initialData: TaskCom
       .then((created) => {
         setComments((prev) => [...prev, created]);
         setNewComment('');
+        joinTask(taskId);
       })
       .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedAddComment')))
       .finally(() => setAddingCmt(false));

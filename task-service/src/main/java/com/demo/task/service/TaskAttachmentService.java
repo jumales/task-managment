@@ -2,7 +2,6 @@ package com.demo.task.service;
 
 import com.demo.common.dto.TaskAttachmentRequest;
 import com.demo.common.dto.TaskAttachmentResponse;
-import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.FileClient;
@@ -38,20 +37,17 @@ public class TaskAttachmentService {
     private final FileClient fileClient;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
-    private final TaskParticipantService participantService;
 
     public TaskAttachmentService(TaskAttachmentRepository repository,
                                  TaskRepository taskRepository,
                                  FileClient fileClient,
                                  UserClientHelper userClientHelper,
-                                 OutboxWriter outboxWriter,
-                                 TaskParticipantService participantService) {
+                                 OutboxWriter outboxWriter) {
         this.repository = repository;
         this.taskRepository = taskRepository;
         this.fileClient = fileClient;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
-        this.participantService = participantService;
     }
 
     /** Returns all attachments for the given task, enriched with uploader display names. */
@@ -79,9 +75,6 @@ public class TaskAttachmentService {
         outboxWriter.write(TaskChangedEvent.attachmentAdded(
                 taskId, task.getProjectId(), task.getTitle(),
                 saved.getId(), saved.getFileName(), uploadedByUserId));
-        //TODO: tight coupling with participantService, replace with call from frontend
-        // Auto-register the uploader as a CONTRIBUTOR if not already a participant
-        participantService.addIfNotPresent(taskId, uploadedByUserId, TaskParticipantRole.CONTRIBUTOR);
         String uploaderName = userClientHelper.resolveUserName(uploadedByUserId);
         return toResponse(saved, uploaderName);
     }

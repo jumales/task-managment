@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 
 /**
  * Manages task participants: adding, removing, and querying user-role associations per task.
+ * Users join tasks explicitly (via {@link #join} or {@link #watch}) after performing actions
+ * such as commenting, uploading attachments, or logging booked work.
  */
 @Service
 public class TaskParticipantService {
@@ -66,18 +68,27 @@ public class TaskParticipantService {
     }
 
     /**
-     * Auto-adds a user as a participant with the given role only if they have no existing
-     * active entry on the task. Prevents CREATOR or ASSIGNEE from being re-added as CONTRIBUTOR.
+     * Adds the authenticated user as a CONTRIBUTOR on the task and returns the participant entry.
+     * If the user already has any active participant entry (any role), the existing entry is returned.
+     * Called explicitly by the frontend after the user comments, uploads an attachment, or logs booked work.
      */
     @Transactional
-    public void addIfNotPresent(UUID taskId, UUID userId, TaskParticipantRole role) {
-        if (repository.existsByTaskIdAndUserId(taskId, userId)) return;
-        repository.save(TaskParticipant.builder()
-                .taskId(taskId)
-                .userId(userId)
-                .role(role)
-                .createdAt(Instant.now())
-                .build());
+    public TaskParticipantResponse join(UUID taskId, UUID userId) {
+        if (!repository.existsByTaskIdAndUserId(taskId, userId)) {
+            repository.save(TaskParticipant.builder()
+                    .taskId(taskId)
+                    .userId(userId)
+                    .role(TaskParticipantRole.CONTRIBUTOR)
+                    .createdAt(Instant.now())
+                    .build());
+            outboxWriter.write(TaskChangedEvent.participantAdded(taskId, userId));
+        }
+        UserDto user = userClient.getUserById(userId);
+        return repository.findByTaskId(taskId).stream()
+                .filter(p -> p.getUserId().equals(userId))
+                .findFirst()
+                .map(p -> toResponse(p, user))
+                .orElseThrow(() -> new ResourceNotFoundException("TaskParticipant", userId));
     }
 
     /**

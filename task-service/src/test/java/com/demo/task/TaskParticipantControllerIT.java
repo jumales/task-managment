@@ -1,14 +1,11 @@
 package com.demo.task;
 
 import com.demo.common.dto.PageResponse;
-import com.demo.common.dto.TaskBookedWorkRequest;
-import com.demo.common.dto.TaskCommentRequest;
 import com.demo.common.dto.TaskParticipantResponse;
 import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.TaskPhaseRequest;
 import com.demo.common.dto.TaskPhaseResponse;
-import com.demo.common.dto.TaskPhaseUpdateRequest;
 import com.demo.common.dto.TaskProjectRequest;
 import com.demo.common.dto.TaskProjectResponse;
 import com.demo.common.dto.TaskRequest;
@@ -16,7 +13,6 @@ import com.demo.common.dto.TaskResponse;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.TaskType;
 import com.demo.common.dto.UserDto;
-import com.demo.common.dto.WorkType;
 import com.demo.task.client.UserClient;
 import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskParticipantRepository;
@@ -38,7 +34,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.math.BigInteger;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -49,7 +44,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Integration tests for {@link com.demo.task.controller.TaskParticipantController}.
- * Covers Watch/Unwatch actions and auto-add-as-CONTRIBUTOR behavior for comments and booked work.
+ * Covers Get, Watch/Unwatch, and Join (explicit CONTRIBUTOR registration) actions.
  */
 @Import(TestSecurityConfig.class)
 @Testcontainers
@@ -290,86 +285,64 @@ class TaskParticipantControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    // ── Auto-add as CONTRIBUTOR ──────────────────────────────────────────────
+    // ── POST /api/v1/tasks/{taskId}/participants/join ────────────────────────
 
     @Test
-    void addComment_autoAddsAuthorAsContributor() {
-        // TEST_USER_ID is already CREATOR; posting a comment must NOT add a duplicate entry
-        TaskCommentRequest req = new TaskCommentRequest();
-        req.setContent("My comment");
-        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/comments", req, Object.class);
-
-        ResponseEntity<TaskParticipantResponse[]> list = restTemplate.getForEntity(
-                "/api/v1/tasks/" + taskId + "/participants",
-                TaskParticipantResponse[].class);
-
-        // Still 2 (CREATOR + ASSIGNEE); no duplicate CONTRIBUTOR for the same user
-        assertThat(list.getBody()).hasSize(2);
-
-        // A different user commenting on a separate task should be added as CONTRIBUTOR
-        TaskRequest taskReq = new TaskRequest();
-        taskReq.setTitle("Comment Task");
-        taskReq.setDescription("desc");
-        taskReq.setStatus(TaskStatus.TODO);
-        taskReq.setAssignedUserId(ALICE_ID);
-        taskReq.setProjectId(restTemplate.exchange("/api/v1/projects", HttpMethod.GET, null,
-                new ParameterizedTypeReference<PageResponse<TaskProjectResponse>>() {})
-                .getBody().getContent().get(0).getId());
-        taskReq.setPhaseId(phaseId);
-        taskReq.setType(TaskType.FEATURE);
-        taskReq.setPlannedStart(Instant.parse("2026-04-01T08:00:00Z"));
-        taskReq.setPlannedEnd(Instant.parse("2026-04-30T17:00:00Z"));
-        String commentTaskId = restTemplate.postForEntity("/api/v1/tasks", taskReq, TaskResponse.class)
-                .getBody().getId().toString();
-
-        // Remove the auto-created CREATOR entry so TEST_USER_ID appears fresh
-        participantRepository.findByTaskId(UUID.fromString(commentTaskId))
-                .stream()
-                .filter(p -> p.getUserId().equals(TestSecurityConfig.TEST_USER_ID))
-                .forEach(p -> participantRepository.deleteById(p.getId()));
-
-        restTemplate.postForEntity("/api/v1/tasks/" + commentTaskId + "/comments", req, Object.class);
-
-        ResponseEntity<TaskParticipantResponse[]> list2 = restTemplate.getForEntity(
-                "/api/v1/tasks/" + commentTaskId + "/participants",
-                TaskParticipantResponse[].class);
-
-        assertThat(list2.getBody()).anyMatch(p ->
-                p.getRole() == TaskParticipantRole.CONTRIBUTOR
-                && TestSecurityConfig.TEST_USER_ID.equals(p.getUserId()));
-    }
-
-    @Test
-    void createBookedWork_autoAddsUserAsContributor() {
-        // Tasks start in PLANNING phase; booked work is blocked in PLANNING.
-        // Advance to BACKLOG so the booked-work call is allowed.
-        TaskPhaseUpdateRequest phaseUpdate = new TaskPhaseUpdateRequest();
-        phaseUpdate.setPhaseId(phaseId);
-        restTemplate.exchange("/api/v1/tasks/" + taskId + "/phase",
-                HttpMethod.PATCH, new HttpEntity<>(phaseUpdate), TaskResponse.class);
-
+    void join_addsAuthenticatedUserAsContributor() {
         // Remove TEST_USER_ID's CREATOR entry so they are fresh on this task
         participantRepository.findByTaskId(UUID.fromString(taskId))
                 .stream()
                 .filter(p -> p.getUserId().equals(TestSecurityConfig.TEST_USER_ID))
                 .forEach(p -> participantRepository.deleteById(p.getId()));
 
-        TaskBookedWorkRequest req = new TaskBookedWorkRequest();
-        req.setWorkType(WorkType.DEVELOPMENT);
-        req.setBookedHours(BigInteger.valueOf(3));
+        ResponseEntity<TaskParticipantResponse> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants/join",
+                null,
+                TaskParticipantResponse.class);
 
-        // userId comes from Authentication (TEST_USER_ID) inside the controller
-        ResponseEntity<Object> createResp = restTemplate.postForEntity(
-                "/api/v1/tasks/" + taskId + "/booked-work",
-                req, Object.class);
-        assertThat(createResp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getRole()).isEqualTo(TaskParticipantRole.CONTRIBUTOR);
+        assertThat(response.getBody().getUserId()).isEqualTo(TestSecurityConfig.TEST_USER_ID);
+    }
+
+    @Test
+    void join_isIdempotent_doesNotAddDuplicate() {
+        // Remove CREATOR entry so we start fresh
+        participantRepository.findByTaskId(UUID.fromString(taskId))
+                .stream()
+                .filter(p -> p.getUserId().equals(TestSecurityConfig.TEST_USER_ID))
+                .forEach(p -> participantRepository.deleteById(p.getId()));
+
+        // Call join twice
+        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/participants/join", null, TaskParticipantResponse.class);
+        restTemplate.postForEntity("/api/v1/tasks/" + taskId + "/participants/join", null, TaskParticipantResponse.class);
 
         ResponseEntity<TaskParticipantResponse[]> list = restTemplate.getForEntity(
                 "/api/v1/tasks/" + taskId + "/participants",
                 TaskParticipantResponse[].class);
 
-        assertThat(list.getBody()).anyMatch(p ->
-                p.getRole() == TaskParticipantRole.CONTRIBUTOR
-                && TestSecurityConfig.TEST_USER_ID.equals(p.getUserId()));
+        // Only ASSIGNEE + one CONTRIBUTOR — no duplicate entries
+        long contributorCount = java.util.Arrays.stream(list.getBody())
+                .filter(p -> p.getUserId().equals(TestSecurityConfig.TEST_USER_ID))
+                .count();
+        assertThat(contributorCount).isEqualTo(1);
+    }
+
+    @Test
+    void join_whenUserAlreadyCreator_returnsExistingCreatorEntry() {
+        // TEST_USER_ID is already CREATOR; join must return the existing entry without adding a CONTRIBUTOR
+        ResponseEntity<TaskParticipantResponse> response = restTemplate.postForEntity(
+                "/api/v1/tasks/" + taskId + "/participants/join",
+                null,
+                TaskParticipantResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().getRole()).isEqualTo(TaskParticipantRole.CREATOR);
+
+        // Total participant count unchanged
+        ResponseEntity<TaskParticipantResponse[]> list = restTemplate.getForEntity(
+                "/api/v1/tasks/" + taskId + "/participants",
+                TaskParticipantResponse[].class);
+        assertThat(list.getBody()).hasSize(2);
     }
 }

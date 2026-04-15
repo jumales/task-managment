@@ -1111,6 +1111,42 @@
           ]
         },
         {
+          "name": "Join task as CONTRIBUTOR",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{{taskId}}/participants/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{{taskId}}",
+                "participants",
+                "join"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('Role is CONTRIBUTOR', () => pm.expect(body.role).to.eql('CONTRIBUTOR'));",
+                  "pm.collectionVariables.set('participantId', body.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Unwatch task (remove own WATCHER entry)",
           "request": {
             "method": "DELETE",

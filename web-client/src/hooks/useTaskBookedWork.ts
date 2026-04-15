@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createBookedWork, updateBookedWork, deleteBookedWork } from '../api/taskApi';
+import { createBookedWork, updateBookedWork, deleteBookedWork, joinTask } from '../api/taskApi';
 import type { TaskBookedWorkResponse, TaskPlannedWorkResponse, WorkType } from '../api/types';
 
 /** Manages booked work list, dialog state, add/edit-form state, and CRUD handlers for a task. */
@@ -72,6 +72,7 @@ export function useTaskBookedWork(
         setBookedWork((prev) =>
           editingBw ? prev.map((b) => (b.id === saved.id ? saved : b)) : [...prev, saved],
         );
+        if (!editingBw) joinTask(taskId);
         resetBwForm();
       })
       .catch((err: unknown) =>

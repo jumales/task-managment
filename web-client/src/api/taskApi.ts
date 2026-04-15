@@ -79,6 +79,11 @@ export function removeParticipant(taskId: string, participantId: string) {
   return apiClient.delete(`${TASKS_URL}/${taskId}/participants/${participantId}`);
 }
 
+/** Registers the authenticated user as a CONTRIBUTOR on a task. Idempotent. */
+export function joinTask(taskId: string) {
+  return apiClient.post<TaskParticipantResponse>(`${TASKS_URL}/${taskId}/participants/join`).then((r) => r.data);
+}
+
 /** Fetches all planned work entries for a task. */
 export function getPlannedWork(taskId: string) {
   return apiClient.get<TaskPlannedWorkResponse[]>(`${TASKS_URL}/${taskId}/planned-work`).then((r) => r.data);

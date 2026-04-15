@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { uploadFile, addAttachment, deleteAttachment } from '../api/taskApi';
+import { uploadFile, addAttachment, deleteAttachment, joinTask } from '../api/taskApi';
 import type { TaskAttachmentResponse } from '../api/types';
 
 /** Manages the attachment list, file upload state, and delete handler for a task. */
@@ -27,6 +27,7 @@ export function useTaskAttachments(taskId: string | undefined, initialData: Task
       )
       .then((created) => {
         setAttachments((prev) => [...prev, created]);
+        joinTask(taskId);
       })
       .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedUploadAttachment')))
       .finally(() => setUploading(false));

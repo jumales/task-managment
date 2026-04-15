@@ -2,7 +2,6 @@ package com.demo.task.service;
 
 import com.demo.common.dto.TaskBookedWorkRequest;
 import com.demo.common.dto.TaskBookedWorkResponse;
-import com.demo.common.dto.TaskParticipantRole;
 import com.demo.common.dto.TaskPhaseName;
 import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
@@ -40,20 +39,17 @@ public class TaskBookedWorkService {
     private final TaskPhaseService phaseService;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
-    private final TaskParticipantService participantService;
 
     public TaskBookedWorkService(TaskBookedWorkRepository repository,
                                  TaskRepository taskRepository,
                                  TaskPhaseService phaseService,
                                  UserClientHelper userClientHelper,
-                                 OutboxWriter outboxWriter,
-                                 TaskParticipantService participantService) {
+                                 OutboxWriter outboxWriter) {
         this.repository = repository;
         this.taskRepository = taskRepository;
         this.phaseService = phaseService;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
-        this.participantService = participantService;
     }
 
     /** Returns all active booked-work entries for the given task, enriched with user display names. */
@@ -93,9 +89,6 @@ public class TaskBookedWorkService {
         outboxWriter.write(TaskChangedEvent.bookedWorkCreated(taskId, task.getProjectId(), task.getTitle(),
                 saved.getId(), saved.getUserId(), saved.getWorkType(),
                 BigInteger.valueOf(saved.getBookedHours())));
-        // Auto-register the user as a CONTRIBUTOR if not already a participant
-        //TODO remove tightCoupling with participant service. call from frontend directly
-        participantService.addIfNotPresent(taskId, userId, TaskParticipantRole.CONTRIBUTOR);
         return toResponse(saved, user.getName());
     }
 
