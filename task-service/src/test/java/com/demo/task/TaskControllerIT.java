@@ -270,8 +270,14 @@ class TaskControllerIT {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody().getId()).isNotNull();
         assertThat(response.getBody().getTitle()).isEqualTo("New feature");
-        assertThat(response.getBody().getTaskCode()).isEqualTo("TASK_1");
+        // taskCode is null at creation — assigned asynchronously by TaskCodeAssignmentService
+        assertThat(response.getBody().getTaskCode()).isNull();
         assertThat(repository.count()).isEqualTo(1);
+
+        // After scheduler runs, the task receives its code
+        codeAssignmentService.assignPendingCodes();
+        TaskResponse fetched = restTemplate.getForEntity("/api/v1/tasks/" + response.getBody().getId(), TaskResponse.class).getBody();
+        assertThat(fetched.getTaskCode()).isEqualTo("TASK_1");
     }
 
     @Test
