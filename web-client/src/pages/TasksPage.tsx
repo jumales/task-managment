@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
-  Space, Popconfirm, Progress, DatePicker, Steps, Switch,
+  Space, Popconfirm, Progress, DatePicker, Steps, Switch, Tooltip,
 } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { InputRef } from 'antd';
 import { getTasks, createTask, deleteTask, getProjects } from '../api/taskApi';
@@ -254,7 +254,9 @@ export function TasksPage() {
       title: t('common.actions'), key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button size="small" onClick={() => navigate(`/tasks/${record.id}`)}>{t('tasks.view')}</Button>
+          <Tooltip title={t('tasks.view')}>
+            <Button size="small" type="text" icon={<EyeOutlined />} onClick={() => navigate(`/tasks/${record.id}`)} />
+          </Tooltip>
           {!isSupervisor && (
             <Popconfirm
               title={t('tasks.deleteConfirm')}
@@ -263,7 +265,9 @@ export function TasksPage() {
               okText={t('common.delete')}
               okButtonProps={{ danger: true }}
             >
-              <Button danger size="small" loading={deletingId === record.id}>{t('common.delete')}</Button>
+              <Tooltip title={t('common.delete')}>
+                <Button danger size="small" type="text" icon={<DeleteOutlined />} loading={deletingId === record.id} />
+              </Tooltip>
             </Popconfirm>
           )}
         </Space>

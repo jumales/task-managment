@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Divider, List, Popconfirm, Space, Typography } from 'antd';
+import { Alert, Button, Divider, List, Popconfirm, Space, Typography, Tooltip } from 'antd';
 import { DeleteOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import type { useTaskAttachments } from '../../hooks/useTaskAttachments';
 import apiClient from '../../api/client';
@@ -74,13 +74,14 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
           <List.Item
             key={a.id}
             actions={[
-              <Button
-                size="small"
-                icon={<DownloadOutlined />}
-                onClick={() => handleDownload(a.fileId, a.fileName)}
-              >
-                {t('tasks.download')}
-              </Button>,
+              <Tooltip title={t('tasks.download')}>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<DownloadOutlined />}
+                  onClick={() => handleDownload(a.fileId, a.fileName)}
+                />
+              </Tooltip>,
               ...(!readOnly ? [
                 <Popconfirm
                   key="delete"
@@ -89,9 +90,9 @@ export function TaskAttachmentsTab({ attachments, uploading, error, handleUpload
                   okText={t('common.delete')}
                   cancelText={t('common.cancel')}
                 >
-                  <Button danger size="small" icon={<DeleteOutlined />}>
-                    {t('tasks.deleteAttachment')}
-                  </Button>
+                  <Tooltip title={t('tasks.deleteAttachment')}>
+                    <Button danger size="small" type="text" icon={<DeleteOutlined />} />
+                  </Tooltip>
                 </Popconfirm>,
               ] : []),
             ]}

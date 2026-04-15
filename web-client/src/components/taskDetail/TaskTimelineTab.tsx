@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Button, Card, Col, DatePicker, Descriptions, Modal, Popconfirm, Row, Select, Space, Typography,
+  Button, Card, Col, DatePicker, Descriptions, Modal, Popconfirm, Row, Select, Space, Typography, Tooltip,
 } from 'antd';
-import { CalendarOutlined } from '@ant-design/icons';
+import { CalendarOutlined, EditOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { TaskPhaseName, TimelineState, UserResponse } from '../../api/types';
 
@@ -68,9 +68,14 @@ export function TaskTimelineTab({
                   // Only planned dates are user-editable, and only while the task is in PLANNING
                   !AUTO_STATES.has(state) && taskPhaseName === 'PLANNING' && (
                     <Space size="small">
-                      <Button size="small" onClick={() => openTlModal(state)}>
-                        {entry ? t('common.edit') : t('tasks.setDate')}
-                      </Button>
+                      <Tooltip title={entry ? t('common.edit') : t('tasks.setDate')}>
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={entry ? <EditOutlined /> : <CalendarOutlined />}
+                          onClick={() => openTlModal(state)}
+                        />
+                      </Tooltip>
                       {entry && (
                         <Popconfirm
                           title={t('tasks.clearTimelineConfirm')}
@@ -78,9 +83,9 @@ export function TaskTimelineTab({
                           okText={t('common.delete')}
                           okButtonProps={{ danger: true }}
                         >
-                          <Button danger size="small" loading={deletingTlState === state}>
-                            {t('tasks.clearDate')}
-                          </Button>
+                          <Tooltip title={t('tasks.clearDate')}>
+                            <Button danger size="small" type="text" icon={<CloseCircleOutlined />} loading={deletingTlState === state} />
+                          </Tooltip>
                         </Popconfirm>
                       )}
                     </Space>

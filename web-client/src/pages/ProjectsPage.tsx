@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Table, Typography, Alert, Spin, Button, Modal, Form, Input, Popconfirm, Space, Tag } from 'antd';
+import { Table, Typography, Alert, Spin, Button, Modal, Form, Input, Popconfirm, Space, Tag, Tooltip } from 'antd';
+import { ApartmentOutlined, CheckOutlined, StarOutlined, StarFilled, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getProjects, createProject, deleteProject, getPhases, updatePhase, updateProject } from '../api/taskApi';
 import { useAuth } from '../auth/AuthProvider';
@@ -152,15 +153,16 @@ export function ProjectsPage() {
                   setCustomNames((prev) => ({ ...prev, [record.id]: e.target.value }))
                 }
               />
-              <Button
-                size="small"
-                type="primary"
-                disabled={!isDirty}
-                loading={savingPhaseId === record.id}
-                onClick={() => handleSaveCustomName(record)}
-              >
-                {t('common.save')}
-              </Button>
+              <Tooltip title={t('common.save')}>
+                <Button
+                  size="small"
+                  type="primary"
+                  disabled={!isDirty}
+                  loading={savingPhaseId === record.id}
+                  icon={<CheckOutlined />}
+                  onClick={() => handleSaveCustomName(record)}
+                />
+              </Tooltip>
             </Space>
           );
         },
@@ -171,14 +173,15 @@ export function ProjectsPage() {
         render: (_: unknown, record: TaskPhaseResponse) => {
           const isDefault = phasesProject?.defaultPhaseId === record.id;
           return (
-            <Button
-              size="small"
-              type={isDefault ? 'primary' : 'default'}
-              loading={settingDefaultId === record.id}
-              onClick={() => handleToggleDefault(record)}
-            >
-              {isDefault ? t('configuration.clearDefault') : t('configuration.setAsDefault')}
-            </Button>
+            <Tooltip title={isDefault ? t('configuration.clearDefault') : t('configuration.setAsDefault')}>
+              <Button
+                size="small"
+                type={isDefault ? 'primary' : 'text'}
+                loading={settingDefaultId === record.id}
+                icon={isDefault ? <StarFilled /> : <StarOutlined />}
+                onClick={() => handleToggleDefault(record)}
+              />
+            </Tooltip>
           );
         },
       },
@@ -194,9 +197,9 @@ export function ProjectsPage() {
       key: 'phases',
       width: 120,
       render: (_: unknown, record: TaskProjectResponse) => (
-        <Button size="small" onClick={() => openPhasesModal(record)}>
-          {t('projects.managePhases')}
-        </Button>
+        <Tooltip title={t('projects.managePhases')}>
+          <Button size="small" type="text" icon={<ApartmentOutlined />} onClick={() => openPhasesModal(record)} />
+        </Tooltip>
       ),
     },
     ...(isAdmin ? [{
@@ -209,7 +212,9 @@ export function ProjectsPage() {
           okText={t('common.delete')}
           okButtonProps={{ danger: true }}
         >
-          <Button danger size="small" loading={deletingId === record.id}>{t('common.delete')}</Button>
+          <Tooltip title={t('common.delete')}>
+            <Button danger size="small" type="text" icon={<DeleteOutlined />} loading={deletingId === record.id} />
+          </Tooltip>
         </Popconfirm>
       ),
     }] : []),
