@@ -88,33 +88,41 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   await page.getByRole('button', { name: 'Next' }).click();
 
   // ── Step 2: Type & Project ─────────────────────────────────────────────────
-  // Select project by clicking the project Select, then choosing the first option.
+  // Use keyboard navigation for Ant Design Selects — more reliable than clicking
+  // portalled dropdown items whose DOM position depends on render timing.
   const projectSelect = page.locator('.ant-form-item').filter({ hasText: 'Project' }).locator('.ant-select-selector');
   await projectSelect.click();
-  await page.locator('.ant-select-dropdown').locator('.ant-select-item-option').first().click();
+  // Wait for dropdown to appear, then pick first option via keyboard.
+  await page.locator('.ant-select-dropdown').first().waitFor({ state: 'visible' });
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
 
-  // Select task type.
   const typeSelect = page.locator('.ant-form-item').filter({ hasText: 'Type' }).locator('.ant-select-selector');
   await typeSelect.click();
-  await page.locator('.ant-select-dropdown').locator('.ant-select-item-option').first().click();
+  await page.locator('.ant-select-dropdown').first().waitFor({ state: 'visible' });
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
 
   await page.getByRole('button', { name: 'Next' }).click();
 
   // ── Step 3: Assignee & Dates ───────────────────────────────────────────────
-  // Select assigned user.
   const userSelect = page.locator('.ant-form-item').filter({ hasText: 'Assigned to' }).locator('.ant-select-selector');
   await userSelect.click();
-  await page.locator('.ant-select-dropdown').locator('.ant-select-item-option').first().click();
-
-  // Fill planned start date via the DatePicker input.
-  const datePickers = page.locator('.ant-picker-input input');
-  await datePickers.nth(0).click();
-  await datePickers.nth(0).fill('2027-06-01');
+  await page.locator('.ant-select-dropdown').first().waitFor({ state: 'visible' });
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
 
-  await datePickers.nth(1).click();
-  await datePickers.nth(1).fill('2027-07-01');
-  await page.keyboard.press('Enter');
+  // Fill DatePicker inputs: triple-click selects existing text, then type replaces it.
+  // Ant Design DatePicker expects YYYY-MM-DD; Tab closes the calendar without submitting.
+  const startInput = page.locator('.ant-form-item').filter({ hasText: 'Planned Start' }).locator('input');
+  await startInput.click({ clickCount: 3 });
+  await page.keyboard.type('2027-06-01');
+  await page.keyboard.press('Tab');
+
+  const endInput = page.locator('.ant-form-item').filter({ hasText: 'Planned End' }).locator('input');
+  await endInput.click({ clickCount: 3 });
+  await page.keyboard.type('2027-08-01');
+  await page.keyboard.press('Tab');
 
   await page.getByRole('button', { name: 'Create' }).click();
 
