@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Table, Tag, Typography, Alert, Spin, Button, Modal, Form, Input, Select,
-  Space, Popconfirm, Progress, DatePicker, Steps,
+  Space, Popconfirm, Progress, DatePicker, Steps, Switch,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
@@ -11,7 +11,7 @@ import type { InputRef } from 'antd';
 import { getTasks, createTask, deleteTask, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
-import type { TaskSummaryResponse, TaskStatus, TaskType, TaskCompletionStatus, TaskProjectResponse, UserResponse } from '../api/types';
+import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
 import { getTypeLabels } from './taskDetail/taskDetailConstants';
 
 import { useAuth } from '../auth/AuthProvider';
@@ -36,7 +36,7 @@ const TYPE_COLORS: Record<TaskType, string> = {
 export function TasksPage() {
   const { t }        = useTranslation();
   const navigate     = useNavigate();
-  const { username, isSupervisor } = useAuth();
+  const { username, isSupervisor, userId } = useAuth();
 
   const [tasks,        setTasks]        = useState<TaskSummaryResponse[]>([]);
   const [totalTasks,   setTotalTasks]   = useState(0);
@@ -49,8 +49,10 @@ export function TasksPage() {
   const [modalError,   setModalError]   = useState<string | null>(null);
   const [searchQuery,      setSearchQuery]      = useState('');
   const [activeSearch,     setActiveSearch]     = useState('');
-  // 'ACTIVE' = default (excludes RELEASED/REJECTED), 'FINISHED' = only RELEASED/REJECTED, 'ALL' = no phase filter
-  const [showFilter, setShowFilter] = useState<'ACTIVE' | 'FINISHED' | 'ALL'>('ACTIVE');
+  // When true, only active tasks are shown (excludes RELEASED/REJECTED phases)
+  const [onlyActive, setOnlyActive] = useState(true);
+  // When true, only tasks assigned to the current user are shown
+  const [onlyMyTasks, setOnlyMyTasks] = useState(true);
   const searchInputRef = useRef<InputRef | null>(null);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [wizardStep,   setWizardStep]   = useState(0);
@@ -73,12 +75,11 @@ export function TasksPage() {
     [typeLabels],
   );
 
-  const loadTasks = (page = currentPage, size = pageSize, show = showFilter) => {
-    const params =
-      show === 'FINISHED' ? { completionStatus: 'FINISHED' as TaskCompletionStatus } :
-      show === 'ALL'      ? { includeFinished: true } :
-      {};  // ACTIVE: backend default excludes RELEASED/REJECTED
-    return getTasks({ page: page - 1, size, ...params })
+  const loadTasks = (page = currentPage, size = pageSize, active = onlyActive, onlyMy = onlyMyTasks) => {
+    // active=true: backend default excludes RELEASED/REJECTED; active=false: include all
+    const activeParam = active ? {} : { includeFinished: true };
+    const userParam   = onlyMy ? { userId } : {};
+    return getTasks({ page: page - 1, size, ...activeParam, ...userParam })
       .then((data) => {
         setTasks(data.content);
         setTotalTasks(data.totalElements);
@@ -151,14 +152,21 @@ export function TasksPage() {
     setCurrentPage(page);
     setPageSize(size);
     setLoading(true);
-    loadTasks(page, size, showFilter);
+    loadTasks(page, size, onlyActive);
   };
 
-  const handleShowFilterChange = (value: 'ACTIVE' | 'FINISHED' | 'ALL') => {
-    setShowFilter(value);
+  const handleActiveToggle = (checked: boolean) => {
+    setOnlyActive(checked);
     setCurrentPage(1);
     setLoading(true);
-    loadTasks(1, pageSize, value);
+    loadTasks(1, pageSize, checked, onlyMyTasks);
+  };
+
+  const handleMyTasksToggle = (checked: boolean) => {
+    setOnlyMyTasks(checked);
+    setCurrentPage(1);
+    setLoading(true);
+    loadTasks(1, pageSize, onlyActive, checked);
   };
 
   /** Opens the modal in create mode, auto-selecting any dropdown with a single option. */
@@ -272,15 +280,17 @@ export function TasksPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Typography.Title level={3} style={{ margin: 0 }}>{t('tasks.title')}</Typography.Title>
         <Space>
-          <Select<'ACTIVE' | 'FINISHED' | 'ALL'>
-            value={showFilter}
-            onChange={handleShowFilterChange}
-            style={{ width: 150 }}
-            options={[
-              { label: 'Active', value: 'ACTIVE' },
-              { label: 'Finished', value: 'FINISHED' },
-              { label: 'All', value: 'ALL' },
-            ]}
+          <Switch
+            checked={onlyActive}
+            onChange={handleActiveToggle}
+            checkedChildren={t('tasks.active')}
+            unCheckedChildren={t('tasks.all')}
+          />
+          <Switch
+            checked={onlyMyTasks}
+            onChange={handleMyTasksToggle}
+            checkedChildren={t('tasks.myTasks')}
+            unCheckedChildren={t('tasks.allUsers')}
           />
           <Input
             ref={searchInputRef}
