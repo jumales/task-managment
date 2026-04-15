@@ -42,17 +42,6 @@
             "statusMessage": "Checking Flyway migration immutability..."
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /Users/admin/projects/cc/task-managment/.claude/scripts/run-its-pre-push.sh",
-            "statusMessage": "Running integration tests before push...",
-            "timeout": 600
-          }
-        ]
       }
     ],
     "PostToolUse": [

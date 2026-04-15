@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Polls the outbox table on a fixed schedule and publishes unpublished events to Kafka.
@@ -32,17 +34,32 @@ public class OutboxPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    /** Polls unpublished outbox events every 5 seconds and forwards them to Kafka. */
-    @Scheduled(fixedDelay = 5000)
+    /**
+     * Polls unpublished outbox events every second and forwards them to Kafka in parallel.
+     * All sends are fired concurrently so the Kafka producer can batch them into a single
+     * network round-trip instead of blocking on each acknowledgement sequentially.
+     * Each send is awaited with a 10-second deadline; events that miss the deadline are
+     * left unpublished and retried on the next poll.
+     */
+    @Scheduled(fixedDelay = 1000)
     @Transactional
     public void publishPending() {
         List<OutboxEvent> pending = outboxRepository.findUnpublishedForUpdate();
+        if (pending.isEmpty()) return;
+
+        // Fire all Kafka sends concurrently — KafkaTemplate.send() is non-blocking;
+        // the producer batches them on its internal I/O thread.
+        List<CompletableFuture<org.springframework.kafka.support.SendResult<String, String>>> futures = pending.stream()
+                .map(event -> kafkaTemplate.send(
+                        event.getTopic(), event.getAggregateId().toString(), event.getPayload()))
+                .toList();
+
+        // Collect results: mark each event published only after its send succeeds.
         List<OutboxEvent> published = new ArrayList<>();
-        for (OutboxEvent event : pending) {
+        for (int i = 0; i < pending.size(); i++) {
+            OutboxEvent event = pending.get(i);
             try {
-                // Block until Kafka confirms the message was written to the broker.
-                // This ensures we only mark the event as published after successful delivery.
-                kafkaTemplate.send(event.getTopic(), event.getAggregateId().toString(), event.getPayload()).get();
+                futures.get(i).get(10, TimeUnit.SECONDS);
                 event.setPublished(true);
                 published.add(event);
                 log.info("Published {} event {} for aggregate {}", event.getEventType(), event.getId(), event.getAggregateId());
@@ -50,6 +67,7 @@ public class OutboxPublisher {
                 log.error("Failed to publish outbox event {}, will retry: {}", event.getId(), e.getMessage());
             }
         }
+
         // Batch-persist all successfully published events in a single UPDATE.
         if (!published.isEmpty()) {
             outboxRepository.saveAll(published);

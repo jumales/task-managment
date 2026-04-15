@@ -15,7 +15,7 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, UUID> {
      * disjoint set of rows — no double-publishing. The enclosing transaction must be active
      * for the FOR UPDATE lock to be held until commit.
      */
-    @Query(value = "SELECT * FROM outbox_events WHERE published = false ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 100",
+    @Query(value = "SELECT * FROM outbox_events WHERE published = false ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 500",
             nativeQuery = true)
     List<OutboxEvent> findUnpublishedForUpdate();
 
