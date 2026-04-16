@@ -5,6 +5,7 @@ import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -25,6 +26,10 @@ import java.time.LocalDateTime;
  *       the transaction boundary is at the controller proxy level.</li>
  * </ul>
  */
+// Must run before GlobalExceptionHandler (com.demo.common), which has a catch-all
+// @ExceptionHandler(Exception.class). Spring returns the first advisor that matches,
+// not the most-specific type across advisors, so this needs explicit high priority.
+@Order(1)
 @RestControllerAdvice
 public class OptimisticLockExceptionHandler {
 

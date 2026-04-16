@@ -2,14 +2,17 @@ package com.demo.task.repository;
 
 import com.demo.common.dto.TaskStatus;
 import com.demo.task.model.Task;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
@@ -33,6 +36,16 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     boolean existsByProjectId(UUID projectId);
     /** Returns {@code true} if any non-deleted task references the given phase. */
     boolean existsByPhaseId(UUID phaseId);
+
+    /**
+     * Loads a task by ID with a database-level exclusive row lock (SELECT … FOR UPDATE).
+     * Used by the update path to serialize concurrent writes: after the previous holder commits,
+     * the next waiter re-reads the committed version, so the manual version check in
+     * {@link com.demo.task.service.TaskService#update} correctly rejects stale clients.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Task t WHERE t.id = :id")
+    Optional<Task> findByIdForUpdate(@Param("id") UUID id);
 
     /** Sets the task code on a single task; used by the async code-assignment scheduler. */
     @Modifying

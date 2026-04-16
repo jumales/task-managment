@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "tasks")
-@SQLDelete(sql = "UPDATE tasks SET deleted_at = NOW() WHERE id = ?")
+@SQLDelete(sql = "UPDATE tasks SET deleted_at = NOW() WHERE id = ? AND version = ?")
 @SQLRestriction("deleted_at IS NULL")
 @Getter @Setter
 @NoArgsConstructor

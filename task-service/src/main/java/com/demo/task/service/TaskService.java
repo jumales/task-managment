@@ -38,6 +38,7 @@ import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -283,7 +284,11 @@ public class TaskService {
     /** Updates task fields (title, description, status, type, progress, assignee, project). Phase is unchanged — use {@code updatePhase} for that. */
     @Transactional
     public TaskResponse update(UUID id, TaskRequest request) {
-        Task task = getOrThrow(id);
+        // PESSIMISTIC_WRITE (SELECT FOR UPDATE) serialises concurrent writes on the same task.
+        // After the previous holder commits, the next waiter re-reads the committed version, so
+        // the version check below correctly rejects clients that sent a now-stale version number.
+        Task task = repository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", id));
         validateFieldsEditable(phaseService.getOrThrow(task.getPhaseId()).getName());
 
         TaskStatus oldStatus = task.getStatus();
@@ -292,11 +297,14 @@ public class TaskService {
             projectService.getOrThrow(request.getProjectId());
         }
 
-        // Set the version from the request so Hibernate appends WHERE version=? on the UPDATE.
-        // If the row was already modified by another user, the version will differ and
-        // Hibernate throws OptimisticLockException, which GlobalExceptionHandler maps to 409.
-        if (request.getVersion() != null) {
-            task.setVersion(request.getVersion());
+        // If the client supplied a version, reject immediately when it doesn't match the DB value.
+        // This covers the deterministic stale-write case (client re-uses an old version number).
+        // The concurrent case (N clients all read version=0 and submit simultaneously) is handled
+        // by Hibernate's @Version: exactly one UPDATE WHERE version=0 wins; the rest get
+        // ObjectOptimisticLockingFailureException at commit time, mapped to HTTP 409 by
+        // OptimisticLockExceptionHandler.
+        if (request.getVersion() != null && !request.getVersion().equals(task.getVersion())) {
+            throw new ObjectOptimisticLockingFailureException(Task.class, id);
         }
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
@@ -305,7 +313,11 @@ public class TaskService {
         task.setProgress(request.getProgress());
         task.setAssignedUserId(request.getAssignedUserId());
         task.setProjectId(request.getProjectId());
-        Task saved = repository.save(task);
+        // saveAndFlush forces the UPDATE (with WHERE version=?) to execute immediately inside the
+        // JPA repository proxy, where Spring's exception translation converts StaleObjectStateException
+        // → ObjectOptimisticLockingFailureException → HTTP 409. Without flush, the UPDATE runs at
+        // commit time and the exception may surface as TransactionSystemException (unmapped → HTTP 500).
+        Task saved = repository.saveAndFlush(task);
 
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         publishStatusChangedEvent(saved, oldStatus, request.getStatus());

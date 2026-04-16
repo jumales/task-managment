@@ -151,15 +151,15 @@ class TaskOptimisticLockIT {
                 TaskRequest req = buildRequest("Updated by thread " + i);
                 req.setVersion(version0); // every thread sends the same version=0
 
-                ResponseEntity<TaskResponse> response = restTemplate.exchange(
+                // Use String.class to avoid Jackson mapping the error body's "status":409
+                // integer field to TaskStatus enum when the server returns 409 Conflict.
+                ResponseEntity<String> response = restTemplate.exchange(
                         "/api/v1/tasks/" + taskId,
                         HttpMethod.PUT,
                         new HttpEntity<>(req),
-                        TaskResponse.class);
+                        String.class);
 
                 int status = response.getStatusCode().value();
-                statusCounts.getOrDefault(status, otherCount.getAndIncrement() >= 0
-                        ? new AtomicInteger(0) : new AtomicInteger(0)); // fallback
                 if (status == 200) statusCounts.get(200).incrementAndGet();
                 else if (status == 409) statusCounts.get(409).incrementAndGet();
                 else otherCount.incrementAndGet();
