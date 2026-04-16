@@ -126,16 +126,19 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   // the task behind the default "My Tasks" filter.
 
   // Fill DatePicker inputs: triple-click selects existing text, then type replaces it.
-  // Ant Design DatePicker expects YYYY-MM-DD; Tab closes the calendar without submitting.
+  // Ant Design DatePicker expects YYYY-MM-DD; pressing Enter confirms the selection and
+  // writes the dayjs value into Form state (Tab only closes the panel without committing).
   const startInput = page.locator('.ant-form-item').filter({ hasText: 'Planned Start' }).locator('input');
   await startInput.click({ clickCount: 3 });
   await page.keyboard.type('2027-06-01');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await page.locator('.ant-picker-dropdown').last().waitFor({ state: 'hidden' });
 
   const endInput = page.locator('.ant-form-item').filter({ hasText: 'Planned End' }).locator('input');
   await endInput.click({ clickCount: 3 });
   await page.keyboard.type('2027-08-01');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await page.locator('.ant-picker-dropdown').last().waitFor({ state: 'hidden' });
 
   // Set up network listeners before clicking so we don't miss fast responses.
   // The Create button fires a POST (task creation) followed immediately by a GET
