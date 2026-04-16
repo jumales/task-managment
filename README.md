@@ -129,7 +129,7 @@ Postman collections for all services live in `postman/`. Import `postman/local.p
 
 ## ⚠️ Production Warning
 
-**This project is a learning exercise. Do not deploy it to production without expert review.**
+**This project is a learning exercise. Do not deploy it to production without expert review. It's made from experienced developer, but allways need more experienced eyes, especially before production.**
 
 The following areas require analysis by qualified specialists before any real-world use:
 
