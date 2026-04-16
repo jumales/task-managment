@@ -137,11 +137,23 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   await page.keyboard.type('2027-08-01');
   await page.keyboard.press('Tab');
 
+  // Set up network listeners before clicking so we don't miss fast responses.
+  // The Create button fires a POST (task creation) followed immediately by a GET
+  // (list reload via loadTasks). Waiting for the GET guarantees React has the
+  // fresh data before we assert on the DOM.
+  const taskListReloaded = page.waitForResponse(
+    (resp) =>
+      resp.url().includes('/api/v1/tasks') &&
+      resp.request().method() === 'GET' &&
+      resp.status() === 200,
+  );
+
   await page.getByRole('button', { name: 'Create' }).click();
 
   // Modal closes and the new task appears in the table.
   await expect(modal).not.toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('.ant-table-row').filter({ hasText: taskTitle })).toBeVisible({ timeout: 10_000 });
+  await taskListReloaded;
+  await expect(page.locator('.ant-table-row').filter({ hasText: taskTitle })).toBeVisible({ timeout: 5_000 });
 });
 
 // ── SUPERVISOR (read-only) ────────────────────────────────────────────────────
