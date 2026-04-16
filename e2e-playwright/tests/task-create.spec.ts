@@ -1,6 +1,28 @@
-import { test, expect, request as playwrightRequest } from '@playwright/test';
+import { test, expect, request as playwrightRequest, Page, Locator } from '@playwright/test';
 import { USERS } from '../fixtures/roles';
 import { getToken } from '../auth/get-token';
+
+/**
+ * Opens an Ant Design Select, picks the first option via keyboard, then waits
+ * for the dropdown to fully close before returning.
+ *
+ * Using `.last()` targets the most recently appended dropdown portal —
+ * Ant Design appends each new dropdown at the end of <body>, so `.last()` is
+ * always the one we just opened, regardless of how many stale/closing dropdowns
+ * remain in the DOM mid-animation.
+ *
+ * Waiting for close before returning prevents strict-mode violations on the
+ * next interaction, where the closing dropdown and the new one are both
+ * briefly visible at the same time.
+ */
+async function pickFirstOption(page: Page, selector: Locator): Promise<void> {
+  await selector.click();
+  const dropdown = page.locator('.ant-select-dropdown').last();
+  await dropdown.waitFor({ state: 'visible' });
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await dropdown.waitFor({ state: 'hidden' });
+}
 
 /**
  * Task creation tests.
@@ -91,26 +113,17 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   // Use keyboard navigation for Ant Design Selects — more reliable than clicking
   // portalled dropdown items whose DOM position depends on render timing.
   const projectSelect = page.locator('.ant-form-item').filter({ hasText: 'Project' }).locator('.ant-select-selector');
-  await projectSelect.click();
-  // Wait for dropdown to appear, then pick first option via keyboard.
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').waitFor({ state: 'visible' });
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+  await pickFirstOption(page, projectSelect);
 
   const typeSelect = page.locator('.ant-form-item').filter({ hasText: 'Type' }).locator('.ant-select-selector');
-  await typeSelect.click();
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').waitFor({ state: 'visible' });
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+  await pickFirstOption(page, typeSelect);
 
   await page.getByRole('button', { name: 'Next' }).click();
 
   // ── Step 3: Assignee & Dates ───────────────────────────────────────────────
-  const userSelect = page.locator('.ant-form-item').filter({ hasText: 'Assigned to' }).locator('.ant-select-selector');
-  await userSelect.click();
-  await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').waitFor({ state: 'visible' });
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+  // assignedUserId is pre-populated to the current user by openCreateModal() — no interaction needed.
+  // Overriding it with pickFirstOption would assign to an arbitrary user and hide
+  // the task behind the default "My Tasks" filter.
 
   // Fill DatePicker inputs: triple-click selects existing text, then type replaces it.
   // Ant Design DatePicker expects YYYY-MM-DD; Tab closes the calendar without submitting.
