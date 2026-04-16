@@ -125,20 +125,18 @@ test('write role — full wizard creates a task', async ({ page }, testInfo) => 
   // Overriding it with pickFirstOption would assign to an arbitrary user and hide
   // the task behind the default "My Tasks" filter.
 
-  // Fill DatePicker inputs: triple-click selects existing text, then type replaces it.
-  // Ant Design DatePicker expects YYYY-MM-DD; pressing Enter confirms the selection and
-  // writes the dayjs value into Form state (Tab only closes the panel without committing).
+  // Fill DatePicker inputs using fill() which writes directly to the input element
+  // and dispatches proper React input events — unlike keyboard.type(), which sends
+  // keystrokes to the calendar panel overlay and leaves the form value as null.
+  // Tab after fill() blurs the input so antd parses the text and commits the dayjs
+  // value via onChange; Tab does NOT trigger form submission (Enter would).
   const startInput = page.locator('.ant-form-item').filter({ hasText: 'Planned Start' }).locator('input');
-  await startInput.click({ clickCount: 3 });
-  await page.keyboard.type('2027-06-01');
-  await page.keyboard.press('Enter');
-  await page.locator('.ant-picker-dropdown').last().waitFor({ state: 'hidden' });
+  await startInput.fill('2027-06-01');
+  await startInput.press('Tab');
 
   const endInput = page.locator('.ant-form-item').filter({ hasText: 'Planned End' }).locator('input');
-  await endInput.click({ clickCount: 3 });
-  await page.keyboard.type('2027-08-01');
-  await page.keyboard.press('Enter');
-  await page.locator('.ant-picker-dropdown').last().waitFor({ state: 'hidden' });
+  await endInput.fill('2027-08-01');
+  await endInput.press('Tab');
 
   // Set up network listeners before clicking so we don't miss fast responses.
   // The Create button fires a POST (task creation) followed immediately by a GET
