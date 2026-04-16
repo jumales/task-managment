@@ -51,6 +51,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 
@@ -129,17 +130,19 @@ public class TaskService {
         // would trip the userService circuit breaker).
         Executor executor = new DelegatingSecurityContextExecutor(ForkJoinPool.commonPool());
         CompletableFuture<List<TaskTimelineResponse>> timelinesFuture =
-                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id), executor);
+                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id), executor)
+                        .orTimeout(10, TimeUnit.SECONDS);
         CompletableFuture<List<TaskPlannedWorkResponse>> plannedWorkFuture =
-                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id), executor);
+                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id), executor)
+                        .orTimeout(10, TimeUnit.SECONDS);
         CompletableFuture<List<TaskBookedWorkResponse>> bookedWorkFuture =
-                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id), executor);
+                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id), executor)
+                        .orTimeout(10, TimeUnit.SECONDS);
 
         // Fetch synchronous data while the async calls are running.
         TaskBaseData base = fetchBaseData(task);
         // Fetch full user profile; null when no user is assigned or user-service is unavailable.
         UserDto assignedUser = userClientHelper.fetchUser(task.getAssignedUserId());
-        //TODO: what is situation if timelines, plannedwork or bookedwork stoped? Will this thread block? Does we need set timeout?
         return new TaskFullResponse(
                 task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
