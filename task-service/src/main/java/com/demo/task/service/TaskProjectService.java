@@ -65,7 +65,6 @@ public class TaskProjectService {
                 .nextTaskNumber(1)
                 .build();
         TaskProject saved = repository.save(project);
-        //TODO do async creation of default phases
         phaseService.createDefaultPhasesForProject(saved.getId());
         return toResponse(saved);
     }

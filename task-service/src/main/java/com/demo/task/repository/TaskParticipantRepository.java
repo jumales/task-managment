@@ -19,9 +19,6 @@ public interface TaskParticipantRepository extends JpaRepository<TaskParticipant
     /** Batch-loads all active participants for a set of task IDs. */
     List<TaskParticipant> findByTaskIdIn(Set<UUID> taskIds);
 
-    /** Returns true if the user already holds the given role on the task. */
-    boolean existsByTaskIdAndUserIdAndRole(UUID taskId, UUID userId, TaskParticipantRole role);
-
     /** Returns true if the user has any active participant entry on the task (any role). */
     boolean existsByTaskIdAndUserId(UUID taskId, UUID userId);
 
