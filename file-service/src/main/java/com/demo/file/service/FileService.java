@@ -149,7 +149,6 @@ public class FileService {
      * so the logical deletion succeeded regardless.
      */
     private void removeObjectFromMinio(String bucket, String objectKey) {
-        //TODO do this asymc
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(bucket)

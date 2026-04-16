@@ -122,7 +122,8 @@ public class KeycloakUserClient implements KeycloakUserPort {
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
-            //TODO: control is rep null
+
+            if (rep == null) throw new ResourceNotFoundException("User", id);
             return toDto(rep);
         } catch (WebClientResponseException e) {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
