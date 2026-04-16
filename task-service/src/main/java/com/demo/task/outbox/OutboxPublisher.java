@@ -5,6 +5,7 @@ import com.demo.task.repository.OutboxRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +50,7 @@ public class OutboxPublisher {
 
         // Fire all Kafka sends concurrently — KafkaTemplate.send() is non-blocking;
         // the producer batches them on its internal I/O thread.
-        List<CompletableFuture<org.springframework.kafka.support.SendResult<String, String>>> futures = pending.stream()
+        List<CompletableFuture<SendResult<String, String>>> futures = pending.stream()
                 .map(event -> kafkaTemplate.send(
                         event.getTopic(), event.getAggregateId().toString(), event.getPayload()))
                 .toList();
