@@ -143,6 +143,10 @@
       "IN_PROGRESS": "U tijeku",
       "DONE": "Završeno"
     },
+    "completionStatus": {
+      "FINISHED": "Završeno",
+      "DEV_FINISHED": "Dev završeno"
+    },
     "types": {
       "FEATURE": "Značajka",
       "BUG_FIXING": "Ispravak greške",

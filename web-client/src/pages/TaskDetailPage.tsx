@@ -135,8 +135,8 @@ export function TaskDetailPage() {
         <Space wrap>
           <Tag color={STATUS_COLORS[data.task.status]}>{t(`tasks.statuses.${data.task.status}`)}</Tag>
           {data.task.type && <Tag color={TYPE_COLORS[data.task.type]}>{typeLabels[data.task.type]}</Tag>}
-          {finished && <Tag color="red">Finished</Tag>}
-          {!finished && data.task.phase.name === 'DONE' && <Tag color="orange">Dev Finished</Tag>}
+          {finished && <Tag color="red">{t('tasks.completionStatus.FINISHED')}</Tag>}
+          {!finished && data.task.phase.name === 'DONE' && <Tag color="orange">{t('tasks.completionStatus.DEV_FINISHED')}</Tag>}
         </Space>
       </div>
 

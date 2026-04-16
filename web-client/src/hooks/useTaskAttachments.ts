@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { uploadFile, addAttachment, deleteAttachment, joinTask } from '../api/taskApi';
 import type { TaskAttachmentResponse } from '../api/types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 /** Manages the attachment list, file upload state, and delete handler for a task. */
 export function useTaskAttachments(taskId: string | undefined, initialData: TaskAttachmentResponse[]) {
@@ -29,7 +30,7 @@ export function useTaskAttachments(taskId: string | undefined, initialData: Task
         setAttachments((prev) => [...prev, created]);
         joinTask(taskId);
       })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedUploadAttachment')))
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedUploadAttachment'))))
       .finally(() => setUploading(false));
   };
 
@@ -38,7 +39,7 @@ export function useTaskAttachments(taskId: string | undefined, initialData: Task
     if (!taskId) return;
     deleteAttachment(taskId, attachmentId)
       .then(() => setAttachments((prev) => prev.filter((a) => a.id !== attachmentId)))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedDeleteAttachment')));
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedDeleteAttachment'))));
   };
 
   return {

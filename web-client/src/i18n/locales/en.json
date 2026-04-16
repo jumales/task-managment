@@ -143,6 +143,10 @@
       "IN_PROGRESS": "In Progress",
       "DONE": "Done"
     },
+    "completionStatus": {
+      "FINISHED": "Finished",
+      "DEV_FINISHED": "Dev Finished"
+    },
     "types": {
       "FEATURE": "Feature",
       "BUG_FIXING": "Bug Fix",

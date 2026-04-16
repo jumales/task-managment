@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import dayjs, { type Dayjs } from 'dayjs';
 import { setTimeline, deleteTimeline } from '../api/taskApi';
 import type { TaskTimelineResponse, TimelineState } from '../api/types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 /** Manages timeline state, modal, and CRUD handlers for a task's timeline entries. */
 export function useTaskTimeline(taskId: string | undefined, initialData: TaskTimelineResponse[]) {
@@ -43,17 +44,16 @@ export function useTaskTimeline(taskId: string | undefined, initialData: TaskTim
         });
         setTlModalOpen(false);
       })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedSaveTimeline')))
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedSaveTimeline'))))
       .finally(() => setSavingTimeline(false));
   };
 
-  /** Removes a timeline entry by state and updates local state on success. */
   const handleDeleteTimeline = (state: TimelineState) => {
     if (!taskId) return;
     setDeletingTlState(state);
     deleteTimeline(taskId, state)
       .then(() => setTimelines((prev) => prev.filter((tl) => tl.state !== state)))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedDeleteTimeline')))
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedDeleteTimeline'))))
       .finally(() => setDeletingTlState(null));
   };
 
