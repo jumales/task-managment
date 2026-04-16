@@ -1,0 +1,78 @@
+---
+title: "API Gateway"
+description: "Central entry point: routing, JWT validation, rate limiting, CORS, and WebSocket proxying."
+keywords: ["api gateway", "spring cloud gateway", "rate limiting", "cors", "jwt", "websocket"]
+---
+
+# API Gateway
+
+**Port:** 8080 (fixed)
+**Module:** `api-gateway/`
+**Framework:** Spring Cloud Gateway
+
+The API Gateway is the single entry point for all client traffic. It handles cross-cutting concerns so individual services do not need to.
+
+## Responsibilities
+
+| Concern | Implementation |
+|---|---|
+| **Routing** | Routes requests to downstream services by Eureka service ID |
+| **JWT validation** | Validates Bearer token signature via Keycloak JWKS on every request |
+| **Rate limiting** | Per-user token buckets stored in Redis |
+| **CORS** | Permits `http://localhost:3000` and `http://localhost:4173` |
+| **WebSocket proxying** | Upgrades connections for notification-service and reporting-service |
+| **Header deduplication** | Removes duplicate CORS headers from downstream responses |
+
+## Route table
+
+| Path prefix | Downstream service |
+|---|---|
+| `/api/v1/users/**` | user-service |
+| `/api/v1/tasks/**` | task-service |
+| `/api/v1/projects/**` | task-service |
+| `/api/v1/phases/**` | task-service |
+| `/api/v1/audit/**` | audit-service |
+| `/api/v1/reports/**` | reporting-service |
+| `/api/v1/search/**` | search-service |
+| `/api/v1/files/**` | file-service |
+| `/api/v1/notifications/**` | notification-service |
+| `/ws/tasks/**` | notification-service (WebSocket upgrade) |
+| `/ws/**` | reporting-service (WebSocket upgrade) |
+
+## Rate limits
+
+Rate limiting uses Spring Cloud Gateway's `RedisRateLimiter` with a token bucket per authenticated user (keyed on the `sub` JWT claim).
+
+| Route | Replenish rate | Burst capacity | Effective limit |
+|---|---|---|---|
+| `GET /api/v1/users/**` | 1 req/s | 60 | ~60 req/min |
+| `POST /api/v1/tasks/*/comments` | 0.5 req/s | 30 | ~30 req/min |
+| `GET /api/v1/search/**` | 0.5 req/s | 30 | ~30 req/min |
+| `POST /api/v1/files/avatars` | 0.167 req/s | 10 | ~10 req/min |
+| `POST /api/v1/files/attachments` | 0.167 req/s | 10 | ~10 req/min |
+
+Clients that exceed the limit receive `429 Too Many Requests`.
+
+## JWT validation
+
+The gateway fetches Keycloak's JWKS on startup and caches the public keys locally. Every inbound request must carry a valid `Authorization: Bearer <token>` header. Invalid or expired tokens are rejected with `401 Unauthorized` before the request reaches a downstream service.
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://keycloak:8180/realms/demo/protocol/openid-connect/certs
+```
+
+The original `Authorization` header is forwarded to downstream services, which perform their own independent token validation.
+
+## WebSocket proxying
+
+SockJS/STOMP connections from the browser are proxied without modification. The gateway upgrades HTTP to WebSocket and maintains the connection as a simple pass-through.
+
+```
+Browser ──SockJS── api-gateway:8080/ws/tasks/** ──► notification-service
+Browser ──SockJS── api-gateway:8080/ws/**        ──► reporting-service
+```

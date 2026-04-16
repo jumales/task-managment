@@ -1,0 +1,64 @@
+---
+title: "Notification service"
+description: "Email alerts and WebSocket push notifications driven by Kafka task change events."
+keywords: ["notification", "kafka consumer", "email", "websocket", "stomp", "sockjs"]
+---
+
+# Notification service
+
+**Module:** `notification-service/`
+**Database:** `notification_db` (PostgreSQL)
+**Kafka:** Consumes from `task-changed`
+
+The notification service reacts to task changes and delivers alerts through two channels:
+1. **Email** via SMTP (MailHog in dev)
+2. **WebSocket push** to connected browser clients via SockJS/STOMP
+
+## Kafka consumer
+
+The service listens to the `task-changed` topic with manual acknowledgement. Every `TaskChangedEvent` triggers:
+
+1. Resolve the task's assignee user (via `user-service` Feign call, cached in Redis)
+2. Render the notification subject and body using the project's `ProjectNotificationTemplate`
+3. Send the email via SMTP
+4. Push a WebSocket message to `/topic/tasks/{taskId}`
+5. Store a `Notification` record in `notification_db` for audit
+
+## Notification templates
+
+Each project can have a custom `ProjectNotificationTemplate` configured via task-service. Templates support placeholders:
+
+| Placeholder | Replaced with |
+|---|---|
+| `{taskUrl}` | Direct URL to the task in the frontend |
+| `{assigneeName}` | Full name of the task assignee |
+| `{taskTitle}` | Task title |
+| `{changeType}` | Human-readable change description |
+
+If no template is configured for a project, a default system template is used.
+
+## WebSocket endpoint
+
+Connected frontend clients subscribe to `/topic/tasks/{taskId}` to receive real-time updates for a specific task. The subscription is established via SockJS at `/ws/tasks/**` (proxied by the API Gateway).
+
+```
+Browser subscribes to /topic/tasks/abc-123
+  ↓
+notification-service publishes message on TaskChangedEvent
+  ↓
+Browser receives update, React component re-fetches task data
+```
+
+## Change types that trigger notifications
+
+All `TaskChangeType` values produce a notification. The email content varies by type (e.g. "Status changed from TODO to IN_PROGRESS", "New comment added").
+
+## Controllers
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/notifications/tasks/{taskId}` | `GET` | Notification history for a task |
+
+## Service-to-service auth
+
+The notification service uses the **client credentials** flow (not request token forwarding) to call `user-service`. It obtains a Keycloak service account token and includes it as Bearer on outbound Feign requests.

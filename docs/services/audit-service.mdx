@@ -1,0 +1,47 @@
+---
+title: "Audit service"
+description: "Immutable audit trail of all task changes, built from Kafka events."
+keywords: ["audit", "kafka consumer", "audit trail", "history", "compliance"]
+---
+
+# Audit service
+
+**Module:** `audit-service/`
+**Database:** `audit_db` (PostgreSQL)
+**Kafka:** Consumes from `task-changed`
+
+The audit service maintains an **immutable, append-only history** of all task changes. It never modifies or deletes audit records. Its database is a pure read model built from `TaskChangedEvent` messages.
+
+## Audit tables
+
+Each change type is recorded in its own table for clean separation and efficient querying.
+
+| Table | Populated by change type | Columns |
+|---|---|---|
+| `status_audit_records` | `STATUS_CHANGED` | taskId, fromStatus, toStatus, changedBy, changedAt |
+| `phase_audit_records` | `PHASE_CHANGED` | taskId, fromPhase, toPhase, changedBy, changedAt |
+| `comment_audit_records` | `COMMENT_ADDED` | taskId, commentId, content, authorId, createdAt |
+| `planned_work_audit_records` | `PLANNED_WORK_CREATED` | taskId, userId, workType, hours, recordedAt |
+| `booked_work_audit_records` | `BOOKED_WORK_CREATED`, `BOOKED_WORK_UPDATED`, `BOOKED_WORK_DELETED` | taskId, userId, workType, hours, action, recordedAt |
+
+## Kafka consumer
+
+Events are consumed with manual acknowledgement from `task-changed`. The service dispatches on `changeType` and writes to the appropriate audit table in a single insert. There is no complex business logic — every event maps directly to an insert.
+
+## Controllers
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/audit/tasks/{id}/statuses` | `GET` | Paginated status transition history for a task |
+| `/api/v1/audit/tasks/{id}/phases` | `GET` | Paginated phase transition history |
+| `/api/v1/audit/tasks/{id}/comments` | `GET` | Paginated comment history |
+| `/api/v1/audit/tasks/{id}/planned-work` | `GET` | Planned work log history |
+| `/api/v1/audit/tasks/{id}/booked-work` | `GET` | Actual work log history |
+
+All endpoints return paginated results ordered chronologically (oldest first).
+
+## Design notes
+
+- Audit records are **never updated or deleted** — they are a compliance-grade event log.
+- The service does not call any other service. All data it needs is carried in the event payload.
+- Queries are simple `findByTaskId` lookups — no complex joins or aggregations.

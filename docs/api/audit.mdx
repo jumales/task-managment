@@ -1,0 +1,120 @@
+---
+title: "Audit API"
+description: "Immutable history of task status, phase, comment, and work log changes."
+keywords: ["audit api", "audit trail", "history", "status changes", "phase changes"]
+---
+
+# Audit API
+
+Base path: `/api/v1/audit`
+
+The audit service provides a chronological, immutable history of all changes to tasks. Records are append-only — they are never modified or deleted.
+
+## Status history
+
+```http
+GET /api/v1/audit/tasks/{taskId}/statuses
+```
+
+Returns all status transitions for a task.
+
+**Response:**
+
+```json
+{
+  "content": [
+    {
+      "id": "018a...",
+      "taskId": "018f...",
+      "fromStatus": "TODO",
+      "toStatus": "IN_PROGRESS",
+      "changedById": "018c...",
+      "changedByName": "John Developer",
+      "changedAt": "2024-01-12T10:15:00Z"
+    }
+  ],
+  "number": 0,
+  "size": 20,
+  "totalElements": 3
+}
+```
+
+---
+
+## Phase history
+
+```http
+GET /api/v1/audit/tasks/{taskId}/phases
+```
+
+Returns all phase transitions for a task.
+
+**Response:** Same structure as status history with `fromPhase` and `toPhase` fields.
+
+---
+
+## Comment history
+
+```http
+GET /api/v1/audit/tasks/{taskId}/comments
+```
+
+Returns all comments posted on a task, in chronological order.
+
+**Response:**
+
+```json
+{
+  "content": [
+    {
+      "id": "0189...",
+      "taskId": "018f...",
+      "content": "Reviewed — looks good.",
+      "authorId": "018b...",
+      "authorName": "Jane QA",
+      "createdAt": "2024-01-13T16:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Planned work history
+
+```http
+GET /api/v1/audit/tasks/{taskId}/planned-work
+```
+
+Returns all planned work entries logged on a task.
+
+---
+
+## Booked work history
+
+```http
+GET /api/v1/audit/tasks/{taskId}/booked-work
+```
+
+Returns all booked work log entries, including create, update, and delete actions.
+
+**Response:**
+
+```json
+{
+  "content": [
+    {
+      "id": "0188...",
+      "taskId": "018f...",
+      "userId": "018c...",
+      "userName": "John Developer",
+      "workType": "BACKEND",
+      "hours": 3.5,
+      "action": "CREATED",
+      "recordedAt": "2024-01-14T17:00:00Z"
+    }
+  ]
+}
+```
+
+All endpoints return paginated results sorted by `recordedAt` ascending (oldest first).

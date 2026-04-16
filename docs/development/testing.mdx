@@ -1,0 +1,115 @@
+---
+title: "Testing"
+description: "Integration tests with Testcontainers, E2E tests with Playwright, and frontend unit tests."
+keywords: ["testing", "testcontainers", "integration tests", "playwright", "e2e", "vitest"]
+---
+
+# Testing
+
+## Backend integration tests
+
+Each service has an `*IT.java` test class covering all controller endpoints. Tests use:
+
+- **Testcontainers** — spins up a real PostgreSQL (and Kafka if needed) container
+- **`@SpringBootTest`** — full application context
+- **`@TestConfiguration` security bypass** — permits all requests (no JWT required in tests)
+
+### Location
+
+```
+{service}/src/test/java/.../
+```
+
+### Docker API version fix
+
+Every new service must include `src/test/resources/docker-java.properties`:
+
+```properties
+api.version=1.47
+```
+
+Without this, Testcontainers falls back to Docker API version 1.32, which Docker Desktop 29+ rejects with HTTP 400.
+
+### Running integration tests
+
+<Warning>
+Do **not** run integration tests automatically. Only run them when explicitly requested.
+</Warning>
+
+```bash
+# Run ITs for a specific service
+mvn test -pl task-service
+
+# Run ITs for all services
+mvn test
+```
+
+### External dependencies
+
+If a service depends on MinIO or Redis, spin it up using `GenericContainer` in the IT class:
+
+```java
+@Container
+static GenericContainer<?> minio = new GenericContainer<>("minio/minio")
+    .withCommand("server /data")
+    .withExposedPorts(9000);
+
+@DynamicPropertySource
+static void configureProperties(DynamicPropertyRegistry registry) {
+    registry.add("minio.endpoint", () -> "http://localhost:" + minio.getMappedPort(9000));
+}
+```
+
+---
+
+## E2E tests (Playwright)
+
+**Location:** `e2e-playwright/`
+**Language:** TypeScript
+**Test runner:** Playwright
+
+### Coverage
+
+Covers the full frontend stack through the browser for all 6 roles (ADMIN, DEVELOPER, QA, DEVOPS, PM, SUPERVISOR):
+
+| Spec | What it tests |
+|---|---|
+| `login.spec.ts` | All roles can authenticate via Keycloak |
+| `tasks-list.spec.ts` | Task table visibility and "New Task" button RBAC |
+| `task-create.spec.ts` | Full task creation wizard (DEVELOPER), blocked for SUPERVISOR |
+| `project-create.spec.ts` | Project creation (ADMIN), HTTP 403 for non-admin roles |
+
+### Running E2E tests
+
+```bash
+cd e2e-playwright
+npm install
+npx playwright test
+```
+
+HTML report and per-test screenshots/videos/traces are saved to `playwright-report/` and `test-results/`.
+
+For headed (visible browser) runs:
+
+```bash
+npx playwright test --headed
+```
+
+### Authentication state
+
+Each role authenticates once via Keycloak and saves its session to `.auth/{role}.json`. Subsequent tests load the saved session, avoiding repeated login flows and enabling parallel execution.
+
+---
+
+## Frontend unit tests (Vitest)
+
+**Location:** `web-client/src/`
+**Runner:** Vitest + jsdom
+**Mocking:** MSW (Mock Service Worker)
+
+```bash
+cd web-client
+npm test
+```
+
+API calls are intercepted by MSW handlers in `src/test/`. Components are tested in isolation without a real backend.

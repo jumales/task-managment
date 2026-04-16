@@ -1,0 +1,97 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Task Management System",
+  "description": "Technical documentation for the Task Management distributed microservices platform.",
+  "theme": "mint",
+  "colors": {
+    "primary": "#1677FF",
+    "light": "#4096FF",
+    "dark": "#0958D9"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/services",
+              "architecture/data-flow",
+              "architecture/authentication",
+              "architecture/infrastructure"
+            ]
+          },
+          {
+            "group": "Frontend",
+            "pages": [
+              "frontend/overview",
+              "frontend/pages",
+              "frontend/realtime"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/local-setup",
+              "development/database-migrations",
+              "development/testing",
+              "development/conventions"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/monitoring",
+              "operations/configuration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Services",
+        "groups": [
+          {
+            "group": "Services",
+            "pages": [
+              "services/api-gateway",
+              "services/task-service",
+              "services/user-service",
+              "services/notification-service",
+              "services/audit-service",
+              "services/reporting-service",
+              "services/search-service",
+              "services/file-service"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API Reference",
+            "pages": [
+              "api/overview",
+              "api/tasks",
+              "api/projects",
+              "api/users",
+              "api/files",
+              "api/search",
+              "api/reports",
+              "api/audit"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {}
+  }
+}

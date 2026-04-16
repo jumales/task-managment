@@ -1,0 +1,114 @@
+---
+title: "Infrastructure"
+description: "Docker Compose services, databases, Kafka, Redis, MinIO, and the observability stack."
+keywords: ["docker", "postgres", "kafka", "redis", "minio", "prometheus", "grafana", "elk"]
+---
+
+# Infrastructure
+
+All infrastructure runs in Docker Compose. Application microservices run as local Java processes (or optionally in Docker).
+
+## Docker Compose services
+
+| Container | Image | Host port(s) | Purpose |
+|---|---|---|---|
+| `postgres` | custom Dockerfile | 5432 | Shared PostgreSQL host for all service databases |
+| `kafka` | confluentinc/cp-kafka:7.6.0 | 9092 (host), 29092 (internal) | KRaft mode Kafka broker (no ZooKeeper) |
+| `eureka-peer1` | spring-boot app | 8761 | Service registry (HA pair) |
+| `eureka-peer2` | spring-boot app | 8762 | Service registry (HA pair) |
+| `web-client` | nginx | 3000 | React SPA — served as static assets |
+| `keycloak` | quay.io/keycloak:24.0 | 8180 | OAuth2/OIDC identity provider |
+| `elasticsearch` | 8.13.0 | 9200 | Full-text search (security disabled in dev) |
+| `logstash` | 8.13.0 | 5000 (TCP input), 9600 (monitoring) | Log ingestion and shipping to Elasticsearch |
+| `kibana` | 8.13.0 | 5601 | Log visualization and exploration |
+| `redis` | 7-alpine | 6379 | Distributed cache + rate limit token buckets |
+| `minio` | latest | 9000 (API), 9001 (console) | S3-compatible object storage |
+| `minio-init` | minio/mc | — | One-shot bucket creation on startup |
+| `mailhog` | v1.0.1 | 1025 (SMTP), 8025 (UI) | Email capture for dev — no emails leave the machine |
+| `prometheus` | v2.51.0 | 9090 | Metrics collection (scrapes all services) |
+| `grafana` | 10.4.2 | 3001 | Metrics visualization |
+
+## PostgreSQL databases
+
+A single Postgres host runs separate databases per service. Services never share a database.
+
+| Database | Owner service |
+|---|---|
+| `task_db` | task-service |
+| `notification_db` | notification-service |
+| `reporting_db` | reporting-service |
+| `audit_db` | audit-service |
+| `file_db` | file-service |
+
+Schemas are managed exclusively via **Flyway** migrations. `spring.jpa.hibernate.ddl-auto` is set to `validate` in all services — Hibernate validates against the Flyway-created schema but never modifies it.
+
+## Kafka
+
+Kafka runs in **KRaft mode** (no ZooKeeper) using `confluentinc/cp-kafka:7.6.0`.
+
+| Topic | Partitions | Purpose |
+|---|---|---|
+| `task-changed` | default | Task mutation events — consumed by 4 services |
+| `user-events` | default | User CRUD events — consumed by search-service |
+
+**Producer configuration:**
+- Key serializer: `StringSerializer`
+- Value serializer: `JsonSerializer`
+
+**Consumer configuration:**
+- Value deserializer: `JsonDeserializer` with trusted packages
+- Acknowledgement mode: `MANUAL_IMMEDIATE`
+- Auto-offset-reset: `earliest`
+
+<Note>
+KRaft mode removes the ZooKeeper dependency entirely. The Kafka broker manages its own metadata internally, simplifying the infrastructure.
+</Note>
+
+## Redis
+
+Redis 7 is used for two distinct purposes:
+
+1. **Distributed cache** — user lookups cached by `task-service` and `notification-service` to reduce load on `user-service`.
+2. **Rate limiting** — the API Gateway uses Redis token buckets (Spring Cloud Gateway's `RedisRateLimiter`) to enforce per-user request limits.
+
+## MinIO
+
+MinIO provides S3-compatible object storage with two pre-created buckets:
+
+| Bucket | Max file size | Allowed MIME types |
+|---|---|---|
+| `avatars` | 5 MB | `image/jpeg`, `image/png`, `image/gif`, `image/webp` |
+| `attachments` | 20 MB | `application/pdf`, `image/jpeg`, `image/png`, `application/msword`, `text/plain`, `text/csv` |
+
+Bucket configuration lives in `file-service/src/main/resources/application.yml` under `minio.buckets`. Adding a new bucket requires only a new YAML entry — no Java changes needed.
+
+## Observability stack
+
+### Prometheus + Grafana
+
+All services expose metrics at `/actuator/prometheus` (Micrometer). Prometheus scrapes every 15 seconds.
+
+- Prometheus UI: http://localhost:9090
+- Grafana: http://localhost:3001 (admin / admin)
+
+Grafana datasource and dashboards are provisioned from `docker/grafana/provisioning/`.
+
+### ELK Stack
+
+Services running with the `logstash` Spring profile ship JSON-structured logs to Logstash via TCP on port 5000.
+
+| Component | URL | Purpose |
+|---|---|---|
+| Elasticsearch | http://localhost:9200 | Log storage and indexing |
+| Logstash | localhost:5000 | Log ingestion pipeline |
+| Kibana | http://localhost:5601 | Log search and visualization |
+
+Logs include `traceId` and `spanId` (Micrometer Tracing + Brave) and `userId` (injected by `MdcFilter`) for correlation across services.
+
+<Tip>
+To ship logs to Logstash, start a service with `--spring.profiles.active=logstash`. The `start-dev.sh` script does not activate this by default for local terminal runs — it is activated automatically for Docker deployments.
+</Tip>
+
+### MailHog
+
+All outbound SMTP is captured by MailHog on port 1025. No email leaves your machine. View captured emails at http://localhost:8025.

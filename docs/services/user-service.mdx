@@ -1,0 +1,51 @@
+---
+title: "User service"
+description: "Stateless user management proxy over Keycloak Admin API."
+keywords: ["user service", "keycloak", "user management", "kafka", "user events"]
+---
+
+# User service
+
+**Module:** `user-service/`
+**Database:** None (stateless — Keycloak is the user store)
+**Kafka:** Produces to `user-events`
+
+The user service is a **thin proxy** over the Keycloak Admin REST API. It exposes a clean REST interface for user management without coupling other services to Keycloak directly.
+
+## Design
+
+Because Keycloak stores all user data, this service has no database. All reads and writes are forwarded to Keycloak via the Admin API using **Spring WebFlux** (reactive HTTP client).
+
+The service obtains a service account token from Keycloak using the **client credentials flow** and uses it to authenticate Admin API calls.
+
+## Controllers
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/v1/users` | `GET` | List all users (paginated, rate-limited 60 req/min) |
+| `/api/v1/users/me` | `GET` | Current authenticated user's profile |
+| `/api/v1/users/{id}` | `GET` | User by Keycloak UUID |
+| `/api/v1/users/batch` | `POST` | Resolve multiple users by UUID list |
+| `/api/v1/users` | `POST` | Create user (ADMIN only) |
+| `/api/v1/users/{id}` | `PUT` | Update user (ADMIN only) |
+| `/api/v1/users/{id}` | `DELETE` | Delete user (ADMIN only) |
+
+## Kafka events
+
+On every CRUD operation, the user service publishes a `UserEvent` to the `user-events` topic. `search-service` consumes these events to keep the `users` Elasticsearch index in sync.
+
+| Event type | Trigger |
+|---|---|
+| `CREATED` | New user created in Keycloak |
+| `UPDATED` | User profile updated |
+| `DELETED` | User deleted from Keycloak |
+
+## Caching
+
+User lookups are cached in Redis (by ID, by username, and batch results). This significantly reduces the number of Keycloak Admin API calls from `task-service` and `notification-service`, which frequently resolve user details during task operations.
+
+Cache entries are evicted on user CRUD operations.
+
+## Rate limiting
+
+`GET /api/v1/users/**` is rate-limited at the API Gateway to 60 requests per minute per authenticated user. This protects Keycloak from being overwhelmed by frequent list calls from the frontend.

@@ -1,0 +1,112 @@
+---
+title: "Authentication and authorization"
+description: "Keycloak OAuth2/OIDC setup, JWT validation, roles, and service-to-service auth."
+keywords: ["keycloak", "oauth2", "oidc", "jwt", "roles", "rbac"]
+---
+
+# Authentication and authorization
+
+## Overview
+
+Authentication is handled by **Keycloak 24.0** running at `http://localhost:8180`. The system uses OAuth2/OIDC with PKCE for the browser-based frontend and client credentials for service-to-service calls.
+
+```
+Browser
+  │  1. Redirect to Keycloak login (PKCE)
+  │  2. Keycloak issues access_token (JWT)
+  ▼
+api-gateway
+  │  3. Validate JWT signature via JWKS endpoint
+  │  4. Forward request + original Authorization header
+  ▼
+microservice
+     5. Re-validate JWT as OAuth2 resource server
+     6. Extract user ID from `sub` claim
+     7. Check `realm_access.roles` for authorization
+```
+
+## Keycloak realm
+
+| Setting | Value |
+|---|---|
+| Realm name | `demo` |
+| Keycloak URL | http://localhost:8180 |
+| Admin console | http://localhost:8180/admin (admin / admin) |
+| SSL required | `none` (disabled for local dev) |
+
+## OAuth2 clients
+
+| Client ID | Type | Used by |
+|---|---|---|
+| `api-gateway` | Public (PKCE, no secret) | React SPA — authorization code + PKCE |
+| `user-service` | Confidential (service account) | user-service client credentials flow |
+| `notification-service` | Confidential (service account) | notification-service client credentials flow |
+| `e2e-client` | Confidential | Playwright E2E tests |
+
+## Roles
+
+Six realm-level roles control access across the system.
+
+| Role | Permissions |
+|---|---|
+| **ADMIN** | Full access: create/delete projects, configure notification templates, manage users, trigger reindex |
+| **DEVELOPER** | Create and edit tasks, record planned/booked hours, add comments, upload attachments |
+| **QA** | Create and edit tasks, add comments, change task status |
+| **DEVOPS** | Create and edit tasks, manage infrastructure-related access |
+| **PM** | Create and edit tasks, view all reports, manage task timelines |
+| **SUPERVISOR** | Read-only access to all tasks and reports |
+
+## JWT claims
+
+| Claim | Type | Description |
+|---|---|---|
+| `sub` | UUID string | Keycloak user ID — used as the principal ID throughout the system |
+| `preferred_username` | string | Username |
+| `email` | string | Email address |
+| `realm_access.roles` | string[] | Role names (e.g. `["DEVELOPER", "QA"]`) |
+
+## JWT validation in services
+
+All services are configured as OAuth2 resource servers. Validation is performed by Spring Security using Keycloak's public keys.
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8180/realms/demo
+```
+
+`JwtAuthConverter` (in `common`) extracts the principal name from `sub` and converts `realm_access.roles` into Spring `GrantedAuthority` objects, prefixed with `ROLE_`.
+
+## Service-to-service authentication
+
+Services that call other services (Feign clients) use `FeignAuthInterceptor` to forward the current request's Bearer token.
+
+Services that initiate their own calls (e.g. notification-service fetching user details) use the **client credentials flow**:
+
+```
+notification-service
+  │  1. POST /realms/demo/protocol/openid-connect/token
+  │     grant_type=client_credentials
+  │     client_id=notification-service
+  │     client_secret=<secret>
+  ▼
+  Keycloak issues service account token
+  │  2. Call user-service with Bearer <service-account-token>
+```
+
+## Rate limiting (API Gateway)
+
+The gateway enforces per-user rate limits using a **Redis token bucket**:
+
+| Route pattern | Limit |
+|---|---|
+| `GET /api/v1/users/**` | 60 requests / minute |
+| `POST /api/v1/tasks/*/comments` | 30 requests / minute |
+| `GET /api/v1/search/**` | 30 requests / minute |
+| `POST /api/v1/files/avatars` | 10 requests / minute |
+| `POST /api/v1/files/attachments` | 10 requests / minute |
+
+Rate limit keys are derived from the authenticated user's `sub` claim, so limits are per-user, not per-IP.

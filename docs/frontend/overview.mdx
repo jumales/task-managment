@@ -1,0 +1,97 @@
+---
+title: "Frontend overview"
+description: "React 18 SPA: stack, authentication, API client, folder structure, and state management."
+keywords: ["react", "frontend", "vite", "ant design", "keycloak", "axios", "typescript"]
+---
+
+# Frontend overview
+
+**Module:** `web-client/`
+**Framework:** React 18.3 + TypeScript 5.4
+**Build tool:** Vite 5.2
+**UI library:** Ant Design 5.17
+**Dev server port:** 3000
+
+The frontend is a single-page application served by Nginx inside Docker. In development it runs via `vite dev` on port 3000. All API calls go through the API Gateway at `http://localhost:8080`.
+
+## Stack
+
+| Concern | Library | Version |
+|---|---|---|
+| UI framework | React + ReactDOM | 18.3 |
+| Language | TypeScript | 5.4 |
+| Build | Vite | 5.2 |
+| Routing | React Router | 6.23 |
+| Component library | Ant Design | 5.17 |
+| Charts | Recharts | 3.8 |
+| HTTP client | Axios | 1.7 |
+| Auth | Keycloak JS | 26.0 |
+| WebSocket | SockJS + STOMP | 1.6 / 7.3 |
+| i18n | i18next + react-i18next | 26.0 / 17.0 |
+| Testing | Vitest + RTL + MSW | — |
+
+## Authentication
+
+The app uses **Keycloak JS** with the **PKCE** (Proof Key for Code Exchange) method. On startup:
+
+1. `main.tsx` initializes Keycloak with `onLoad: 'login-required'`
+2. If no valid session exists, the user is redirected to the Keycloak login page
+3. After successful login, Keycloak issues a JWT stored in the browser session
+4. An **Axios interceptor** attaches the token as `Authorization: Bearer <token>` on every API request
+5. Tokens are silently refreshed before expiry
+
+## Folder structure
+
+```
+web-client/src/
+├── api/           # API client functions — one file per service domain
+│   ├── taskApi.ts
+│   ├── userApi.ts
+│   ├── reportingApi.ts
+│   ├── auditApi.ts
+│   └── searchApi.ts
+├── auth/          # Keycloak config, AuthProvider
+├── components/    # Reusable UI — AppLayout, task detail subcomponents
+├── hooks/         # Custom React hooks — data fetching and mutations
+├── pages/         # Page-level route components
+├── realtime/      # WebSocket/STOMP client wrapper
+├── utils/         # Helper functions, formatters
+├── i18n/          # Localization files (locales/)
+├── test/          # Test setup, MSW handlers
+├── App.tsx        # Main app shell with React Router routes
+└── main.tsx       # Vite entry point, Keycloak init
+```
+
+## API client layer
+
+All API calls are isolated in `src/api/`. Each file exports typed async functions wrapping Axios. Components and hooks never call Axios directly.
+
+```typescript
+// taskApi.ts
+export const getTasks = (params: TaskFilterParams) =>
+  apiClient.get<PageResponse<TaskResponse>>('/api/v1/tasks', { params });
+
+export const createTask = (request: TaskRequest) =>
+  apiClient.post<TaskResponse>('/api/v1/tasks', request);
+```
+
+## Custom hooks
+
+Data fetching and mutation logic lives in `src/hooks/`. Pages and components call hooks — they do not contain fetch logic themselves.
+
+| Hook | Purpose |
+|---|---|
+| `useTaskDetailData` | Fetch full task details |
+| `useTaskRealtime` | Subscribe to WebSocket task updates |
+| `useTaskComments` | List and post comments |
+| `useTaskAttachments` | Upload and remove attachments |
+| `useTaskParticipants` | Manage task team members |
+| `useTaskPlannedWork` | Record estimated hours |
+| `useTaskBookedWork` | Log and update actual hours |
+| `useTaskPhaseChange` | Transition task to a different phase |
+| `useTaskTimeline` | Manage task timelines |
+| `useAvatarBlobUrl` | Lazy-load user avatar images |
+
+## Internationalisation
+
+All user-visible strings use `i18next`. Locale files live in `src/i18n/locales/`. To add a new language, add a new locale file and register it in the i18n initializer.

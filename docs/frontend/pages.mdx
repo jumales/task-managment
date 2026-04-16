@@ -1,0 +1,85 @@
+---
+title: "Pages and routing"
+description: "All frontend routes, their purposes, and the main UI features on each page."
+keywords: ["react router", "pages", "routes", "dashboard", "tasks", "projects", "reports"]
+---
+
+# Pages and routing
+
+Routes are defined in `src/App.tsx` using React Router 6. All routes require authentication (enforced by the Keycloak provider).
+
+## Route map
+
+| Path | Component | Description |
+|---|---|---|
+| `/` | `DashboardPage` | Overview widgets: open tasks by project, recent activity |
+| `/tasks` | `TasksPage` | Task list with filters, search, and create wizard |
+| `/tasks/:id` | `TaskDetailPage` | Full task view: details, comments, attachments, work logs, timeline, participants |
+| `/projects` | `ProjectsPage` | Project list, create project, configure phases |
+| `/users` | `UsersPage` | User list, create/edit/delete users (ADMIN only) |
+| `/reports` | `ReportsPage` | Hours reports and task dashboards with charts |
+| `/search` | `SearchPage` | Full-text search across tasks and users |
+| `/configuration` | `ConfigurationPage` | System settings, notification templates |
+
+## Dashboard (`/`)
+
+Shows high-level project health:
+- Open task counts per project (from `GET /reports/tasks/open-by-project`)
+- Tasks assigned to the current user
+
+## Tasks page (`/tasks`)
+
+- Filterable, paginated task table (by project, phase, status, assignee, type, completion state)
+- **New Task wizard** — multi-step form: project selection → task details → phase selection → assignee
+- Clicking a row navigates to the task detail page
+
+Role-based visibility:
+- "New Task" button hidden for SUPERVISOR role
+- HTTP 403 enforced at the API level for unauthorized creates
+
+## Task detail page (`/tasks/:id`)
+
+The most feature-rich page. Organized in tabs/sections:
+
+| Section | API calls |
+|---|---|
+| Task fields | `PUT /tasks/{id}`, `PATCH /tasks/{id}/phase` |
+| Comments | `GET/POST /tasks/{id}/comments` |
+| Attachments | `GET/POST/DELETE /tasks/{id}/attachments`, `POST /files/attachments` |
+| Participants | `GET/POST/DELETE /tasks/{id}/participants` |
+| Planned work | `GET/POST /tasks/{id}/planned-work` |
+| Booked work | `GET/POST/PUT/DELETE /tasks/{id}/booked-work` |
+| Timeline | `GET/POST/PUT/DELETE /tasks/{id}/timelines` |
+| Status / phase history | `GET /audit/tasks/{id}/statuses`, `.../phases` |
+
+Real-time updates arrive via WebSocket subscription to `/topic/tasks/{id}`. When a change is received, the page re-fetches the affected section.
+
+## Projects page (`/projects`)
+
+- List all projects with their phase configurations
+- Create project (ADMIN only) and configure workflow phases
+- Set default phase per project
+
+## Users page (`/users`)
+
+- List all Keycloak users with their roles
+- Create, edit, and delete users (ADMIN role required)
+- Avatar displayed via `useAvatarBlobUrl` hook (lazy-loaded from `/files/{avatarFileId}`)
+
+## Reports page (`/reports`)
+
+- **My Tasks** — open and finished tasks assigned to the current user
+- **Hours by task** — bar chart comparing planned vs booked hours per task
+- **Hours by project** — aggregated hours summary
+- Dashboard widgets update in real-time via WebSocket `/topic/reports`
+
+## Search page (`/search`)
+
+- Unified search box querying both tasks and users simultaneously
+- Results displayed in two columns: matching tasks and matching users
+- Clicking a task navigates to its detail page
+
+## Configuration page (`/configuration`)
+
+- Manage per-project notification email templates
+- Preview placeholders (`{taskTitle}`, `{assigneeName}`, `{taskUrl}`)

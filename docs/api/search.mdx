@@ -1,0 +1,94 @@
+---
+title: "Search API"
+description: "Full-text search over tasks and users via Elasticsearch."
+keywords: ["search api", "full-text search", "elasticsearch", "tasks search", "users search"]
+---
+
+# Search API
+
+Base path: `/api/v1/search`
+
+All search endpoints are rate-limited to **30 requests/min** per authenticated user.
+
+## Search tasks
+
+```http
+GET /api/v1/search/tasks?q={query}
+```
+
+Full-text search on task `title` and `description`. Results are ranked by relevance.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string | Search query (required) |
+| `page` | int | Page number (0-based, default 0) |
+| `size` | int | Page size (default 20) |
+
+**Response:**
+
+```json
+{
+  "content": [
+    {
+      "id": "018f...",
+      "title": "Implement OAuth2 login",
+      "description": "Add Keycloak-based login...",
+      "status": "IN_PROGRESS",
+      "projectId": "018e..."
+    }
+  ],
+  "number": 0,
+  "size": 20,
+  "totalElements": 3,
+  "totalPages": 1
+}
+```
+
+---
+
+## Search users
+
+```http
+GET /api/v1/search/users?q={query}
+```
+
+Full-text search on user `name`, `email`, and `username`. Results are ranked by relevance.
+
+**Query parameters:** Same as task search.
+
+**Response:**
+
+```json
+{
+  "content": [
+    {
+      "id": "018c...",
+      "name": "John Developer",
+      "email": "john@example.com",
+      "username": "john.developer"
+    }
+  ],
+  "number": 0,
+  "size": 20,
+  "totalElements": 1,
+  "totalPages": 1
+}
+```
+
+---
+
+## Reindex (admin)
+
+```http
+POST /api/v1/search/reindex
+```
+
+Requires **ADMIN** role.
+
+Rebuilds both the `tasks` and `users` Elasticsearch indices by fetching all data from source services. Use this after a cluster restart or index corruption.
+
+The operation is synchronous and may take several seconds for large datasets.
+
+**Response:** `200 OK` with a summary of indexed documents.

@@ -1,0 +1,101 @@
+---
+title: "API overview"
+description: "Base URL, authentication, request format, pagination, and error responses."
+keywords: ["api", "rest", "authentication", "bearer token", "pagination", "errors"]
+---
+
+# API overview
+
+All APIs are exposed through the **API Gateway** at `http://localhost:8080`. Clients never call microservices directly.
+
+## Base URL
+
+```
+http://localhost:8080/api/v1
+```
+
+## Authentication
+
+All endpoints require a Bearer JWT token issued by Keycloak.
+
+```http
+Authorization: Bearer <access_token>
+```
+
+Obtain a token from Keycloak using the authorization code + PKCE flow (for browser clients) or client credentials flow (for service accounts).
+
+<Note>
+The API Gateway validates the token signature before forwarding the request. An expired or invalid token returns `401 Unauthorized` immediately.
+</Note>
+
+## Content type
+
+All request and response bodies use JSON.
+
+```http
+Content-Type: application/json
+Accept: application/json
+```
+
+File upload endpoints use `multipart/form-data`.
+
+## Pagination
+
+List endpoints that may return large result sets return a `PageResponse<T>` wrapper:
+
+```json
+{
+  "content": [ ... ],
+  "number": 0,
+  "size": 20,
+  "totalElements": 142,
+  "totalPages": 8
+}
+```
+
+| Query parameter | Default | Description |
+|---|---|---|
+| `page` | `0` | Zero-based page index |
+| `size` | `20` | Items per page |
+| `sort` | varies | Sort field and direction (e.g. `createdAt,desc`) |
+
+## Filtering
+
+Task list endpoints support rich filtering:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `projectId` | UUID | Filter by project |
+| `phaseId` | UUID | Filter by phase |
+| `assignedUserId` | UUID | Filter by assignee |
+| `status` | enum | `TODO`, `IN_PROGRESS`, `DONE` |
+| `completionStatus` | enum | `FINISHED`, `DEV_FINISHED` |
+| `type` | enum | `FEATURE`, `BUG`, `DOCUMENTATION`, etc. |
+
+## Error responses
+
+| HTTP status | Meaning |
+|---|---|
+| `400 Bad Request` | Validation failure on the request body |
+| `401 Unauthorized` | Missing or invalid JWT token |
+| `403 Forbidden` | Authenticated but insufficient role |
+| `404 Not Found` | Resource does not exist |
+| `409 Conflict` | Duplicate resource (unique constraint violation) |
+| `422 Unprocessable Entity` | Business logic violation (e.g. editing a finished task) |
+| `429 Too Many Requests` | Rate limit exceeded |
+
+Error bodies follow this shape:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "status": 422,
+  "error": "Unprocessable Entity",
+  "message": "Task is in a finished phase and cannot be edited",
+  "path": "/api/v1/tasks/abc-123"
+}
+```
+
+## Swagger UI
+
+Each service exposes its own OpenAPI spec. When running locally, access Swagger UI via the service's direct port (visible in the Eureka dashboard). The spec is also available at `http://{service-host}/v3/api-docs`.

@@ -1,0 +1,174 @@
+---
+title: "Configuration reference"
+description: "Key application.yml settings, environment variables, and how to configure file buckets, rate limits, and tracing."
+keywords: ["configuration", "application.yml", "environment variables", "minio", "rate limiting", "keycloak"]
+---
+
+# Configuration reference
+
+All service configuration lives in `src/main/resources/application.yml` (or `application-{profile}.yml` for profile-specific overrides). Secrets and environment-specific values are injected via environment variables or Docker Compose environment blocks.
+
+## Common settings (all services)
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8180/realms/demo}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0   # Reduce to 0.05–0.1 in production
+
+logging:
+  level:
+    com.demo.common.web: DEBUG   # Controller input parameter tracing
+    org.hibernate.SQL: DEBUG     # SQL logging (structured, not show-sql)
+```
+
+<Warning>
+Never use `spring.jpa.show-sql: true`. It logs at INFO level with unstructured output. Use `logging.level.org.hibernate.SQL: DEBUG` instead.
+</Warning>
+
+## Eureka registration
+
+```yaml
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://eureka-peer1:8761/eureka/,http://eureka-peer2:8762/eureka/
+  instance:
+    prefer-ip-address: true
+```
+
+## Kafka
+
+```yaml
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.demo.*"
+```
+
+## Redis (caching)
+
+```yaml
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000   # 5 minutes (milliseconds)
+```
+
+## MinIO (file-service)
+
+```yaml
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  buckets:
+    avatars:
+      allowed-types:
+        - image/jpeg
+        - image/png
+        - image/gif
+        - image/webp
+      max-size-bytes: 5242880   # 5 MB
+    attachments:
+      allowed-types:
+        - application/pdf
+        - image/jpeg
+        - image/png
+        - application/msword
+        - text/plain
+        - text/csv
+      max-size-bytes: 20971520   # 20 MB
+```
+
+To add a new bucket, add a new entry under `minio.buckets`. No Java changes required.
+
+## API Gateway rate limits
+
+Rate limits are configured in the gateway's `application.yml`:
+
+```yaml
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service-get
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/v1/users/**
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 60
+                key-resolver: "#{@userKeyResolver}"
+```
+
+The `userKeyResolver` extracts the `sub` claim from the JWT, so limits are per authenticated user.
+
+## Keycloak service accounts
+
+Services using client credentials flow configure:
+
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: http://keycloak:8180/realms/demo/protocol/openid-connect/token
+```
+
+## Logstash profile
+
+When `logstash` profile is active, a TCP appender is added:
+
+```yaml
+# application-logstash.yml
+logging:
+  config: classpath:logback-logstash.xml
+```
+
+The Logback config adds a `LogstashTcpSocketAppender` targeting `logstash:5000`.
+
+## Environment variables reference
+
+| Variable | Default | Used by |
+|---|---|---|
+| `KEYCLOAK_ISSUER_URI` | `http://keycloak:8180/realms/demo` | All services |
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | All services with Kafka |
+| `REDIS_HOST` | `localhost` | task-service, api-gateway, user-service |
+| `MINIO_ENDPOINT` | `http://localhost:9000` | file-service |
+| `MINIO_ACCESS_KEY` | `minioadmin` | file-service |
+| `MINIO_SECRET_KEY` | `minioadmin` | file-service |
+| `KEYCLOAK_CLIENT_ID` | varies | user-service, notification-service |
+| `KEYCLOAK_CLIENT_SECRET` | varies | user-service, notification-service |
+| `SPRING_DATASOURCE_URL` | varies per service | All services with DB |

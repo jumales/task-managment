@@ -1,0 +1,98 @@
+---
+title: "Monitoring and observability"
+description: "Prometheus metrics, Grafana dashboards, ELK structured logging, and distributed tracing."
+keywords: ["monitoring", "prometheus", "grafana", "elk", "logstash", "kibana", "tracing", "metrics"]
+---
+
+# Monitoring and observability
+
+The platform includes a full observability stack: metrics, logs, and distributed traces.
+
+## Metrics (Prometheus + Grafana)
+
+Every service exposes a Prometheus-compatible metrics endpoint:
+
+```
+http://{service-host}:{port}/actuator/prometheus
+```
+
+Metrics are collected by Micrometer and include:
+- JVM memory and GC stats
+- HTTP request rates, durations, and error counts
+- Kafka consumer lag and throughput
+- Cache hit/miss rates (Redis)
+- Circuit breaker state (Resilience4j)
+
+**Prometheus** scrapes all services every 15 seconds. Configuration in `docker/prometheus/prometheus.yml`.
+
+**Grafana** provides visualization:
+- URL: http://localhost:3001
+- Credentials: admin / admin
+- Datasource and dashboards provisioned automatically from `docker/grafana/provisioning/`
+
+## Structured logging (ELK)
+
+All services produce **JSON-structured logs** via Logstash Logback Encoder. Log fields include:
+
+| Field | Source | Description |
+|---|---|---|
+| `timestamp` | Logback | ISO 8601 log time |
+| `level` | Logback | `INFO`, `WARN`, `ERROR`, etc. |
+| `logger_name` | Logback | Class name |
+| `message` | Application | Log message |
+| `traceId` | Micrometer Tracing | Distributed trace correlation ID |
+| `spanId` | Micrometer Tracing | Current span ID |
+| `userId` | `MdcFilter` | Authenticated user UUID from JWT `sub` |
+
+### Activating log shipping
+
+To ship logs to Logstash, start a service with:
+
+```bash
+--spring.profiles.active=logstash
+```
+
+The Docker deployment (`docker-compose.yml`) activates this profile automatically.
+
+### ELK access
+
+| Component | URL | Purpose |
+|---|---|---|
+| Elasticsearch | http://localhost:9200 | Log storage |
+| Logstash | localhost:5000 (TCP) | Log ingestion |
+| Kibana | http://localhost:5601 | Search and visualize logs |
+
+<Note>
+Elasticsearch security is disabled in dev (`xpack.security.enabled: false`). Enable it for production.
+</Note>
+
+## Distributed tracing
+
+**Micrometer Tracing** with **Brave** injects `traceId` and `spanId` into every log line and HTTP response header. All services in a single request chain share the same `traceId`.
+
+To trace a request across services:
+1. Find the `traceId` in any log line for that request
+2. Search Kibana for all log lines with that `traceId`
+3. Reconstruct the full execution path across all services
+
+Sampling rate is configured per service:
+
+```yaml
+management:
+  tracing:
+    sampling:
+      probability: 1.0  # 100% in dev; reduce to 0.05-0.1 in prod
+```
+
+## Actuator endpoints
+
+All services expose Spring Boot Actuator at `/actuator`. Key endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `/actuator/health` | Liveness and readiness probes |
+| `/actuator/prometheus` | Prometheus metrics scrape endpoint |
+| `/actuator/info` | Application info (version, build) |
+| `/actuator/loggers` | Runtime log level adjustment |
+
+The gateway does **not** expose `/actuator` to external clients.

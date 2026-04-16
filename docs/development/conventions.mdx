@@ -1,0 +1,141 @@
+---
+title: "Code conventions"
+description: "Java code style: methods, naming, constants, error handling, N+1 prevention, and documentation standards."
+keywords: ["code conventions", "java", "code style", "lombok", "error handling", "naming", "javadoc"]
+---
+
+# Code conventions
+
+These conventions apply across all Spring Boot services.
+
+## Methods
+
+- One method does one thing — if you need "and" to describe it, split it
+- Prefer early returns to reduce nesting
+- Name methods after what they do: `findByProjectId`, `resolvePhaseId`, `toResponse`
+
+```java
+// bad — nested if/else
+public TaskResponse findById(UUID id) {
+    Optional<Task> task = repository.findById(id);
+    if (task.isPresent()) {
+        return toResponse(task.get());
+    } else {
+        throw new ResourceNotFoundException("Task", id);
+    }
+}
+
+// good — early return style
+public TaskResponse findById(UUID id) {
+    return toResponse(getOrThrow(id));
+}
+```
+
+## Variable names
+
+- Name after what they hold, not their type: `projectId` not `uuid`, `task` not `t`
+- Boolean names read as a question: `isDefault`, `existsByTaskId`
+- No abbreviations unless universally obvious (`id`, `dto`, `url`)
+
+## Constants — no magic strings
+
+Never use string literals for values with meaning. Declare them as `static final` constants or enums.
+
+```java
+// bad
+outboxRepository.save(OutboxEvent.builder()
+    .aggregateType("Task")
+    .topic("task-events")
+    .build());
+
+// good
+outboxRepository.save(OutboxEvent.builder()
+    .aggregateType(OutboxEvent.AGGREGATE_TYPE_TASK)
+    .topic(OutboxPublisher.TOPIC)
+    .build());
+```
+
+## Error handling
+
+| Exception | When to throw |
+|---|---|
+| `ResourceNotFoundException` | Entity not found by ID |
+| `DuplicateResourceException` | Unique constraint violation |
+| `RelatedEntityActiveException` | Delete blocked by active related entities |
+| `BusinessLogicException` | HTTP 422 for write guards (e.g. editing a finished task) |
+
+Never return `null` from a service method. Throw a domain exception instead.
+
+## Lombok
+
+Use Lombok to eliminate boilerplate:
+
+- Entities: `@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor`
+- Request DTOs: `@Data`
+- Response DTOs: `@Getter @AllArgsConstructor`
+- Constructor injection only — no `@Autowired` field injection
+
+## N+1 query prevention
+
+Never call a repository or service per item in a stream. In list methods, batch-load related data first using `findByXIn(ids)`, build a `Map<UUID, T>`, then map.
+
+```java
+// bad — N+1
+public List<TaskResponse> findAll() {
+    return repository.findAll().stream().map(this::toResponse).toList();
+}
+// where toResponse() calls userRepository.findById() — once per task
+
+// good — batch
+public List<TaskResponse> findAll() {
+    return toResponseList(repository.findAll());
+}
+
+private List<TaskResponse> toResponseList(List<Task> tasks) {
+    if (tasks.isEmpty()) return List.of();
+    Set<UUID> userIds = tasks.stream().map(Task::getAssignedUserId).collect(toSet());
+    Map<UUID, UserDto> userMap = userService.findAllByIds(userIds);
+    return tasks.stream()
+        .map(t -> new TaskResponse(..., userMap.get(t.getAssignedUserId())))
+        .toList();
+}
+```
+
+## Cache eviction scope
+
+Use `@CacheEvict(allEntries = true)` when a cache holds both list and individual entries. Evicting by key alone leaves the list cache stale.
+
+## Documentation
+
+Every public and package-private method gets a Javadoc comment. One sentence is enough.
+
+```java
+// bad — no docs
+public UUID resolvePhaseId(UUID phaseId, UUID projectId) { ... }
+
+// good
+/**
+ * Returns the explicit phaseId if provided, otherwise the project's default phase id (or null).
+ */
+UUID resolvePhaseId(UUID phaseId, UUID projectId) { ... }
+```
+
+## Entity IDs
+
+Use UUID v7 for all entity primary keys:
+
+```java
+@Id
+@UuidGenerator(style = UuidGenerator.Style.TIME)
+private UUID id;
+```
+
+UUID v7 is time-ordered, which improves B-tree index performance compared to random UUID v4.
+
+## Enums over strings
+
+Use enums for any fixed set of values (`TaskStatus`, `WorkType`, `TaskChangeType`). Never compare against string literals for these.
+
+## Common module placement
+
+Any DTO, event, or enum used by two or more services belongs in `common`. Never duplicate classes across service modules.

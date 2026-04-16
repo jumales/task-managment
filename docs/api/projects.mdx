@@ -1,0 +1,170 @@
+---
+title: "Projects API"
+description: "Manage task projects and their workflow phases."
+keywords: ["projects", "phases", "task code prefix", "notification template"]
+---
+
+# Projects API
+
+Base path: `/api/v1/projects`
+
+## Project object
+
+```json
+{
+  "id": "018e1234-5678-7abc-def0-111213141516",
+  "name": "Task Management Platform",
+  "taskCodePrefix": "TMP",
+  "defaultPhaseId": "018d...",
+  "createdAt": "2024-01-01T00:00:00Z"
+}
+```
+
+The `taskCodePrefix` is used to auto-generate task codes (e.g. `TMP-1`, `TMP-2`). It must be unique across all projects.
+
+## Endpoints
+
+### List projects
+
+```http
+GET /api/v1/projects
+```
+
+Returns all non-deleted projects.
+
+---
+
+### Get project
+
+```http
+GET /api/v1/projects/{id}
+```
+
+---
+
+### Create project
+
+```http
+POST /api/v1/projects
+```
+
+Requires **ADMIN** role.
+
+```json
+{
+  "name": "Task Management Platform",
+  "taskCodePrefix": "TMP"
+}
+```
+
+`taskCodePrefix` must be unique. Returns `409 Conflict` if it already exists.
+
+---
+
+### Update project
+
+```http
+PUT /api/v1/projects/{id}
+```
+
+Requires **ADMIN** role.
+
+---
+
+### Delete project
+
+```http
+DELETE /api/v1/projects/{id}
+```
+
+Requires **ADMIN** role. Soft delete. Blocked if the project has active tasks.
+
+---
+
+## Phases
+
+Base path: `/api/v1/phases`
+
+Phases define the workflow stages within a project (e.g. PLANNING → DEV → QA → RELEASE).
+
+### Phase object
+
+```json
+{
+  "id": "018d...",
+  "projectId": "018e...",
+  "name": "DEV",
+  "description": "Active development",
+  "sequence": 2,
+  "isDefault": false,
+  "isReleased": false,
+  "isRejected": false
+}
+```
+
+### List phases for a project
+
+```http
+GET /api/v1/phases?projectId={projectId}
+```
+
+Returns phases ordered by `sequence`.
+
+---
+
+### Create phase
+
+```http
+POST /api/v1/phases
+```
+
+```json
+{
+  "projectId": "018e...",
+  "name": "QA",
+  "description": "Quality assurance review",
+  "sequence": 3,
+  "isDefault": false,
+  "isReleased": false,
+  "isRejected": false
+}
+```
+
+Phase names come from the `TaskPhaseName` enum: `PLANNING`, `DEV`, `QA`, `UAT`, `RELEASE`, `DONE`, `RELEASED`, `REJECTED`.
+
+---
+
+### Update phase
+
+```http
+PUT /api/v1/phases/{id}
+```
+
+---
+
+### Delete phase
+
+```http
+DELETE /api/v1/phases/{id}
+```
+
+Blocked if any tasks are currently in this phase.
+
+---
+
+## Notification templates
+
+Each project can have one notification template controlling email content on task changes.
+
+```http
+GET    /api/v1/projects/{projectId}/notification-template
+PUT    /api/v1/projects/{projectId}/notification-template
+DELETE /api/v1/projects/{projectId}/notification-template
+```
+
+```json
+{
+  "subject": "Task {taskTitle} updated",
+  "body": "Hello {assigneeName},\n\nTask {taskTitle} has changed.\nView it at: {taskUrl}"
+}
+```

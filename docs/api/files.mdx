@@ -1,0 +1,95 @@
+---
+title: "Files API"
+description: "Upload and download user avatars and task attachments via MinIO."
+keywords: ["files api", "upload", "download", "minio", "avatars", "attachments", "presigned url"]
+---
+
+# Files API
+
+Base path: `/api/v1/files`
+
+## Upload avatar
+
+```http
+POST /api/v1/files/avatars
+Content-Type: multipart/form-data
+```
+
+Rate-limited to 10 requests/min.
+
+**Form fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | binary | Yes | Image file |
+
+**Allowed types:** `image/jpeg`, `image/png`, `image/gif`, `image/webp`
+**Max size:** 5 MB
+
+**Response `201 Created`:**
+
+```json
+{
+  "fileId": "018b1234-5678-7abc-def0-111213141516",
+  "fileName": "avatar.jpg",
+  "url": "/api/v1/files/018b1234-5678-7abc-def0-111213141516"
+}
+```
+
+---
+
+## Upload attachment
+
+```http
+POST /api/v1/files/attachments
+Content-Type: multipart/form-data
+```
+
+Rate-limited to 10 requests/min.
+
+**Form fields:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `file` | binary | Yes | Attachment file |
+
+**Allowed types:** `application/pdf`, `image/jpeg`, `image/png`, `application/msword`, `text/plain`, `text/csv`
+**Max size:** 20 MB
+
+**Response:** Same shape as avatar upload.
+
+After upload, pass the returned `fileId` to `POST /api/v1/tasks/{id}/attachments` to link the file to a task.
+
+---
+
+## Download file (proxied)
+
+```http
+GET /api/v1/files/{fileId}
+```
+
+Streams the file bytes through the API Gateway. Suitable for small files or when MinIO should not be directly accessible to clients.
+
+**Response:** Binary stream with appropriate `Content-Type` header.
+
+---
+
+## Get presigned URL
+
+```http
+GET /api/v1/files/{fileId}/presigned-url
+```
+
+Returns a time-limited direct-to-MinIO download URL. The client can use this URL to download the file directly from MinIO, bypassing the gateway.
+
+**Response:**
+
+```json
+{
+  "url": "http://localhost:9000/attachments/018b...?X-Amz-Signature=...&X-Amz-Expires=3600"
+}
+```
+
+<Note>
+Presigned URLs expire after 1 hour. Do not cache them for longer than that.
+</Note>

@@ -1,0 +1,119 @@
+---
+title: "Users API"
+description: "User management backed by Keycloak. List, fetch, create, update, and delete users."
+keywords: ["users api", "user management", "keycloak", "batch", "me"]
+---
+
+# Users API
+
+Base path: `/api/v1/users`
+
+User data is stored in Keycloak. This service is a clean proxy — no user data is stored locally.
+
+## User object
+
+```json
+{
+  "id": "018c1234-5678-7abc-def0-111213141516",
+  "username": "john.developer",
+  "firstName": "John",
+  "lastName": "Developer",
+  "email": "john@example.com",
+  "roles": ["DEVELOPER"],
+  "enabled": true,
+  "createdAt": "2024-01-01T00:00:00Z"
+}
+```
+
+## Endpoints
+
+### List users
+
+```http
+GET /api/v1/users
+```
+
+Rate-limited to 60 requests/min. Returns a paginated list of all users.
+
+---
+
+### Get current user
+
+```http
+GET /api/v1/users/me
+```
+
+Returns the authenticated user's profile based on the `sub` claim in the JWT.
+
+---
+
+### Get user by ID
+
+```http
+GET /api/v1/users/{id}
+```
+
+---
+
+### Batch resolve users
+
+```http
+POST /api/v1/users/batch
+```
+
+Resolves multiple users by UUID in a single request. Used internally to avoid N+1 user lookups.
+
+```json
+{
+  "ids": [
+    "018c...",
+    "018b...",
+    "018a..."
+  ]
+}
+```
+
+Returns a map of `{ "id": UserDto }`.
+
+---
+
+### Create user
+
+```http
+POST /api/v1/users
+```
+
+Requires **ADMIN** role.
+
+```json
+{
+  "username": "new.developer",
+  "firstName": "New",
+  "lastName": "Developer",
+  "email": "new@example.com",
+  "password": "temporary-password",
+  "roles": ["DEVELOPER"]
+}
+```
+
+Creates the user in Keycloak and publishes a `UserEvent(CREATED)` to Kafka.
+
+---
+
+### Update user
+
+```http
+PUT /api/v1/users/{id}
+```
+
+Requires **ADMIN** role. Publishes `UserEvent(UPDATED)`.
+
+---
+
+### Delete user
+
+```http
+DELETE /api/v1/users/{id}
+```
+
+Requires **ADMIN** role. Deletes from Keycloak and publishes `UserEvent(DELETED)`. The user is removed from the Elasticsearch index by search-service.
