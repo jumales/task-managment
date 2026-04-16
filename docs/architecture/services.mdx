@@ -1,0 +1,77 @@
+---
+title: "Services map"
+description: "Summary of every microservice, its responsibility, and its dependencies."
+keywords: ["microservices", "eureka", "service discovery", "spring boot"]
+---
+
+# Services map
+
+All application services register with **Eureka** and are discoverable by name. The API Gateway routes traffic to them using their Eureka service IDs.
+
+## Service inventory
+
+| Service | Eureka ID | Port | Database | Publishes to Kafka | Consumes from Kafka |
+|---|---|---|---|---|---|
+| **api-gateway** | `API-GATEWAY` | 8080 (fixed) | — | — | — |
+| **task-service** | `TASK-SERVICE` | random | `task_db` (Postgres) | `task-changed` | — |
+| **user-service** | `USER-SERVICE` | random | — (Keycloak) | `user-events` | — |
+| **notification-service** | `NOTIFICATION-SERVICE` | random | `notification_db` (Postgres) | — | `task-changed` |
+| **audit-service** | `AUDIT-SERVICE` | random | `audit_db` (Postgres) | — | `task-changed` |
+| **reporting-service** | `REPORTING-SERVICE` | random | `reporting_db` (Postgres) | — | `task-changed` |
+| **search-service** | `SEARCH-SERVICE` | random | Elasticsearch | — | `task-changed`, `user-events` |
+| **file-service** | `FILE-SERVICE` | random | `file_db` (Postgres) | — | — |
+| **eureka-server** | — | 8761/8762 | — | — | — |
+
+## Dependency graph
+
+```
+                          ┌─────────────┐
+                          │ api-gateway │
+                          └──────┬──────┘
+                                 │ routes to all services
+          ┌──────────────────────┼───────────────────────────┐
+          │                      │                           │
+    ┌─────▼──────┐     ┌─────────▼──────┐     ┌────────────▼────────┐
+    │task-service│     │ user-service   │     │  file-service       │
+    │(write DB)  │     │(Keycloak admin)│     │  (MinIO)            │
+    └─────┬──────┘     └────────────────┘     └─────────────────────┘
+          │                    ▲ Feign
+          │ Kafka: task-changed │
+          │ ┌──────────────────┘
+     ┌────┴─┴──────────────────────────┐
+     │                                 │
+┌────▼─────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐
+│ audit-   │ │reporting │ │ search   │ │notification│
+│ service  │ │ service  │ │ service  │ │ service    │
+└──────────┘ └──────────┘ └──────────┘ └────────────┘
+                                 ▲ also consumes user-events
+                                 └── from user-service
+```
+
+## Common module
+
+All services depend on the `common` Maven module. It provides:
+
+- **DTOs** — `TaskRequest`, `TaskResponse`, `UserDto`, `PageResponse<T>`, and all other shared request/response types
+- **Enums** — `TaskStatus`, `TaskType`, `TaskPhaseName`, `TaskChangeType`, `WorkType`, `UserEventType`, and more
+- **Events** — `TaskChangedEvent`, `UserEvent` (Kafka message payloads)
+- **Security** — `SecurityConfig`, `JwtAuthConverter`, `FeignAuthInterceptor`, `MdcFilter`
+- **Web utilities** — `ControllerLoggingAspect`, `LoggingAuthenticationEntryPoint`, `ResponseCode`
+
+<Note>
+Any DTO or event used by two or more services **must** live in `common`. Never duplicate these classes across services.
+</Note>
+
+## Eureka HA setup
+
+Two Eureka peers replicate registrations to each other:
+
+```yaml
+# peer1 registers with peer2
+eureka.client.serviceUrl.defaultZone: http://eureka-peer2:8762/eureka/
+
+# peer2 registers with peer1
+eureka.client.serviceUrl.defaultZone: http://eureka-peer1:8761/eureka/
+```
+
+Application services register with both peers for fault tolerance. If one Eureka instance restarts, clients continue discovering services from the other.

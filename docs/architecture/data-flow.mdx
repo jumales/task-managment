@@ -1,0 +1,98 @@
+---
+title: "Event-driven data flow"
+description: "How data propagates through the system via Kafka, the transactional outbox, and CQRS read models."
+keywords: ["kafka", "event-driven", "outbox pattern", "CQRS", "TaskChangedEvent"]
+---
+
+# Event-driven data flow
+
+## Kafka topics
+
+| Topic | Producer | Consumers | Payload |
+|---|---|---|---|
+| `task-changed` | task-service (outbox publisher) | audit-service, reporting-service, search-service, notification-service | `TaskChangedEvent` |
+| `user-events` | user-service | search-service | `UserEvent` |
+
+All consumers use **manual acknowledgement** (`MANUAL_IMMEDIATE`) to ensure an event is not committed as consumed until it has been fully processed.
+
+## Transactional outbox pattern
+
+`task-service` writes task data and its Kafka event in the **same database transaction**. This guarantees that:
+
+- No event is lost if the service crashes after writing the DB but before publishing to Kafka.
+- No event is published for a transaction that was rolled back.
+
+```
+task-service request handler
+┌─────────────────────────────────────────────────────┐
+│  @Transactional                                     │
+│  1. Save/update Task entity                         │
+│  2. Insert OutboxEvent row (unpublished=true)        │
+│  → both committed atomically                        │
+└─────────────────────────────────────────────────────┘
+
+OutboxPublisher (background thread, @Scheduled)
+┌─────────────────────────────────────────────────────┐
+│  1. SELECT * FROM outbox_events WHERE published=false│
+│  2. For each event: kafka.send(topic, payload)       │
+│  3. UPDATE outbox_events SET published=true          │
+└─────────────────────────────────────────────────────┘
+```
+
+## TaskChangedEvent change types
+
+Every mutation in `task-service` emits a `TaskChangedEvent` with a `changeType` discriminator. Consumers use this to decide what to record or act on.
+
+| Change type | Trigger |
+|---|---|
+| `TASK_CREATED` | New task created |
+| `TASK_UPDATED` | Task fields updated (title, description, status, etc.) |
+| `TASK_CODE_ASSIGNED` | Auto-generated task code assigned |
+| `STATUS_CHANGED` | Task status transitioned |
+| `PHASE_CHANGED` | Task moved to a different phase |
+| `COMMENT_ADDED` | Comment posted on a task |
+| `ATTACHMENT_ADDED` | File attached to a task |
+| `ATTACHMENT_DELETED` | Attachment removed |
+| `PARTICIPANT_ADDED` | Team member added to task |
+| `PARTICIPANT_REMOVED` | Team member removed |
+| `PLANNED_WORK_CREATED` | Estimated work hours recorded |
+| `BOOKED_WORK_CREATED` | Actual work hours logged |
+| `BOOKED_WORK_UPDATED` | Work log entry updated |
+| `BOOKED_WORK_DELETED` | Work log entry deleted |
+| `TIMELINE_CHANGED` | Task timeline start/end dates updated |
+
+## Consumer read models
+
+Each consumer maintains its own database, updated only from events. They never query `task-service` directly during normal operation.
+
+### audit-service
+Records every change type into type-specific audit tables:
+- `status_audit_records` — status transitions (from → to, timestamp)
+- `phase_audit_records` — phase transitions
+- `comment_audit_records` — comment snapshots
+- `planned_work_audit_records` / `booked_work_audit_records` — work log history
+
+### reporting-service
+Maintains aggregated read tables:
+- `report_tasks` — per-task snapshot (status, phase, assignee, project)
+- `report_hours` — planned vs booked hours by task, project, user, and work type
+
+### search-service
+Keeps Elasticsearch indices in sync:
+- `tasks` index — searchable by title, description, status, project
+- `users` index — searchable by name, email, username
+
+### notification-service
+On each event:
+1. Resolves recipient (assignee or template-configured address)
+2. Renders email using the project's `ProjectNotificationTemplate`
+3. Sends via SMTP (MailHog in dev)
+4. Pushes a WebSocket message to `/ws/tasks/` for browser notification
+
+## Eventual consistency guarantees
+
+Because consumers are asynchronous, there is a small propagation delay between a write in `task-service` and visibility in audit/reporting/search. In practice this is milliseconds in normal operation. Consumers are designed to be idempotent where possible.
+
+<Info>
+If Kafka is unavailable, outbox events accumulate in the `outbox_events` table and are delivered once Kafka recovers. No events are lost.
+</Info>

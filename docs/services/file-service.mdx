@@ -1,0 +1,61 @@
+---
+title: "File service"
+description: "File upload and download via MinIO S3-compatible storage."
+keywords: ["file service", "minio", "s3", "upload", "avatars", "attachments", "presigned url"]
+---
+
+# File service
+
+**Module:** `file-service/`
+**Database:** `file_db` (PostgreSQL)
+**Storage:** MinIO (S3-compatible)
+
+The file service handles all binary file storage. It stores files in MinIO and persists file metadata in PostgreSQL. Other services (e.g. task-service) reference files by their `fileId` UUID — they never store file bytes.
+
+## Storage buckets
+
+| Bucket | Max size | Allowed MIME types |
+|---|---|---|
+| `avatars` | 5 MB | `image/jpeg`, `image/png`, `image/gif`, `image/webp` |
+| `attachments` | 20 MB | `application/pdf`, `image/jpeg`, `image/png`, `application/msword`, `text/plain`, `text/csv` |
+
+<Tip>
+Bucket rules are configured in `file-service/src/main/resources/application.yml` under `minio.buckets`. Adding a new bucket type requires only a new YAML entry — no Java changes needed.
+</Tip>
+
+## Endpoints
+
+| Endpoint | Method | Description | Rate limit |
+|---|---|---|---|
+| `/api/v1/files/avatars` | `POST` | Upload a user avatar image | 10 req/min |
+| `/api/v1/files/attachments` | `POST` | Upload a task attachment | 10 req/min |
+| `/api/v1/files/{fileId}` | `GET` | Stream file bytes (proxied through Gateway) | — |
+| `/api/v1/files/{fileId}/presigned-url` | `GET` | Generate temporary direct-to-MinIO download URL | — |
+
+## Upload flow
+
+```
+Client sends multipart/form-data to /api/v1/files/avatars
+  → file-service validates MIME type against bucket allowlist
+  → file-service validates file size against bucket max-size-bytes
+  → file-service streams bytes to MinIO
+  → file-service inserts FileMetadata row (fileId, fileName, bucket, uploadedBy, mimeType)
+  → returns { fileId, fileName, url }
+```
+
+## Download options
+
+Two download modes are supported:
+
+1. **Gateway-proxied (`GET /files/{fileId}`)** — the file service fetches bytes from MinIO and streams them to the client. Suitable for small files and scenarios where download URLs must not expose MinIO directly.
+
+2. **Presigned URL (`GET /files/{fileId}/presigned-url`)** — the file service generates a time-limited S3 presigned URL. The client downloads directly from MinIO, bypassing the gateway for large files. Suitable for attachments.
+
+## Validation
+
+Validation is enforced at the service boundary before anything is written to MinIO:
+
+- **MIME type check** — the file's Content-Type header is checked against the bucket's `allowed-types` list
+- **Size check** — the file size is checked against the bucket's `max-size-bytes` limit
+
+Spring's `spring.servlet.multipart.max-file-size` is set generously (e.g. 50 MB) so Spring does not reject the request before service validation runs.

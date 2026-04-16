@@ -1,0 +1,78 @@
+---
+title: "Database migrations"
+description: "Flyway conventions, naming rules, backward compatibility, and soft-delete indexes."
+keywords: ["flyway", "database migrations", "schema changes", "sql", "backward compatible"]
+---
+
+# Database migrations
+
+All schema changes are managed by **Flyway**. The database is never modified manually, and `spring.jpa.hibernate.ddl-auto` is set to `validate` in all services — Hibernate validates against the Flyway schema but never changes it.
+
+## Naming convention
+
+```
+V{n}__{short_description}.sql
+```
+
+Examples:
+- `V1__init.sql`
+- `V2__add_due_date_to_tasks.sql`
+- `V12__add_task_code_index.sql`
+
+The version number is a sequential integer. Within a service, numbers must be unique and strictly increasing.
+
+## Location
+
+Each service stores its migrations in:
+
+```
+{service}/src/main/resources/db/migration/
+```
+
+Services never share migration directories or modify tables owned by another service.
+
+## Rules
+
+<Warning>
+Migration files are **immutable** once merged to `main`. Never edit them. Create a new versioned file instead.
+</Warning>
+
+| Rule | Reason |
+|---|---|
+| Add columns as `NULL` or with a `DEFAULT` | Prevents lock contention on existing rows |
+| Never rename a column in one step | Breaks running instances; use add → migrate data → drop across multiple versions |
+| Never drop a column in the same migration that stops using it | Keep the column for one release cycle as a deprecation buffer |
+| Each service owns its own tables | No cross-service schema mutations |
+
+## Partial unique indexes for soft-delete tables
+
+Tables with soft-delete (`deleted_at`) must use partial unique indexes instead of `UNIQUE` constraints. A `UNIQUE` constraint would prevent re-creating a row after soft-deletion.
+
+```sql
+-- bad: blocks re-insertion after soft delete
+ALTER TABLE task_projects ADD CONSTRAINT uq_task_code_prefix UNIQUE (task_code_prefix);
+
+-- good: only enforces uniqueness among non-deleted rows
+CREATE UNIQUE INDEX uq_task_code_prefix_active
+    ON task_projects (task_code_prefix)
+    WHERE deleted_at IS NULL;
+```
+
+## Example migration
+
+```sql
+-- V7__add_progress_to_tasks.sql
+ALTER TABLE tasks
+    ADD COLUMN progress INTEGER NOT NULL DEFAULT 0
+        CHECK (progress >= 0 AND progress <= 100);
+```
+
+## Running migrations
+
+Flyway runs automatically on service startup. If a migration fails, the service will not start. Check the logs for the exact SQL error.
+
+To validate migrations without starting the service:
+
+```bash
+mvn flyway:validate -pl task-service
+```

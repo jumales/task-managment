@@ -1,0 +1,64 @@
+---
+title: "Real-time communication"
+description: "WebSocket/STOMP subscriptions for live task updates and dashboard refreshes."
+keywords: ["websocket", "stomp", "sockjs", "real-time", "notifications", "live updates"]
+---
+
+# Real-time communication
+
+The frontend maintains two persistent WebSocket connections for live updates.
+
+## Connections
+
+| Connection | Gateway endpoint | Backend service | Purpose |
+|---|---|---|---|
+| Task notifications | `/ws/tasks/**` | notification-service | Live task change events |
+| Report updates | `/ws/**` | reporting-service | Dashboard metric refreshes |
+
+Both use **SockJS** as the transport layer (with WebSocket fallback) and **STOMP** as the messaging protocol.
+
+## Client wrapper
+
+The WebSocket client is wrapped in `src/realtime/`. It handles:
+- Connection setup and teardown
+- JWT injection in STOMP connect headers
+- Automatic reconnection on disconnect
+- Message deserialization
+
+```typescript
+// Simplified usage in a hook
+const client = useStompClient();
+
+useEffect(() => {
+  const subscription = client.subscribe(
+    `/topic/tasks/${taskId}`,
+    (message) => {
+      const event = JSON.parse(message.body);
+      refetchTaskSection(event.changeType);
+    }
+  );
+  return () => subscription.unsubscribe();
+}, [taskId]);
+```
+
+## Task notifications (`useTaskRealtime`)
+
+The `useTaskRealtime` hook subscribes to `/topic/tasks/{taskId}` when a task detail page is open. On receiving a `TaskChangedEvent`:
+
+1. The hook parses the `changeType` from the message
+2. Triggers a targeted re-fetch of only the affected section (e.g. comments, status, attachments)
+3. Avoids a full page reload
+
+This means multiple users editing the same task see each other's changes in near real-time.
+
+## Report updates
+
+The reporting page subscribes to `/topic/reports`. On receiving an update notification, the affected report widget re-fetches its data from the reporting API. This keeps dashboards current without polling.
+
+## Authentication
+
+STOMP connections include the Keycloak JWT in the `Authorization` header of the STOMP CONNECT frame. The backend WebSocket security configuration validates this token before accepting the subscription.
+
+## Graceful degradation
+
+If the WebSocket connection is unavailable (e.g. notification-service is down), the page continues to function normally with data fetched on load. Live updates are simply absent until the connection is restored.

@@ -1,0 +1,86 @@
+---
+title: "Architecture overview"
+description: "High-level design of the Task Management distributed system."
+keywords: ["microservices", "architecture", "spring boot", "kafka", "event-driven"]
+---
+
+# Architecture overview
+
+The Task Management system is a **distributed, event-driven microservices platform**. Services are loosely coupled: they communicate asynchronously via Kafka for data propagation and synchronously via HTTP (through the API Gateway and Feign clients) only when a real-time response is required.
+
+## Architectural principles
+
+| Principle | How it is applied |
+|---|---|
+| **Database per service** | Each service owns its PostgreSQL database. No shared schema, no cross-service JOINs. |
+| **Event-driven consistency** | `task-service` publishes `TaskChangedEvent` on every mutation. Downstream services (audit, reporting, search, notification) consume and update their own read models. |
+| **CQRS** | `task-service` is the write model. `reporting-service`, `audit-service`, and `search-service` are read models built from events. |
+| **Transactional outbox** | Task changes and the corresponding Kafka event are written in the same database transaction, preventing event loss on crash. |
+| **API Gateway as single entry point** | All client traffic goes through `api-gateway`. JWT validation, rate limiting, and CORS are enforced there. |
+| **Service discovery** | Services register with Eureka. Feign clients and the gateway resolve addresses dynamically — no hardcoded hostnames or ports. |
+
+## Request flow
+
+```
+Browser / API Client
+        │
+        ▼
+  api-gateway :8080
+  ┌────────────────────────────────────────────────────────┐
+  │  1. Validate JWT (Keycloak JWKS)                       │
+  │  2. Apply rate limit (Redis token bucket)              │
+  │  3. Route to service via Eureka                        │
+  └────────────────────────────────────────────────────────┘
+        │
+        ▼
+  target service (random port, registered in Eureka)
+  ┌──────────────────────────────────────────────────────────┐
+  │  4. Re-validate JWT (resource server)                    │
+  │  5. Execute business logic                               │
+  │  6. Write DB + OutboxEvent (same transaction)            │
+  │  7. Return response                                      │
+  └──────────────────────────────────────────────────────────┘
+        │
+        ▼
+  outbox-publisher (background thread, same service)
+  ┌──────────────────────────────────────────────────────────┐
+  │  8. Poll unpublished outbox events                       │
+  │  9. Publish to Kafka topic                               │
+  │  10. Mark event as published                             │
+  └──────────────────────────────────────────────────────────┘
+        │
+        ▼
+  Kafka topic: task-changed
+  ├─► audit-service       → records immutable audit trail
+  ├─► reporting-service   → updates aggregate read model
+  ├─► search-service      → updates Elasticsearch index
+  └─► notification-service → sends email + WebSocket push
+```
+
+## Synchronous service-to-service calls
+
+Some services call others synchronously via Feign:
+
+- `task-service` → `user-service` (validate user FK when creating/assigning tasks)
+- `notification-service` → `user-service` (resolve user email for notifications)
+- `search-service` → `task-service` + `user-service` (bulk reindex via admin endpoint)
+
+All Feign calls are protected by **Resilience4j circuit breakers** and carry a Bearer token via `FeignAuthInterceptor`.
+
+## Real-time communication
+
+Two WebSocket endpoints push live updates to the frontend:
+
+| Endpoint | Service | Purpose |
+|---|---|---|
+| `/ws/tasks/**` (SockJS/STOMP) | notification-service | Task change notifications in the UI |
+| `/ws/**` (SockJS/STOMP) | reporting-service | Real-time dashboard metric updates |
+
+## Security layers
+
+1. **Keycloak** issues JWT tokens; the frontend uses PKCE flow.
+2. **API Gateway** validates JWT signature via JWKS on every request.
+3. **Each microservice** independently validates the JWT as an OAuth2 resource server.
+4. **Role-based access** is enforced at the service layer using `realm_access.roles` from the JWT.
+
+See [Authentication](/architecture/authentication) for full details.

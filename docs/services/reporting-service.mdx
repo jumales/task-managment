@@ -1,0 +1,53 @@
+---
+title: "Reporting service"
+description: "Aggregated task and hours reports with real-time WebSocket dashboard updates."
+keywords: ["reporting", "kafka consumer", "hours", "reports", "websocket", "dashboard", "CQRS"]
+---
+
+# Reporting service
+
+**Module:** `reporting-service/`
+**Database:** `reporting_db` (PostgreSQL)
+**Kafka:** Consumes from `task-changed`
+
+The reporting service is a **CQRS read model** built from task events. It maintains pre-aggregated tables optimized for dashboard queries, and pushes real-time updates to connected browser clients via WebSocket.
+
+## Read model entities
+
+| Entity | Populated by | Purpose |
+|---|---|---|
+| `ReportTask` | `TASK_CREATED`, `TASK_UPDATED`, `STATUS_CHANGED`, `PHASE_CHANGED` | Per-task snapshot: status, phase, assignee, project, timestamps |
+| `ReportHours` | `PLANNED_WORK_CREATED`, `BOOKED_WORK_CREATED`, `BOOKED_WORK_UPDATED`, `BOOKED_WORK_DELETED` | Hours aggregated by task, project, user, and work type |
+
+## Report endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/v1/reports/my-tasks` | Tasks assigned to the current user (open or finished, optional date range filter) |
+| `GET /api/v1/reports/tasks/open-by-project` | Per-project count of open tasks (total and assigned to current user) |
+| `GET /api/v1/reports/hours/by-task` | Planned vs booked hours grouped by task |
+| `GET /api/v1/reports/hours/by-project` | Aggregated planned vs booked hours per project |
+| `GET /api/v1/reports/hours/detailed` | Breakdown by user and work type for a single task |
+
+## Real-time WebSocket push
+
+After processing each Kafka event, the reporting service broadcasts an update to the WebSocket topic `/topic/reports`. Browser clients subscribed to this topic can refresh dashboard widgets without polling.
+
+```
+Kafka event consumed
+  → reporting-service updates ReportTask / ReportHours
+  → simpMessagingTemplate.convertAndSend("/topic/reports", update)
+  → Browser widget re-fetches affected report endpoint
+```
+
+The WebSocket endpoint is at `/ws/**` (SockJS, proxied by API Gateway).
+
+## Query optimizations
+
+Reports that filter by project, user, or date range use composite indexes on `(project_id, status)`, `(assigned_user_id, status)`, and `(created_at)` to avoid full table scans on large datasets.
+
+## Design notes
+
+- The reporting service **never calls task-service** for report queries. All data it needs is in its own database.
+- Eventual consistency: there is a small delay between a task write and visibility in reports. This is acceptable for dashboard use cases.
+- Because it is a pure consumer, it can be rebuilt from scratch by replaying all Kafka events from the beginning of the topic.

@@ -1,0 +1,90 @@
+---
+title: "Task service"
+description: "The primary write model: tasks, projects, phases, work logs, comments, attachments, and the transactional outbox."
+keywords: ["task service", "outbox", "tasks", "projects", "phases", "kafka", "cqrs"]
+---
+
+# Task service
+
+**Module:** `task-service/`
+**Database:** `task_db` (PostgreSQL)
+**Kafka:** Produces to `task-changed`
+
+The task service is the **system's primary write model**. All data mutations flow through it. It owns the canonical state of every task, project, and phase.
+
+## Domain entities
+
+| Entity | Description |
+|---|---|
+| `Task` | An individual work item. Has title, description, status, type, progress, assignee, project, phase, and an auto-generated code (e.g. `PROJ-42`). |
+| `TaskProject` | A project grouping tasks. Has a task code prefix and a configurable default phase. |
+| `TaskPhase` | A named workflow stage (e.g. PLANNING, DEV, QA). Phases are ordered by sequence and can be flagged as released or rejected. |
+| `TaskComment` | A text comment posted on a task. |
+| `TaskAttachment` | A reference to a file stored in `file-service` (stores fileId, fileName, uploader). |
+| `TaskParticipant` | A team member assigned a role on a task (LEAD, DEV, QA, OTHER). |
+| `TaskPlannedWork` | Estimated hours by user and work type. |
+| `TaskBookedWork` | Actual hours logged by user and work type. |
+| `TaskTimeline` | Manual start/end date entries for a task. |
+| `ProjectNotificationTemplate` | Per-project email template with placeholders for task URL and assignee name. |
+| `OutboxEvent` | Unpublished Kafka event journal — written in the same transaction as task mutations. |
+
+## Task lifecycle
+
+### Task completion states
+
+Tasks have two levels of completion determined by their **phase**, not their status field.
+
+| Phase | Completion state | Write access |
+|---|---|---|
+| `DONE` | `DEV_FINISHED` | Phase changes, comments, and booked work still allowed |
+| `RELEASED` or `REJECTED` | `FINISHED` | All writes blocked (read-only) |
+| Any other phase | In progress | All writes allowed |
+
+The `validateNotFinished` guard is applied before phase changes, adding comments, and booked work writes. The `validateFieldsEditable` guard is applied before any task field update.
+
+### Task codes
+
+Task codes (e.g. `PROJ-42`) are auto-assigned by a background scheduler that polls a `TaskCodeJob` queue. The assignment is asynchronous and emits a `TASK_CODE_ASSIGNED` event when complete.
+
+## Controllers
+
+| Controller | Base path | Key operations |
+|---|---|---|
+| `TaskController` | `/api/v1/tasks` | CRUD tasks, filter by user/project/status/phase/completion, pagination |
+| `TaskProjectController` | `/api/v1/projects` | CRUD projects |
+| `TaskPhaseController` | `/api/v1/phases` | CRUD phases per project |
+| `TaskCommentController` | `/api/v1/tasks/{id}/comments` | Add and list comments |
+| `TaskAttachmentController` | `/api/v1/tasks/{id}/attachments` | Add and remove attachments |
+| `TaskParticipantController` | `/api/v1/tasks/{id}/participants` | Manage task team members |
+| `TaskPlannedWorkController` | `/api/v1/tasks/{id}/planned-work` | Record estimated hours |
+| `TaskBookedWorkController` | `/api/v1/tasks/{id}/booked-work` | Record and update actual hours |
+| `TaskTimelineController` | `/api/v1/tasks/{id}/timelines` | Manage timeline entries |
+| `ProjectNotificationTemplateController` | `/api/v1/projects/{id}/notification-template` | Configure email templates |
+
+## Caching
+
+User lookups from `user-service` are cached in Redis to reduce cross-service traffic. The task service uses `@Cacheable` on user resolution and `@CacheEvict(allEntries = true)` on any change that could affect cached data.
+
+## Circuit breaker
+
+Feign calls to `user-service` are wrapped in a Resilience4j circuit breaker. If user-service is unavailable, the circuit opens after 50% failures over a sliding window, stays open for 30 seconds, then allows 3 probe requests to test recovery.
+
+## Outbox pattern
+
+Every controller method that mutates data calls a private `publishOutboxEvents(...)` helper after saving. This helper writes an `OutboxEvent` row in the same transaction. A `@Scheduled` background thread polls this table and publishes to Kafka.
+
+```
+TaskService.update(id, request)
+  → repository.save(task)         ← same @Transactional
+  → outboxRepository.save(event)  ← same @Transactional
+  → return toResponse(saved)
+
+OutboxPublisher (background, every 1s)
+  → findUnpublished()
+  → kafkaTemplate.send(topic, event)
+  → markPublished()
+```
+
+## Flyway migrations
+
+Schema is managed in `task-service/src/main/resources/db/migration/`. Migration files follow the `V{n}__{description}.sql` naming convention. Never edit a migration once merged; create a new version instead.

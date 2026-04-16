@@ -1,0 +1,269 @@
+---
+title: "Tasks API"
+description: "Create, read, update, delete, and filter tasks. Manage comments, attachments, participants, and work logs."
+keywords: ["tasks api", "task crud", "comments", "attachments", "work logs", "participants", "timeline"]
+---
+
+# Tasks API
+
+Base path: `/api/v1/tasks`
+
+## Task object
+
+```json
+{
+  "id": "018f1234-5678-7abc-def0-111213141516",
+  "code": "PROJ-42",
+  "title": "Implement OAuth2 login",
+  "description": "Add Keycloak-based login to the frontend",
+  "status": "IN_PROGRESS",
+  "type": "FEATURE",
+  "progress": 60,
+  "projectId": "018e...",
+  "projectName": "Task Management",
+  "phaseId": "018d...",
+  "phaseName": "DEV",
+  "assignedUserId": "018c...",
+  "assignedUserName": "John Developer",
+  "createdAt": "2024-01-10T09:00:00Z",
+  "updatedAt": "2024-01-14T14:30:00Z"
+}
+```
+
+### Status values
+
+| Value | Meaning |
+|---|---|
+| `TODO` | Not started |
+| `IN_PROGRESS` | Being worked on |
+| `DONE` | Work complete |
+
+### Type values
+
+`FEATURE`, `BUG`, `DOCUMENTATION`, `REFACTORING`, `TESTING`, `DEVOPS`, `DESIGN`
+
+## Endpoints
+
+### List tasks
+
+```http
+GET /api/v1/tasks
+```
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `projectId` | UUID | Filter by project |
+| `phaseId` | UUID | Filter by phase |
+| `assignedUserId` | UUID | Filter by assignee |
+| `status` | string | `TODO`, `IN_PROGRESS`, or `DONE` |
+| `completionStatus` | string | `FINISHED` (RELEASED/REJECTED phases) or `DEV_FINISHED` (DONE phase) |
+| `type` | string | Task type |
+| `page` | int | Page number (0-based, default 0) |
+| `size` | int | Page size (default 20) |
+
+**Response:** `PageResponse<TaskResponse>`
+
+---
+
+### Get task
+
+```http
+GET /api/v1/tasks/{id}
+```
+
+Returns a `TaskFullResponse` including comments, attachments, participants, and work logs.
+
+---
+
+### Create task
+
+```http
+POST /api/v1/tasks
+```
+
+```json
+{
+  "title": "Implement OAuth2 login",
+  "description": "...",
+  "status": "TODO",
+  "type": "FEATURE",
+  "projectId": "018e...",
+  "phaseId": "018d...",
+  "assignedUserId": "018c..."
+}
+```
+
+Required: `title`, `projectId`. All other fields optional.
+Returns `201 Created` with the full task object.
+
+---
+
+### Update task
+
+```http
+PUT /api/v1/tasks/{id}
+```
+
+Same body as create. All fields optional (partial update not supported — send the full desired state).
+
+Returns `422 Unprocessable Entity` if the task is in a `FIELD_LOCKED_PHASES` phase (DONE, RELEASED, or REJECTED).
+
+---
+
+### Change task phase
+
+```http
+PATCH /api/v1/tasks/{id}/phase
+```
+
+```json
+{
+  "phaseId": "018d..."
+}
+```
+
+Allowed for tasks in `DEV_FINISHED` state (DONE phase). Blocked for `FINISHED` tasks (RELEASED/REJECTED).
+
+---
+
+### Delete task
+
+```http
+DELETE /api/v1/tasks/{id}
+```
+
+Soft delete. Returns `204 No Content`. Blocked if active related entities exist.
+
+---
+
+## Comments
+
+### Add comment
+
+```http
+POST /api/v1/tasks/{id}/comments
+```
+
+```json
+{
+  "content": "Reviewed and looks good to merge."
+}
+```
+
+Rate-limited to 30 requests/min. Blocked on `FINISHED` tasks.
+
+---
+
+### List comments
+
+```http
+GET /api/v1/tasks/{id}/comments
+```
+
+---
+
+## Attachments
+
+### Add attachment
+
+```http
+POST /api/v1/tasks/{id}/attachments
+```
+
+```json
+{
+  "fileId": "018b...",
+  "fileName": "design-spec.pdf"
+}
+```
+
+The file must already be uploaded via the [Files API](/api/files). Pass the returned `fileId` here.
+
+---
+
+### Remove attachment
+
+```http
+DELETE /api/v1/tasks/{id}/attachments/{attachmentId}
+```
+
+---
+
+## Participants
+
+### Add participant
+
+```http
+POST /api/v1/tasks/{id}/participants
+```
+
+```json
+{
+  "userId": "018c...",
+  "role": "QA"
+}
+```
+
+Roles: `LEAD`, `DEV`, `QA`, `OTHER`
+
+---
+
+### Remove participant
+
+```http
+DELETE /api/v1/tasks/{id}/participants/{participantId}
+```
+
+---
+
+## Work logs
+
+### Planned work
+
+```http
+POST /api/v1/tasks/{id}/planned-work
+```
+
+```json
+{
+  "userId": "018c...",
+  "workType": "BACKEND",
+  "hours": 8.0
+}
+```
+
+Work types: `FRONTEND`, `BACKEND`, `TESTING`, `DOCUMENTATION`, `DEVOPS`, `DESIGN`, `OTHER`
+
+Only allowed during the PLANNING phase.
+
+---
+
+### Booked work
+
+```http
+POST   /api/v1/tasks/{id}/booked-work
+PUT    /api/v1/tasks/{id}/booked-work/{id}
+DELETE /api/v1/tasks/{id}/booked-work/{id}
+```
+
+Same body shape as planned work. Blocked on `FINISHED` tasks.
+
+---
+
+## Timeline
+
+```http
+GET    /api/v1/tasks/{id}/timelines
+POST   /api/v1/tasks/{id}/timelines
+PUT    /api/v1/tasks/{id}/timelines/{timelineId}
+DELETE /api/v1/tasks/{id}/timelines/{timelineId}
+```
+
+```json
+{
+  "startDate": "2024-01-15",
+  "endDate": "2024-01-31"
+}
+```

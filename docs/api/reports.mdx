@@ -1,0 +1,138 @@
+---
+title: "Reports API"
+description: "Task and hours reporting endpoints with optional date range filtering."
+keywords: ["reports api", "hours", "planned work", "booked work", "dashboard", "my tasks"]
+---
+
+# Reports API
+
+Base path: `/api/v1/reports`
+
+All reporting data is served from the `reporting-service` read model, which is kept in sync via Kafka events. Responses reflect eventual consistency — there may be a small delay after a task mutation before reports update.
+
+## My tasks
+
+```http
+GET /api/v1/reports/my-tasks
+```
+
+Returns tasks assigned to the authenticated user.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `completionStatus` | string | `FINISHED` or `DEV_FINISHED` (omit for open tasks) |
+| `from` | date | Start of date range (ISO 8601, e.g. `2024-01-01`) |
+| `to` | date | End of date range |
+
+**Response:** `PageResponse<TaskSummaryResponse>`
+
+---
+
+## Open tasks by project
+
+```http
+GET /api/v1/reports/tasks/open-by-project
+```
+
+Returns a count of open tasks per project, including how many are assigned to the current user.
+
+**Response:**
+
+```json
+[
+  {
+    "projectId": "018e...",
+    "projectName": "Task Management",
+    "totalOpenTasks": 14,
+    "myOpenTasks": 3
+  }
+]
+```
+
+---
+
+## Hours by task
+
+```http
+GET /api/v1/reports/hours/by-task
+```
+
+Planned vs booked hours grouped by task.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `projectId` | UUID | Filter by project (required) |
+| `from` | date | Start of date range |
+| `to` | date | End of date range |
+
+**Response:**
+
+```json
+[
+  {
+    "taskId": "018f...",
+    "taskTitle": "Implement OAuth2 login",
+    "taskCode": "TMP-42",
+    "plannedHours": 16.0,
+    "bookedHours": 12.5
+  }
+]
+```
+
+---
+
+## Hours by project
+
+```http
+GET /api/v1/reports/hours/by-project
+```
+
+Aggregated planned vs booked hours per project.
+
+**Response:**
+
+```json
+[
+  {
+    "projectId": "018e...",
+    "projectName": "Task Management",
+    "plannedHours": 320.0,
+    "bookedHours": 248.0
+  }
+]
+```
+
+---
+
+## Detailed hours for a task
+
+```http
+GET /api/v1/reports/hours/detailed?taskId={taskId}
+```
+
+Breakdown of booked hours by user and work type for a single task.
+
+**Response:**
+
+```json
+[
+  {
+    "userId": "018c...",
+    "userName": "John Developer",
+    "workType": "BACKEND",
+    "plannedHours": 8.0,
+    "bookedHours": 6.5
+  },
+  {
+    "userId": "018b...",
+    "userName": "Jane QA",
+    "workType": "TESTING",
+    "plannedHours": 4.0,
+    "bookedHours": 4.0
+  }
+]
+```

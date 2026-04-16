@@ -1,0 +1,87 @@
+---
+title: "Local development setup"
+description: "Running services, Postman collections, scripts, branching rules, and CI workflow."
+keywords: ["local setup", "development", "postman", "scripts", "git", "ci", "github actions"]
+---
+
+# Local development setup
+
+## Running a single service
+
+After infrastructure is running (`./scripts/start-dev.sh --docker-only`), start a specific service from its module directory:
+
+```bash
+cd task-service
+mvn spring-boot:run
+```
+
+Or restart via the `start-dev.sh` script:
+
+```bash
+./scripts/start-dev.sh --restart task-service
+```
+
+## Postman collections
+
+Collections live in `postman/`. One collection file per service:
+
+| File | Service |
+|---|---|
+| `task-service.postman_collection.json` | Tasks, projects, phases, work logs |
+| `user-service.postman_collection.json` | User management |
+| `file-service.postman_collection.json` | File upload/download |
+| … | … |
+
+The environment file `postman/local.postman_environment.json` configures `baseUrl` and `bearerToken`.
+
+**Important:** Update the Postman collection immediately after adding or changing any endpoint — path, method, request body, or response shape. The collection must always reflect the current API.
+
+## Git branching rules
+
+| Rule | Details |
+|---|---|
+| No direct pushes to `main` | All changes go through a branch + PR |
+| One branch per task | Branch name in `snake_case` (e.g. `add_user_endpoint`) |
+| Clean build before push | Run `mvn clean install -DskipTests=true` and confirm it passes |
+| Open a PR on completion | Do not merge directly; create a PR and wait for review |
+
+## Build verification
+
+Before every `git push`, verify the build passes:
+
+```bash
+mvn clean install -DskipTests=true
+```
+
+Tests run automatically via GitHub Actions on every push.
+
+## CI workflow
+
+After pushing, monitor the GitHub Actions run:
+
+```bash
+gh run watch   # follow live
+gh run list    # see recent results
+```
+
+A failing CI run must be fixed before opening or merging a PR.
+
+## Load testing
+
+A k6 load test script is provided:
+
+```bash
+k6 run scripts/k6-load-test.js
+```
+
+Adjust virtual users and duration at the top of the script.
+
+## Seed data
+
+Generate realistic test data:
+
+```bash
+python3 scripts/seed_task_data.py
+```
+
+Creates multiple projects, tasks in various phases and statuses, and work log entries. Useful for testing reports and search.

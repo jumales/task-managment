@@ -1,0 +1,56 @@
+---
+title: "Search service"
+description: "Full-text search over tasks and users backed by Elasticsearch."
+keywords: ["search", "elasticsearch", "full-text", "kafka consumer", "reindex"]
+---
+
+# Search service
+
+**Module:** `search-service/`
+**Database:** Elasticsearch 8.13
+**Kafka:** Consumes from `task-changed` and `user-events`
+
+The search service maintains two Elasticsearch indices and provides full-text search across tasks and users.
+
+## Elasticsearch indices
+
+| Index | Document | Searchable fields |
+|---|---|---|
+| `tasks` | `TaskDocument` | `title`, `description`, `status`, `projectId` |
+| `users` | `UserDocument` | `name`, `email`, `username` |
+
+Documents are written to Elasticsearch on every relevant Kafka event and queried via the REST API.
+
+## Kafka consumers
+
+**From `task-changed`:**
+- `TASK_CREATED` → index new `TaskDocument`
+- `TASK_UPDATED` → update `TaskDocument`
+- `STATUS_CHANGED` → update status in `TaskDocument`
+- `PHASE_CHANGED` → update phase in `TaskDocument`
+
+**From `user-events`:**
+- `CREATED` → index new `UserDocument`
+- `UPDATED` → update `UserDocument`
+- `DELETED` → remove `UserDocument` from index
+
+## Search endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/v1/search/tasks?q={query}` | Full-text search on task title and description. Returns ranked results with pagination. Rate-limited to 30 req/min. |
+| `GET /api/v1/search/users?q={query}` | Full-text search on user name, email, and username. Rate-limited to 30 req/min. |
+| `POST /api/v1/search/reindex` | Rebuild both indices from source services (ADMIN role required). |
+
+## Reindex operation
+
+The `POST /api/v1/search/reindex` endpoint bulk-rebuilds both indices:
+1. Calls `task-service` via Feign to fetch all tasks (paginated)
+2. Calls `user-service` via Feign to fetch all users (paginated)
+3. Writes all documents to Elasticsearch in batches
+
+This is an admin operation intended for recovery after index corruption or a cluster restart. Feign calls are protected by Resilience4j circuit breakers.
+
+## Circuit breaker
+
+Feign calls to `task-service` and `user-service` during reindex are wrapped in Resilience4j circuit breakers. If a service is temporarily unavailable, the reindex operation fails fast rather than hanging.
