@@ -14,6 +14,24 @@ import org.springframework.security.web.SecurityFilterChain;
  * JWT validation is handled at the STOMP level by {@link WebSocketSecurityConfig}.
  * Active only when Spring WebSocket is on the classpath.
  *
+ * <p><b>Two-layer security model:</b>
+ * <ol>
+ *   <li><b>HTTP layer (this class)</b> — {@code permitAll()} on {@code /ws/**} lets the WebSocket
+ *       handshake through. A JWT cannot be sent as a standard HTTP header during a browser
+ *       WebSocket upgrade (the spec does not allow custom headers), so HTTP-level auth is skipped
+ *       intentionally for this path.</li>
+ *   <li><b>STOMP layer ({@link WebSocketSecurityConfig})</b> — every {@code CONNECT} frame must
+ *       carry a valid {@code Authorization: Bearer <token>} header. The interceptor decodes the JWT
+ *       and sets a {@link org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken}
+ *       as the STOMP user. Missing or invalid tokens throw a
+ *       {@link org.springframework.security.oauth2.jwt.JwtException}.</li>
+ * </ol>
+ *
+ * <p>{@code permitAll()} here does <em>not</em> mean unauthenticated access to data — it only
+ * opens the HTTP handshake. All other paths fall through to {@link SecurityConfig} (order 100)
+ * which enforces JWT + role checks. CSRF is disabled because WebSocket connections are not
+ * vulnerable to CSRF (no cookies; cross-origin JS cannot read WebSocket frames).
+ *
  * <p>Configure the path matcher via {@code websocket.security.path-matcher} in
  * {@code application.yml} (default: {@code /ws/**}).
  */
