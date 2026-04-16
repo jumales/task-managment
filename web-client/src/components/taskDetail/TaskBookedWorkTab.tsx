@@ -59,7 +59,7 @@ export function TaskBookedWorkTab({
         onOk={handleSaveBookedWork}
         okText={editingBw ? t('common.save') : t('common.add')}
         confirmLoading={savingBw}
-        destroyOnClose
+        destroyOnHidden
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Select
