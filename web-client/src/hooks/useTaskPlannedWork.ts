@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPlannedWork } from '../api/taskApi';
 import type { TaskPlannedWorkResponse, WorkType } from '../api/types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 /** Manages planned work list, add-form state, and save handler for a task. */
 export function useTaskPlannedWork(taskId: string | undefined, initialData: TaskPlannedWorkResponse[]) {
@@ -24,12 +25,7 @@ export function useTaskPlannedWork(taskId: string | undefined, initialData: Task
         setPwType('DEVELOPMENT');
         setPwHours(0);
       })
-      .catch((err: unknown) =>
-        setError(
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-            ?? t('tasks.failedSavePlannedWork'),
-        ),
-      )
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedSavePlannedWork'))))
       .finally(() => setSavingPw(false));
   };
 

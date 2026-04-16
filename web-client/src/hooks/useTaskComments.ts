@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addComment, joinTask } from '../api/taskApi';
 import type { TaskCommentResponse } from '../api/types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 /** Manages comment list, new-comment input state, and the add-comment handler for a task. */
 export function useTaskComments(taskId: string | undefined, initialData: TaskCommentResponse[]) {
@@ -13,7 +14,6 @@ export function useTaskComments(taskId: string | undefined, initialData: TaskCom
   const [addingCmt,  setAddingCmt]  = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
-  /** Posts a new comment and appends it to the local list on success. */
   const handleAddComment = () => {
     if (!taskId || !newComment.trim()) return;
     setAddingCmt(true);
@@ -23,7 +23,7 @@ export function useTaskComments(taskId: string | undefined, initialData: TaskCom
         setNewComment('');
         joinTask(taskId);
       })
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedAddComment')))
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedAddComment'))))
       .finally(() => setAddingCmt(false));
   };
 

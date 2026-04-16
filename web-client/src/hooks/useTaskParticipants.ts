@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { watchTask, removeParticipant } from '../api/taskApi';
 import { useAuth } from '../auth/AuthProvider';
 import type { TaskParticipantResponse } from '../api/types';
+import { getApiErrorMessage } from '../utils/apiError';
+
+const NON_WATCHER_ROLES = ['CREATOR', 'ASSIGNEE', 'CONTRIBUTOR'] as const;
 
 /** Manages participant list and Watch/Unwatch actions for a task. */
 export function useTaskParticipants(taskId: string | undefined, initialData: TaskParticipantResponse[]) {
@@ -21,8 +24,6 @@ export function useTaskParticipants(taskId: string | undefined, initialData: Tas
     (p) => p.userId === currentUserId && p.role === 'WATCHER'
   );
 
-  const NON_WATCHER_ROLES = ['CREATOR', 'ASSIGNEE', 'CONTRIBUTOR'] as const;
-
   /** True when the current user already has an active role; the Watch button should be hidden. */
   const isAlreadyActiveParticipant = participants.some(
     (p) => p.userId === currentUserId && (NON_WATCHER_ROLES as readonly string[]).includes(p.role)
@@ -38,7 +39,7 @@ export function useTaskParticipants(taskId: string | undefined, initialData: Tas
         const exists = prev.some((p) => p.id === created.id);
         return exists ? prev : [...prev, created];
       }))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedWatch')))
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedWatch'))))
       .finally(() => setWatching(false));
   };
 
@@ -48,7 +49,7 @@ export function useTaskParticipants(taskId: string | undefined, initialData: Tas
     setRemovingPId(participantId);
     removeParticipant(taskId, participantId)
       .then(() => setParticipants((prev) => prev.filter((p) => p.id !== participantId)))
-      .catch((err) => setError(err?.response?.data?.message ?? t('tasks.failedRemoveParticipant')))
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedRemoveParticipant'))))
       .finally(() => setRemovingPId(null));
   };
 

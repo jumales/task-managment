@@ -12,25 +12,9 @@ import { getTasks, createTask, deleteTask, getProjects } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import { searchTasks } from '../api/searchApi';
 import type { TaskSummaryResponse, TaskStatus, TaskType, TaskProjectResponse, UserResponse } from '../api/types';
-import { getTypeLabels } from './taskDetail/taskDetailConstants';
+import { getTypeLabels, STATUS_COLORS, TYPE_COLORS } from './taskDetail/taskDetailConstants';
 
 import { useAuth } from '../auth/AuthProvider';
-
-const STATUS_COLORS: Record<TaskStatus, string> = {
-  TODO:        'default',
-  IN_PROGRESS: 'blue',
-  DONE:        'green',
-};
-
-const TYPE_COLORS: Record<TaskType, string> = {
-  FEATURE:        'purple',
-  BUG_FIXING:     'red',
-  TESTING:        'cyan',
-  PLANNING:       'gold',
-  TECHNICAL_DEBT: 'orange',
-  DOCUMENTATION:  'geekblue',
-  OTHER:          'default',
-};
 
 /** Displays all tasks and allows creating, editing, and deleting them. Detail view opens as a full page. */
 export function TasksPage() {
@@ -74,6 +58,12 @@ export function TasksPage() {
     () => (Object.keys(typeLabels) as TaskType[]).map((k) => ({ label: typeLabels[k], value: k })),
     [typeLabels],
   );
+
+  const wizardStepItems = useMemo(() => [
+    { title: t('tasks.wizardStep1') },
+    { title: t('tasks.wizardStep2') },
+    { title: t('tasks.wizardStep3') },
+  ], [t]);
 
   const loadTasks = (page = currentPage, size = pageSize, active = onlyActive, onlyMy = onlyMyTasks) => {
     // active=true: backend default excludes RELEASED/REJECTED; active=false: include all
@@ -336,11 +326,7 @@ export function TasksPage() {
           current={wizardStep}
           size="small"
           style={{ marginTop: 16, marginBottom: 24 }}
-          items={[
-            { title: t('tasks.wizardStep1') },
-            { title: t('tasks.wizardStep2') },
-            { title: t('tasks.wizardStep3') },
-          ]}
+          items={wizardStepItems}
         />
         <Form form={form} layout="vertical">
           {/* Step 1 — Title & Description */}

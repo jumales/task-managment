@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBookedWork, updateBookedWork, deleteBookedWork, joinTask } from '../api/taskApi';
 import type { TaskBookedWorkResponse, TaskPlannedWorkResponse, WorkType } from '../api/types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 /** Manages booked work list, dialog state, add/edit-form state, and CRUD handlers for a task. */
 export function useTaskBookedWork(
@@ -35,7 +36,6 @@ export function useTaskBookedWork(
     [bookedWork, bwType, editingBw],
   );
 
-  /** Opens the dialog with an empty form to add a new entry. */
   const openAddDialog = () => {
     setEditingBw(null);
     setBwType('DEVELOPMENT');
@@ -43,7 +43,6 @@ export function useTaskBookedWork(
     setDialogOpen(true);
   };
 
-  /** Populates the dialog form with an existing booked-work entry for editing. */
   const startEditing = (bw: TaskBookedWorkResponse) => {
     setEditingBw(bw);
     setBwType(bw.workType);
@@ -51,7 +50,6 @@ export function useTaskBookedWork(
     setDialogOpen(true);
   };
 
-  /** Resets the form back to defaults and closes the dialog. */
   const resetBwForm = () => {
     setEditingBw(null);
     setBwType('DEVELOPMENT');
@@ -59,7 +57,6 @@ export function useTaskBookedWork(
     setDialogOpen(false);
   };
 
-  /** Creates or updates a booked-work entry and closes the dialog on success. */
   const handleSaveBookedWork = () => {
     if (!taskId) return;
     setSavingBw(true);
@@ -75,27 +72,16 @@ export function useTaskBookedWork(
         if (!editingBw) joinTask(taskId);
         resetBwForm();
       })
-      .catch((err: unknown) =>
-        setError(
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-            ?? t('tasks.failedSaveBookedWork'),
-        ),
-      )
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedSaveBookedWork'))))
       .finally(() => setSavingBw(false));
   };
 
-  /** Deletes a booked-work entry by id and removes it from local state on success. */
   const handleDeleteBookedWork = (bookedWorkId: string) => {
     if (!taskId) return;
     setDeletingBwId(bookedWorkId);
     deleteBookedWork(taskId, bookedWorkId)
       .then(() => setBookedWork((prev) => prev.filter((b) => b.id !== bookedWorkId)))
-      .catch((err: unknown) =>
-        setError(
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-            ?? t('tasks.failedDeleteBookedWork'),
-        ),
-      )
+      .catch((err) => setError(getApiErrorMessage(err, t('tasks.failedDeleteBookedWork'))))
       .finally(() => setDeletingBwId(null));
   };
 
