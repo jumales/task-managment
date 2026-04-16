@@ -37,4 +37,6 @@ public class TaskFullResponse {
     private List<TaskPlannedWorkResponse> plannedWork;
     /** Actual hours booked against this task. */
     private List<TaskBookedWorkResponse> bookedWork;
+    /** Optimistic-lock version. Must be echoed back in PUT requests to detect concurrent modifications. */
+    private Long version;
 }

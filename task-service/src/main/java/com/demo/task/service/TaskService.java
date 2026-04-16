@@ -48,7 +48,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 
 @Service
 public class TaskService {
@@ -119,12 +122,17 @@ public class TaskService {
         Task task = getOrThrow(id);
 
         // Fetch sub-collections concurrently; each call is independent and I/O-bound.
+        // DelegatingSecurityContextExecutor captures the current SecurityContext from the request
+        // thread and restores it on each ForkJoinPool worker, ensuring FeignAuthInterceptor can
+        // extract the JWT token on the async threads (prevents unauthenticated Feign calls that
+        // would trip the userService circuit breaker).
+        Executor executor = new DelegatingSecurityContextExecutor(ForkJoinPool.commonPool());
         CompletableFuture<List<TaskTimelineResponse>> timelinesFuture =
-                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id));
+                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id), executor);
         CompletableFuture<List<TaskPlannedWorkResponse>> plannedWorkFuture =
-                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id));
+                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id), executor);
         CompletableFuture<List<TaskBookedWorkResponse>> bookedWorkFuture =
-                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id));
+                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id), executor);
 
         // Fetch synchronous data while the async calls are running.
         TaskBaseData base = fetchBaseData(task);
@@ -135,7 +143,8 @@ public class TaskService {
                 task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
                 base.participants(), base.project(), base.phase(), assignedUser,
-                timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join());
+                timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join(),
+                task.getVersion());
     }
 
     /**
@@ -283,6 +292,12 @@ public class TaskService {
             projectService.getOrThrow(request.getProjectId());
         }
 
+        // Set the version from the request so Hibernate appends WHERE version=? on the UPDATE.
+        // If the row was already modified by another user, the version will differ and
+        // Hibernate throws OptimisticLockException, which GlobalExceptionHandler maps to 409.
+        if (request.getVersion() != null) {
+            task.setVersion(request.getVersion());
+        }
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -518,7 +533,7 @@ public class TaskService {
         TaskBaseData base = fetchBaseData(task);
         return new TaskResponse(task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
-                base.participants(), base.project(), base.phase());
+                base.participants(), base.project(), base.phase(), task.getVersion());
     }
 
     /** Fetches participants, project, and phase for a single task — shared by toResponse and findFullById. */
@@ -572,7 +587,8 @@ public class TaskService {
                 task.getType(), task.getProgress(),
                 participantsByTaskId.getOrDefault(task.getId(), List.of()),
                 projectsById.get(task.getProjectId()),
-                phasesById.get(task.getPhaseId())))
+                phasesById.get(task.getPhaseId()),
+                task.getVersion()))
                 .toList();
     }
 
@@ -591,8 +607,11 @@ public class TaskService {
 
         // Fire user-name resolution async first (Redis/HTTP — no DB connection consumed).
         // The result is joined after the DB queries complete, so the two I/O paths overlap.
+        // DelegatingSecurityContextExecutor propagates the calling thread's SecurityContext so
+        // FeignAuthInterceptor can reconstruct the Bearer header on the ForkJoinPool worker thread.
+        Executor summaryExecutor = new DelegatingSecurityContextExecutor(ForkJoinPool.commonPool());
         CompletableFuture<Map<UUID, String>> userNamesFuture = CompletableFuture.supplyAsync(() ->
-                userIds.isEmpty() ? Map.of() : userClientHelper.fetchUserNames(userIds));
+                userIds.isEmpty() ? Map.of() : userClientHelper.fetchUserNames(userIds), summaryExecutor);
 
         Map<UUID, TaskProject> projectsById = projectService.findAllByIds(projectIds).stream()
                 .collect(Collectors.toMap(TaskProject::getId, p -> p));

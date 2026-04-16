@@ -85,6 +85,21 @@ spring:
           predicates:
             - Path=/api/v1/phases/**
 
+        # Rate-limited: GET /api/v1/audit/** — 30 req/min per user to prevent audit scraping
+        # replenishRate 1/2s, requestedTokens 2 → 30/min, burst up to 5
+        - id: audit-service-audit-read
+          uri: lb://audit-service
+          predicates:
+            - Path=/api/v1/audit/**
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 2
+                key-resolver: "#{@principalKeyResolver}"
+
         - id: audit-service-audit
           uri: lb://audit-service
           predicates:
@@ -104,6 +119,20 @@ spring:
             - Path=/ws/tasks/**
           filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+
+        # Rate-limited: GET /api/v1/notifications/** — 30 req/min per user
+        - id: notification-service-notifications-read
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 2
+                key-resolver: "#{@principalKeyResolver}"
 
         - id: notification-service-notifications
           uri: lb://notification-service

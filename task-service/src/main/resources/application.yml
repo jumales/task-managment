@@ -52,10 +52,11 @@ resilience4j:
   circuitbreaker:
     instances:
       userService:
-        sliding-window-size: 20             # widened from 10; avoids tripping on brief startup bursts
+        sliding-window-size: 20             # evaluate over last 20 calls
+        minimum-number-of-calls: 20         # don't evaluate until window is full — prevents premature trip on startup burst
         failure-rate-threshold: 50          # open after 50% failures in the window
-        wait-duration-in-open-state: 30s    # stay open for 30 s before half-open probe
-        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 10s    # shorter re-probe window; 30 s was too long under transient load spikes
+        permitted-number-of-calls-in-half-open-state: 5  # 5 probes in half-open to confirm recovery under concurrent load
 
 eureka:
   instance:

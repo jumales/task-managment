@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -21,7 +22,7 @@ import java.util.UUID;
 /**
  * Manages per-project email notification templates.
  * Templates override the default email content for a specific event type.
- * Any authenticated user may read or edit templates; the gateway enforces authentication.
+ * Read access requires any authenticated user; write access (upsert/delete) requires ADMIN role.
  */
 @Tag(name = "Project Notification Templates",
         description = "Configure per-project email templates for task-change event notifications.")
@@ -40,6 +41,7 @@ public class ProjectNotificationTemplateController {
                description = "Returns every {placeholder} token that the notification engine will substitute at send time.")
     @ApiResponse(responseCode = ResponseCode.OK, description = "Placeholder catalogue returned")
     @GetMapping("/placeholders")
+    @PreAuthorize("isAuthenticated()")
     public List<TemplatePlaceholder> getPlaceholders() {
         return Arrays.asList(TemplatePlaceholder.values());
     }
@@ -51,6 +53,7 @@ public class ProjectNotificationTemplateController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Project not found")
     })
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public List<ProjectNotificationTemplateResponse> findByProject(
             @Parameter(description = "Project UUID") @PathVariable UUID projectId) {
         return service.findByProjectId(projectId);
@@ -63,6 +66,7 @@ public class ProjectNotificationTemplateController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "Template not found")
     })
     @GetMapping("/{eventType}")
+    @PreAuthorize("isAuthenticated()")
     public ProjectNotificationTemplateResponse getByEventType(
             @Parameter(description = "Project UUID") @PathVariable UUID projectId,
             @Parameter(description = "Event type") @PathVariable TaskChangeType eventType) {
@@ -78,6 +82,7 @@ public class ProjectNotificationTemplateController {
             @ApiResponse(responseCode = ResponseCode.BAD_REQUEST, description = "Unknown placeholder token in template")
     })
     @PutMapping("/{eventType}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ProjectNotificationTemplateResponse upsert(
             @Parameter(description = "Project UUID") @PathVariable UUID projectId,
             @Parameter(description = "Event type") @PathVariable TaskChangeType eventType,
@@ -93,6 +98,7 @@ public class ProjectNotificationTemplateController {
     })
     @DeleteMapping("/{eventType}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(
             @Parameter(description = "Project UUID") @PathVariable UUID projectId,
             @Parameter(description = "Event type") @PathVariable TaskChangeType eventType) {

@@ -25,6 +25,10 @@ public class Task {
     @UuidGenerator(style = UuidGenerator.Style.TIME)
     private UUID id;
 
+    /** Optimistic-locking counter. Hibernate increments this on every UPDATE and appends
+     *  {@code WHERE version = ?} to detect concurrent modifications. Never set manually. */
+    @Version
+    private Long version;
 
     private String title;
     private String description;
