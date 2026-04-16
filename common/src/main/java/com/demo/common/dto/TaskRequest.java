@@ -7,6 +7,8 @@ import java.util.UUID;
 
 @Data
 public class TaskRequest {
+    /** Optimistic-lock version read from the last GET response. Required on PUT; ignored on POST (create). */
+    private Long version;
     private String title;
     private String description;
     private TaskStatus status;

@@ -118,6 +118,8 @@ export interface TaskResponse {
   participants: TaskParticipantResponse[];
   project: TaskProjectResponse;
   phase: TaskPhaseResponse;
+  /** Optimistic-lock version. Echo this back in PUT requests to detect concurrent modifications. */
+  version: number | null;
 }
 
 /** Mirrors com.demo.task.dto.TaskFullResponse — enriched single-task view with related data. */
@@ -135,6 +137,8 @@ export interface TaskFullResponse {
   timelines: TaskTimelineResponse[];
   plannedWork: TaskPlannedWorkResponse[];
   bookedWork: TaskBookedWorkResponse[];
+  /** Optimistic-lock version. Echo this back in PUT requests to detect concurrent modifications. */
+  version: number | null;
 }
 
 /** Mirrors com.demo.common.dto.TaskSummaryResponse — lightweight list view without participants. */
@@ -155,6 +159,8 @@ export interface TaskSummaryResponse {
 }
 
 export interface TaskRequest {
+  /** Optimistic-lock version. Required on PUT (update); omit on POST (create). */
+  version?: number | null;
   title: string;
   description: string;
   status: TaskStatus;

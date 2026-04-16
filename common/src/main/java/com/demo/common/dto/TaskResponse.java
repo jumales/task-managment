@@ -23,4 +23,6 @@ public class TaskResponse {
     private List<TaskParticipantResponse> participants;
     private TaskProjectResponse project;
     private TaskPhaseResponse phase;
+    /** Optimistic-lock version. Must be echoed back in PUT requests to detect concurrent modifications. */
+    private Long version;
 }

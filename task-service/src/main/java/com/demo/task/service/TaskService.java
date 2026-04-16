@@ -38,6 +38,7 @@ import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +49,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 
 @Service
 public class TaskService {
@@ -119,12 +123,17 @@ public class TaskService {
         Task task = getOrThrow(id);
 
         // Fetch sub-collections concurrently; each call is independent and I/O-bound.
+        // DelegatingSecurityContextExecutor captures the current SecurityContext from the request
+        // thread and restores it on each ForkJoinPool worker, ensuring FeignAuthInterceptor can
+        // extract the JWT token on the async threads (prevents unauthenticated Feign calls that
+        // would trip the userService circuit breaker).
+        Executor executor = new DelegatingSecurityContextExecutor(ForkJoinPool.commonPool());
         CompletableFuture<List<TaskTimelineResponse>> timelinesFuture =
-                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id));
+                CompletableFuture.supplyAsync(() -> timelineService.findByTaskId(id), executor);
         CompletableFuture<List<TaskPlannedWorkResponse>> plannedWorkFuture =
-                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id));
+                CompletableFuture.supplyAsync(() -> plannedWorkService.findByTaskId(id), executor);
         CompletableFuture<List<TaskBookedWorkResponse>> bookedWorkFuture =
-                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id));
+                CompletableFuture.supplyAsync(() -> bookedWorkService.findByTaskId(id), executor);
 
         // Fetch synchronous data while the async calls are running.
         TaskBaseData base = fetchBaseData(task);
@@ -135,7 +144,8 @@ public class TaskService {
                 task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
                 base.participants(), base.project(), base.phase(), assignedUser,
-                timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join());
+                timelinesFuture.join(), plannedWorkFuture.join(), bookedWorkFuture.join(),
+                task.getVersion());
     }
 
     /**
@@ -274,7 +284,11 @@ public class TaskService {
     /** Updates task fields (title, description, status, type, progress, assignee, project). Phase is unchanged — use {@code updatePhase} for that. */
     @Transactional
     public TaskResponse update(UUID id, TaskRequest request) {
-        Task task = getOrThrow(id);
+        // PESSIMISTIC_WRITE (SELECT FOR UPDATE) serialises concurrent writes on the same task.
+        // After the previous holder commits, the next waiter re-reads the committed version, so
+        // the version check below correctly rejects clients that sent a now-stale version number.
+        Task task = repository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Task", id));
         validateFieldsEditable(phaseService.getOrThrow(task.getPhaseId()).getName());
 
         TaskStatus oldStatus = task.getStatus();
@@ -283,6 +297,15 @@ public class TaskService {
             projectService.getOrThrow(request.getProjectId());
         }
 
+        // If the client supplied a version, reject immediately when it doesn't match the DB value.
+        // This covers the deterministic stale-write case (client re-uses an old version number).
+        // The concurrent case (N clients all read version=0 and submit simultaneously) is handled
+        // by Hibernate's @Version: exactly one UPDATE WHERE version=0 wins; the rest get
+        // ObjectOptimisticLockingFailureException at commit time, mapped to HTTP 409 by
+        // OptimisticLockExceptionHandler.
+        if (request.getVersion() != null && !request.getVersion().equals(task.getVersion())) {
+            throw new ObjectOptimisticLockingFailureException(Task.class, id);
+        }
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setStatus(request.getStatus());
@@ -290,7 +313,11 @@ public class TaskService {
         task.setProgress(request.getProgress());
         task.setAssignedUserId(request.getAssignedUserId());
         task.setProjectId(request.getProjectId());
-        Task saved = repository.save(task);
+        // saveAndFlush forces the UPDATE (with WHERE version=?) to execute immediately inside the
+        // JPA repository proxy, where Spring's exception translation converts StaleObjectStateException
+        // → ObjectOptimisticLockingFailureException → HTTP 409. Without flush, the UPDATE runs at
+        // commit time and the exception may surface as TransactionSystemException (unmapped → HTTP 500).
+        Task saved = repository.saveAndFlush(task);
 
         participantService.setAssignee(saved.getId(), request.getAssignedUserId());
         publishStatusChangedEvent(saved, oldStatus, request.getStatus());
@@ -518,7 +545,7 @@ public class TaskService {
         TaskBaseData base = fetchBaseData(task);
         return new TaskResponse(task.getId(), task.getTaskCode(), task.getTitle(), task.getDescription(),
                 task.getStatus(), task.getType(), task.getProgress(),
-                base.participants(), base.project(), base.phase());
+                base.participants(), base.project(), base.phase(), task.getVersion());
     }
 
     /** Fetches participants, project, and phase for a single task — shared by toResponse and findFullById. */
@@ -572,7 +599,8 @@ public class TaskService {
                 task.getType(), task.getProgress(),
                 participantsByTaskId.getOrDefault(task.getId(), List.of()),
                 projectsById.get(task.getProjectId()),
-                phasesById.get(task.getPhaseId())))
+                phasesById.get(task.getPhaseId()),
+                task.getVersion()))
                 .toList();
     }
 
@@ -591,8 +619,11 @@ public class TaskService {
 
         // Fire user-name resolution async first (Redis/HTTP — no DB connection consumed).
         // The result is joined after the DB queries complete, so the two I/O paths overlap.
+        // DelegatingSecurityContextExecutor propagates the calling thread's SecurityContext so
+        // FeignAuthInterceptor can reconstruct the Bearer header on the ForkJoinPool worker thread.
+        Executor summaryExecutor = new DelegatingSecurityContextExecutor(ForkJoinPool.commonPool());
         CompletableFuture<Map<UUID, String>> userNamesFuture = CompletableFuture.supplyAsync(() ->
-                userIds.isEmpty() ? Map.of() : userClientHelper.fetchUserNames(userIds));
+                userIds.isEmpty() ? Map.of() : userClientHelper.fetchUserNames(userIds), summaryExecutor);
 
         Map<UUID, TaskProject> projectsById = projectService.findAllByIds(projectIds).stream()
                 .collect(Collectors.toMap(TaskProject::getId, p -> p));
