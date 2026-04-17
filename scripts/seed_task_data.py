@@ -262,6 +262,12 @@ def make_task(task_number: int, project_id: str, phase_id: str,
         else random.choice(USER_IDS)
     )
     status = status_for_phase(phase_name)
+    created_at = random_past_dt(730)
+    closed_at = (
+        created_at + timedelta(days=random.randint(1, 30))
+        if phase_name in FINISHED_PHASES
+        else None
+    )
     return {
         "id": uid(),
         "title": fake.sentence(nb_words=random.randint(4, 10)).rstrip("."),
@@ -274,6 +280,8 @@ def make_task(task_number: int, project_id: str, phase_id: str,
         "project_id": project_id,
         "phase_id": phase_id,
         "deleted_at": None,
+        "created_at": created_at,
+        "closed_at": closed_at,
         # stored for downstream generators; not a real column
         "_creator_user_id": random.choice(USER_IDS),
         "_phase_name": phase_name,
@@ -525,18 +533,20 @@ def seed(args) -> None:
             phase_name  = pick_phase_name()
             phase_id    = phase_index[project_id][phase_name]
             task        = make_task(task_number, project_id, phase_id, phase_name, fake, project["name"])
-            task["_base_date"] = random_past_dt(730)
+            task["_base_date"] = task["created_at"]
             project_tasks.append(task)
             task_rows.append((
                 task["id"], task["title"], task["description"], task["status"],
                 task["type"], task["progress"], task["task_code"],
                 task["assigned_user_id"], project_id, phase_id, task["deleted_at"],
+                task["created_at"], task["closed_at"],
             ))
 
         batch_insert(conn_task,
             """INSERT INTO tasks
                (id, title, description, status, type, progress, task_code,
-                assigned_user_id, project_id, phase_id, deleted_at)
+                assigned_user_id, project_id, phase_id, deleted_at,
+                created_at, closed_at)
                VALUES %s""",
             task_rows, dry_run)
         total_tasks += len(project_tasks)
