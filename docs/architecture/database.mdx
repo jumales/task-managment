@@ -1,0 +1,546 @@
+---
+title: Database Structure
+description: Complete reference of all tables and indexes across every service database.
+---
+
+# Database Structure
+
+Each microservice owns its own isolated PostgreSQL database. There are no cross-service foreign keys. Schema changes are managed exclusively via Flyway migrations (`V{n}__{description}.sql`).
+
+---
+
+## task-service
+
+**Database:** `task_db`
+
+### Tables
+
+#### `task_projects`
+Stores projects that group tasks together.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `name` | VARCHAR(255) | NOT NULL |
+| `description` | TEXT | |
+| `task_code_prefix` | VARCHAR(20) | Default `TASK_` |
+| `next_task_number` | INT | Default 1 |
+| `default_phase_id` | UUID | FK → `task_phases.id` (nullable) |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+#### `task_phases`
+Phases within a project (e.g. TODO, IN_PROGRESS, DONE).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `project_id` | UUID | NOT NULL |
+| `name` | VARCHAR(255) | NOT NULL |
+| `description` | TEXT | |
+| `custom_name` | VARCHAR(255) | |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_task_phases_project_id` | `(project_id)` | `WHERE deleted_at IS NULL` |
+
+#### `tasks`
+Core task entity.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK (UUID v7) |
+| `title` | VARCHAR(255) | NOT NULL |
+| `description` | TEXT | |
+| `status` | VARCHAR(50) | NOT NULL |
+| `type` | VARCHAR(32) | NOT NULL |
+| `progress` | INT | 0–100, default 0 |
+| `task_code` | VARCHAR(50) | Nullable (assigned async) |
+| `assigned_user_id` | UUID | |
+| `project_id` | UUID | NOT NULL |
+| `phase_id` | UUID | NOT NULL |
+| `version` | BIGINT | Optimistic lock, default 0 |
+| `closed_at` | TIMESTAMP | Set when phase is RELEASED or REJECTED |
+| `created_at` | TIMESTAMPTZ | NOT NULL, default NOW() |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Constraints:** `chk_task_progress` — `progress` between 0 and 100.
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `uq_tasks_task_code` | `(project_id, task_code)` UNIQUE | `WHERE deleted_at IS NULL` |
+| `idx_tasks_project_id` | `(project_id)` | `WHERE deleted_at IS NULL` |
+| `idx_tasks_assigned_user_id` | `(assigned_user_id)` | `WHERE deleted_at IS NULL` |
+| `idx_tasks_status` | `(status)` | `WHERE deleted_at IS NULL` |
+| `idx_tasks_phase_id` | `(phase_id)` | `WHERE deleted_at IS NULL` |
+| `idx_tasks_project_id_phase_id` | `(project_id, phase_id)` | `WHERE deleted_at IS NULL` |
+| `idx_tasks_assigned_user_id_phase_id` | `(assigned_user_id, phase_id)` | `WHERE deleted_at IS NULL` |
+| `idx_tasks_closed_at` | `(closed_at)` | `WHERE closed_at IS NOT NULL AND deleted_at IS NULL` |
+| `idx_tasks_created_at` | `(created_at)` | `WHERE deleted_at IS NULL` |
+
+#### `task_comments`
+Comments on tasks.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `user_id` | UUID | NOT NULL |
+| `content` | TEXT | NOT NULL |
+| `created_at` | TIMESTAMPTZ | |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_task_comments_task_id` | `(task_id, created_at)` | `WHERE deleted_at IS NULL` |
+
+#### `task_participants`
+Users attached to a task in a specific role.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK, default `gen_random_uuid()` |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `user_id` | UUID | NOT NULL |
+| `role` | VARCHAR(50) | NOT NULL |
+| `created_at` | TIMESTAMPTZ | NOT NULL, default NOW() |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `task_participants_unique_idx` | `(task_id, user_id, role)` UNIQUE | `WHERE deleted_at IS NULL` |
+| `task_participants_task_id_idx` | `(task_id)` | |
+| `idx_task_participants_user_id` | `(user_id)` | |
+
+#### `task_planned_works`
+Planned effort per work type per task.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK, default `gen_random_uuid()` |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `user_id` | UUID | NOT NULL |
+| `work_type` | VARCHAR(32) | NOT NULL |
+| `planned_hours` | INT | ≥ 0 |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+**Constraints:** `chk_work_log_planned_hours` — `planned_hours >= 0`.
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `ux_task_planned_works_task_work_type` | `(task_id, work_type)` UNIQUE | |
+| `idx_task_planned_works_task_id` | `(task_id)` | |
+
+#### `task_booked_works`
+Actual hours logged against a task.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK, default `gen_random_uuid()` |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `user_id` | UUID | NOT NULL |
+| `work_type` | VARCHAR(32) | NOT NULL |
+| `booked_hours` | INT | > 0 |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Constraints:** `chk_booked_work_hours` — `booked_hours > 0`.
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_task_booked_works_task_id` | `(task_id)` | `WHERE deleted_at IS NULL` |
+
+#### `task_timelines`
+Timestamp records for each state transition on a task.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `state` | VARCHAR(32) | NOT NULL |
+| `timestamp` | TIMESTAMPTZ | NOT NULL |
+| `set_by_user_id` | UUID | NOT NULL |
+| `set_by_user_name` | VARCHAR(255) | |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `uq_task_timelines_task_state` | `(task_id, state)` UNIQUE | `WHERE deleted_at IS NULL` |
+| `idx_task_timelines_task_id` | `(task_id)` | `WHERE deleted_at IS NULL` |
+
+#### `project_notification_templates`
+Per-project email templates for task lifecycle events.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK, default `gen_random_uuid()` |
+| `project_id` | UUID | NOT NULL |
+| `event_type` | VARCHAR(32) | NOT NULL |
+| `subject_template` | VARCHAR(255) | NOT NULL |
+| `body_template` | TEXT | NOT NULL |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `uq_project_notification_templates_project_event` | `(project_id, event_type)` UNIQUE | `WHERE deleted_at IS NULL` |
+
+#### `task_attachments`
+References to files uploaded to a task (file content lives in MinIO).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `file_id` | UUID | NOT NULL |
+| `file_name` | VARCHAR(255) | NOT NULL |
+| `content_type` | VARCHAR(100) | NOT NULL |
+| `uploaded_by_user_id` | UUID | NOT NULL |
+| `uploaded_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_task_attachments_task_id` | `(task_id)` | |
+
+#### `outbox_events`
+Transactional outbox for reliable Kafka publishing.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `aggregate_type` | VARCHAR(255) | NOT NULL |
+| `aggregate_id` | UUID | NOT NULL |
+| `event_type` | VARCHAR(100) | NOT NULL |
+| `topic` | VARCHAR(255) | NOT NULL |
+| `payload` | TEXT | NOT NULL |
+| `published` | BOOLEAN | Default false |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_outbox_events_unpublished` | `(published)` | `WHERE published = FALSE` |
+
+#### `task_code_jobs`
+Async job queue for assigning task codes in the background.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL, FK → `tasks.id` |
+| `project_id` | UUID | NOT NULL |
+| `created_at` | TIMESTAMPTZ | NOT NULL |
+| `processed_at` | TIMESTAMPTZ | NULL = pending |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_task_code_jobs_pending` | `(created_at ASC)` | `WHERE processed_at IS NULL` |
+
+### Schemas
+
+| Schema | Purpose |
+|---|---|
+| `public` | All live tables above |
+| `archive` | Monthly partition tables (e.g. `tasks_202501`) created dynamically by `ArchiveTableManager` |
+
+---
+
+## audit-service
+
+**Database:** `audit_db`
+
+### Tables
+
+#### `audit_records`
+Status-change events for tasks.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `assigned_user_id` | UUID | |
+| `from_status` | VARCHAR(50) | |
+| `to_status` | VARCHAR(50) | NOT NULL |
+| `changed_at` | TIMESTAMPTZ | NOT NULL |
+| `recorded_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_audit_records_task_id` | `(task_id)` |
+
+#### `comment_audit_records`
+Comment-added events for tasks.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `comment_created_by_user_id` | UUID | |
+| `comment_id` | UUID | NOT NULL |
+| `content` | TEXT | |
+| `added_at` | TIMESTAMPTZ | NOT NULL |
+| `recorded_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_comment_audit_records_task_id` | `(task_id)` |
+
+#### `phase_audit_records`
+Phase-change events for tasks.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `changed_by_user_id` | UUID | |
+| `from_phase_id` | UUID | |
+| `from_phase_name` | VARCHAR(255) | |
+| `to_phase_id` | UUID | NOT NULL |
+| `to_phase_name` | VARCHAR(255) | NOT NULL |
+| `changed_at` | TIMESTAMPTZ | NOT NULL |
+| `recorded_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_phase_audit_records_task_id` | `(task_id)` |
+
+#### `planned_work_audit_records`
+Planned-work create/update/delete events.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `planned_work_id` | UUID | NOT NULL |
+| `change_type` | VARCHAR(32) | NOT NULL |
+| `planned_work_user_id` | UUID | |
+| `work_type` | VARCHAR(32) | |
+| `planned_hours` | INT | |
+| `changed_at` | TIMESTAMPTZ | NOT NULL |
+| `recorded_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_planned_work_audit_records_task_id` | `(task_id)` |
+
+#### `booked_work_audit_records`
+Booked-work create/update/delete events.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `booked_work_id` | UUID | NOT NULL |
+| `change_type` | VARCHAR(32) | NOT NULL |
+| `booked_work_user_id` | UUID | |
+| `work_type` | VARCHAR(32) | |
+| `booked_hours` | INT | |
+| `changed_at` | TIMESTAMPTZ | NOT NULL |
+| `recorded_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_booked_work_audit_records_task_id` | `(task_id)` |
+
+#### `processed_kafka_events`
+Idempotency guard — tracks which Kafka events have been consumed.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `event_id` | UUID | NOT NULL |
+| `consumer_group` | VARCHAR(255) | NOT NULL |
+| `processed_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `uidx_processed_kafka_events_event_consumer` UNIQUE | `(event_id, consumer_group)` |
+
+### Schemas
+
+| Schema | Purpose |
+|---|---|
+| `public` | All live tables above |
+| `archive` | Monthly partition tables created dynamically by `AuditArchiveService` |
+
+---
+
+## notification-service
+
+**Database:** `notification_db`
+
+### Tables
+
+#### `notifications`
+Sent email notifications.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK, default `gen_random_uuid()` |
+| `task_id` | UUID | NOT NULL |
+| `recipient_user_id` | UUID | NOT NULL |
+| `recipient_email` | VARCHAR(255) | NOT NULL |
+| `change_type` | VARCHAR(32) | NOT NULL |
+| `subject` | VARCHAR(255) | NOT NULL |
+| `body` | TEXT | NOT NULL |
+| `sent_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_notifications_task_id` | `(task_id)` |
+
+#### `processed_kafka_events`
+Idempotency guard (same structure as in audit-service).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `event_id` | UUID | NOT NULL |
+| `consumer_group` | VARCHAR(255) | NOT NULL |
+| `processed_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `uidx_processed_kafka_events_event_consumer` UNIQUE | `(event_id, consumer_group)` |
+
+---
+
+## file-service
+
+**Database:** `file_db`
+
+### Tables
+
+#### `file_metadata`
+Metadata for files stored in MinIO.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `bucket` | VARCHAR(100) | NOT NULL |
+| `object_key` | VARCHAR(500) | NOT NULL |
+| `content_type` | VARCHAR(100) | |
+| `original_filename` | VARCHAR(500) | |
+| `uploaded_by` | VARCHAR(255) | |
+| `uploaded_at` | TIMESTAMPTZ | NOT NULL, default NOW() |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_file_metadata_uploaded_by` | `(uploaded_by)` | `WHERE deleted_at IS NULL` |
+| `idx_file_metadata_bucket` | `(bucket)` | `WHERE deleted_at IS NULL` |
+
+---
+
+## reporting-service
+
+**Database:** `reporting_db`
+
+### Tables
+
+#### `report_tasks`
+Read-model projection of tasks, built from `task-events` Kafka topic.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_code` | VARCHAR(50) | |
+| `title` | VARCHAR(500) | |
+| `description` | TEXT | |
+| `status` | VARCHAR(32) | |
+| `project_id` | UUID | |
+| `project_name` | VARCHAR(255) | |
+| `phase_id` | UUID | |
+| `phase_name` | VARCHAR(64) | |
+| `assigned_user_id` | UUID | |
+| `assigned_user_name` | VARCHAR(255) | |
+| `planned_start` | TIMESTAMPTZ | |
+| `planned_end` | TIMESTAMPTZ | |
+| `updated_at` | TIMESTAMPTZ | NOT NULL |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_report_tasks_assigned_user` | `(assigned_user_id, phase_name, updated_at DESC)` | `WHERE deleted_at IS NULL` |
+
+#### `report_planned_works`
+Planned work projection.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `project_id` | UUID | |
+| `user_id` | UUID | |
+| `work_type` | VARCHAR(64) | |
+| `planned_hours` | BIGINT | NOT NULL, default 0 |
+| `updated_at` | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+| Name | Columns |
+|---|---|
+| `idx_report_planned_works_task` | `(task_id)` |
+| `idx_report_planned_works_project` | `(project_id)` |
+
+#### `report_booked_works`
+Booked work projection.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `task_id` | UUID | NOT NULL |
+| `project_id` | UUID | |
+| `user_id` | UUID | |
+| `work_type` | VARCHAR(64) | |
+| `booked_hours` | BIGINT | NOT NULL, default 0 |
+| `updated_at` | TIMESTAMPTZ | NOT NULL |
+| `deleted_at` | TIMESTAMPTZ | Soft-delete |
+
+**Indexes:**
+| Name | Columns | Condition |
+|---|---|---|
+| `idx_report_booked_works_task` | `(task_id)` | `WHERE deleted_at IS NULL` |
+| `idx_report_booked_works_project` | `(project_id)` | `WHERE deleted_at IS NULL` |
+
+#### `reporting_schema_marker`
+Flyway placeholder for the initial migration.
+
+| Column | Type |
+|---|---|
+| `id` | UUID PK |
+| `created_at` | TIMESTAMPTZ |
+
+---
+
+## Design Conventions
+
+| Convention | Detail |
+|---|---|
+| **Soft deletes** | All mutable entities have `deleted_at TIMESTAMPTZ`; records are never hard-deleted |
+| **Partial indexes** | Indexes on soft-delete tables use `WHERE deleted_at IS NULL` to stay small and avoid blocking unique constraints for deleted rows |
+| **Unique partial indexes** | Used instead of `UNIQUE` constraints on soft-delete tables (e.g. `uq_tasks_task_code`) |
+| **UUID v7 primary keys** | Time-ordered UUIDs generated by Hibernate `@UuidGenerator(style = TIME)`; embed creation timestamp (used by archive scheduler) |
+| **No cross-service FKs** | Each service has its own database; references to other services' entities are plain UUID columns |
+| **Archive schemas** | `task-service` and `audit-service` each have an `archive` schema with dynamically-created monthly tables (`{table}_{YYYYMM}`) |
+| **Idempotency tables** | `processed_kafka_events` in audit-service and notification-service deduplicates Kafka consumption using `(event_id, consumer_group)` unique index |
+| **Outbox pattern** | `outbox_events` in task-service guarantees at-least-once Kafka delivery; partial index on `published = FALSE` keeps polling fast |
