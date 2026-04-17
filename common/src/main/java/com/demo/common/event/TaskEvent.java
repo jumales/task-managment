@@ -38,6 +38,9 @@ public class TaskEvent {
     private Instant plannedStart;
     private Instant plannedEnd;
 
+    /** Unique ID for this event; used by consumers for idempotent deduplication. */
+    private UUID eventId;
+
     /** Factory for a task-created event carrying full task data. */
     public static TaskEvent created(UUID taskId, String taskCode, String title, String description, TaskStatus status,
                                     UUID projectId, String projectName,
@@ -66,6 +69,7 @@ public class TaskEvent {
         e.taskId = taskId;
         e.eventType = TaskEventType.DELETED;
         e.timestamp = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -91,6 +95,7 @@ public class TaskEvent {
         e.assignedUserName = assignedUserName;
         e.plannedStart = plannedStart;
         e.plannedEnd = plannedEnd;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 }

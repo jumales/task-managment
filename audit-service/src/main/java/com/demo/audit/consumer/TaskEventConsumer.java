@@ -1,5 +1,6 @@
 package com.demo.audit.consumer;
 
+import com.demo.audit.dedup.ProcessedEventService;
 import com.demo.audit.model.StatusAuditRecord;
 import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
@@ -34,23 +35,30 @@ public class TaskEventConsumer {
     private final PhaseAuditRepository phaseAuditRepository;
     private final PlannedWorkAuditRepository plannedWorkAuditRepository;
     private final BookedWorkAuditRepository bookedWorkAuditRepository;
+    private final ProcessedEventService processedEventService;
 
     public TaskEventConsumer(AuditRepository auditRepository,
                              CommentAuditRepository commentAuditRepository,
                              PhaseAuditRepository phaseAuditRepository,
                              PlannedWorkAuditRepository plannedWorkAuditRepository,
-                             BookedWorkAuditRepository bookedWorkAuditRepository) {
+                             BookedWorkAuditRepository bookedWorkAuditRepository,
+                             ProcessedEventService processedEventService) {
         this.auditRepository = auditRepository;
         this.commentAuditRepository = commentAuditRepository;
         this.phaseAuditRepository = phaseAuditRepository;
         this.plannedWorkAuditRepository = plannedWorkAuditRepository;
         this.bookedWorkAuditRepository = bookedWorkAuditRepository;
+        this.processedEventService = processedEventService;
     }
 
     /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "audit-group", concurrency = "12")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
+        if (!processedEventService.markProcessed(event.getEventId(), ProcessedEventService.CONSUMER_GROUP)) {
+            log.info("Duplicate event {} — skipping", event.getEventId());
+            return;
+        }
         switch (event.getChangeType()) {
             case STATUS_CHANGED       -> persistStatusChange(event);
             case COMMENT_ADDED        -> persistCommentChange(event);
