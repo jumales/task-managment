@@ -1,5 +1,6 @@
 package com.demo.reporting;
 
+import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
@@ -7,6 +8,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,6 +25,16 @@ public class TestSecurityConfig {
 
     /** Fixed UUID used as the authenticated user's ID in all integration tests. */
     public static final UUID TEST_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+    /**
+     * Satisfies the JwtDecoder dependency required by SecurityConfig's oauth2ResourceServer
+     * configuration. Without this, the application context fails to start in tests because
+     * no issuer-uri is configured.
+     */
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return Mockito.mock(JwtDecoder.class);
+    }
 
     @Bean
     @Order(1)
