@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/file_db
+    username: file_svc
+    password: file_svc_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  flyway:
+
+  servlet:
+    multipart:
+      # Set generously high; per-bucket limits below are the enforced values
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+minio:
+  url: http://localhost:9000
+  access-key: minio
+  secret-key: minio123
+  buckets:
+    avatars:
+      allowed-types:
+        - image/jpeg
+        - image/png
+        - image/gif
+        - image/webp
+      max-size-bytes: 5242880   # 5 MB
+    attachments:
+      allowed-types:
+        - application/pdf
+        - image/jpeg
+        - image/png
+        - application/msword
+        - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+        - text/plain
+        - text/csv
+      max-size-bytes: 20971520  # 20 MB
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

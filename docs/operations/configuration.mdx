@@ -6,7 +6,14 @@ keywords: ["configuration", "application.yml", "environment variables", "minio",
 
 # Configuration reference
 
-All service configuration lives in `src/main/resources/application.yml` (or `application-{profile}.yml` for profile-specific overrides). Secrets and environment-specific values are injected via environment variables or Docker Compose environment blocks.
+Configuration is split across two layers:
+
+- **`config-repo/application.yml`** — shared properties applied to every service (Eureka, Kafka, Keycloak issuer-URI, JPA dialect, management endpoints, tracing, Feign timeouts, log levels). Edit this file to change a value across all services in one place.
+- **`config-repo/{service-name}.yml`** — service-specific properties (datasource, Redis, Kafka serializers/consumer groups, resilience4j, MinIO, mail, CORS, gateway routes).
+
+At startup each service fetches its merged config from the Config Server (`http://localhost:8888`). The local `src/main/resources/application.yml` contains only `spring.application.name` and the `spring.config.import` pointer — no shared properties.
+
+Secrets and environment-specific values are injected via environment variables or Docker Compose environment blocks.
 
 ## Common settings (all services)
 
@@ -102,11 +109,11 @@ minio:
       max-size-bytes: 20971520   # 20 MB
 ```
 
-To add a new bucket, add a new entry under `minio.buckets`. No Java changes required.
+To add a new bucket, add a new entry under `minio.buckets` in `config-repo/file-service.yml`. No Java changes required.
 
 ## API Gateway rate limits
 
-Rate limits are configured in the gateway's `application.yml`:
+Rate limits are configured in `config-repo/api-gateway.yml`:
 
 ```yaml
 spring:
@@ -163,6 +170,8 @@ The Logback config adds a `LogstashTcpSocketAppender` targeting `logstash:5000`.
 
 | Variable | Default | Used by |
 |---|---|---|
+| `CONFIG_SERVER_URL` | `localhost:8888` | All services (config import URL) |
+| `CONFIG_REPO_PATH` | `./config-repo` | config-server (filesystem backend path) |
 | `KEYCLOAK_ISSUER_URI` | `http://keycloak:8180/realms/demo` | All services |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | All services with Kafka |
 | `REDIS_HOST` | `localhost` | task-service, api-gateway, user-service |

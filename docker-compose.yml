@@ -1,5 +1,24 @@
 services:
 
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: ms-config-server
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./config-repo:/config-repo:ro
+    environment:
+      CONFIG_REPO_PATH: /config-repo
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks:
+      - ms-network
+
   postgres:
     build:
       context: ./docker-images/postgres

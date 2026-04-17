@@ -80,7 +80,7 @@ MinIO provides S3-compatible object storage with two pre-created buckets:
 | `avatars` | 5 MB | `image/jpeg`, `image/png`, `image/gif`, `image/webp` |
 | `attachments` | 20 MB | `application/pdf`, `image/jpeg`, `image/png`, `application/msword`, `text/plain`, `text/csv` |
 
-Bucket configuration lives in `file-service/src/main/resources/application.yml` under `minio.buckets`. Adding a new bucket requires only a new YAML entry — no Java changes needed.
+Bucket configuration lives in `config-repo/file-service.yml` under `minio.buckets`. Adding a new bucket requires only a new YAML entry — no Java changes needed.
 
 ## Observability stack
 

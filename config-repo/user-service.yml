@@ -1,0 +1,31 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: user-service
+            client-secret: ${KEYCLOAK_USER_SERVICE_CLIENT_SECRET:user-service-secret}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/demo/protocol/openid-connect/token}
+
+keycloak:
+  admin:
+    base-url: ${KEYCLOAK_ADMIN_BASE_URL:http://localhost:8180/admin/realms/demo}
+
+logging:
+  level:
+    com.demo.user.event: DEBUG        # important: app-level kafka publish events

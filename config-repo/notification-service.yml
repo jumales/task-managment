@@ -1,0 +1,73 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/notification_db
+    username: notification_svc
+    password: notification_svc_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  flyway:
+
+  kafka:
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.demo.common.event"
+        spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+
+  mail:
+    host: localhost
+    port: 1025
+    protocol: smtp
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: notification-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:notification-secret}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8180/realms/demo/protocol/openid-connect/token}
+
+websocket:
+  security:
+    path-matcher: /ws/tasks/**
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4173}
+
+app:
+  frontend-url: http://localhost:3000
+
+notification:
+  mail:
+    from: noreply@demo.local
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      userService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    com.demo.notification.consumer: DEBUG  # important: app-level event consumption
+    org.springframework.kafka.listener: INFO   # DLT routing and retry attempts
