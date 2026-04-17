@@ -7,12 +7,12 @@ import com.demo.notification.service.TaskPushService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 /**
  * Kafka consumer for task change events.
  * Delegates each event to {@link NotificationService} to trigger the appropriate email notification.
+ * Exceptions propagate to {@code DefaultErrorHandler} for bounded retry and DLT forwarding.
  */
 @Component
 public class TaskEventNotificationConsumer {
@@ -30,16 +30,10 @@ public class TaskEventNotificationConsumer {
 
     /** Receives a task change event from Kafka, triggers an email notification, and pushes via WebSocket. */
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "notification-group", concurrency = "3")
-    public void consume(TaskChangedEvent event, Acknowledgment ack) {
+    public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
-        try {
-            notificationService.notify(event);
-            // notify() is @Async so this executes immediately in the consumer thread — no blocking risk
-            taskPushService.push(event.getTaskId(), event.getChangeType());
-            ack.acknowledge(); // commit offset only after successful processing
-        } catch (Exception e) {
-            log.error("Failed to process event {}: {}", event.getTaskId(), e.getMessage(), e);
-            // Do not acknowledge — offset not committed, message will be retried
-        }
+        notificationService.notify(event);
+        // notify() is @Async so this executes immediately in the consumer thread — no blocking risk
+        taskPushService.push(event.getTaskId(), event.getChangeType());
     }
 }

@@ -7,11 +7,11 @@ import com.demo.reporting.model.ReportPlannedWork;
 import com.demo.reporting.repository.ReportBookedWorkRepository;
 import com.demo.reporting.repository.ReportPlannedWorkRepository;
 import com.demo.reporting.service.ReportPushService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
@@ -21,6 +21,7 @@ import java.time.Instant;
  * Consumes {@link TaskChangedEvent} messages from the {@code task-changed} topic and maintains
  * the reporting planned/booked work projections. Uses JSON-over-String so it shares the same
  * {@code StringDeserializer} container factory as {@link TaskEventProjectionConsumer}.
+ * Exceptions propagate to {@code DefaultErrorHandler} for bounded retry and DLT forwarding.
  * After each successful write the task's assigned user is notified via WebSocket push.
  */
 @Component
@@ -43,23 +44,21 @@ public class TaskChangedProjectionConsumer {
         this.pushService = pushService;
     }
 
-    /** Receives a task changed event from Kafka and updates the reporting planned/booked work projections. */
+    /**
+     * Receives a task changed event from Kafka and updates the reporting planned/booked work projections.
+     *
+     * @throws JsonProcessingException if the message cannot be deserialized — propagates to DLT immediately
+     */
     @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "reporting-group", concurrency = "3")
-    public void consume(String message, Acknowledgment ack) {
-        try {
-            TaskChangedEvent event = objectMapper.readValue(message, TaskChangedEvent.class);
-            log.debug("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
+    public void consume(String message) throws JsonProcessingException {
+        TaskChangedEvent event = objectMapper.readValue(message, TaskChangedEvent.class);
+        log.debug("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
 
-            switch (event.getChangeType()) {
-                case PLANNED_WORK_CREATED -> upsertPlannedWork(event);
-                case BOOKED_WORK_CREATED, BOOKED_WORK_UPDATED -> upsertBookedWork(event);
-                case BOOKED_WORK_DELETED -> softDeleteBookedWork(event);
-                default -> { /* other change types are irrelevant to the hours report */ }
-            }
-            ack.acknowledge(); // commit offset only after successful DB write
-        } catch (Exception e) {
-            log.error("Failed to process TaskChangedEvent: {}", e.getMessage(), e);
-            // Do not acknowledge — offset not committed, message will be retried
+        switch (event.getChangeType()) {
+            case PLANNED_WORK_CREATED                    -> upsertPlannedWork(event);
+            case BOOKED_WORK_CREATED, BOOKED_WORK_UPDATED -> upsertBookedWork(event);
+            case BOOKED_WORK_DELETED                     -> softDeleteBookedWork(event);
+            default -> { /* other change types are irrelevant to the hours report */ }
         }
     }
 

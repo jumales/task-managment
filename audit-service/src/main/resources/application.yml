@@ -37,9 +37,6 @@ spring:
       properties:
         spring.json.trusted.packages: "com.demo.common.event"
         spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
-    listener:
-      ack-mode: MANUAL_IMMEDIATE
-
   security:
     oauth2:
       resourceserver:
@@ -72,5 +69,6 @@ logging:
     com.demo.audit.consumer: DEBUG    # important: app-level event consumption
     org.apache.kafka: WARN
     org.apache.kafka.clients.NetworkClient: ERROR
+    org.springframework.kafka.listener: INFO   # DLT routing and retry attempts
     org.springframework.kafka: WARN
     org.hibernate: WARN

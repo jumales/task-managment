@@ -18,9 +18,6 @@ spring:
       enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    listener:
-      ack-mode: MANUAL_IMMEDIATE
-
   security:
     oauth2:
       resourceserver:
@@ -74,5 +71,6 @@ logging:
     com.demo.search.consumer: DEBUG   # important: app-level event consumption
     org.apache.kafka: WARN
     org.apache.kafka.clients.NetworkClient: ERROR
+    org.springframework.kafka.listener: INFO   # DLT routing and retry attempts
     org.springframework.kafka: WARN
     org.hibernate: WARN
