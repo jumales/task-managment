@@ -3,10 +3,8 @@ package com.demo.common.config;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
@@ -19,47 +17,46 @@ import java.util.Map;
 /**
  * Shared Kafka DLQ configuration providing bounded retry and dead-letter forwarding.
  *
- * <p>Not auto-configured — each consuming service must {@code @Import} this class.
- * This prevents pulling Kafka beans into non-Kafka services (file-service, etc.).
+ * <p>Not auto-configured — each consuming service must {@code @Import} this class via its own
+ * {@code @Configuration} class. Without {@code @Configuration} on this class, component scanning
+ * skips it entirely, preventing interference with Spring Boot's auto-configured
+ * {@code KafkaTemplate} in producer-only services (e.g. task-service).
+ *
+ * <p>The DLT {@link KafkaTemplate} is intentionally NOT registered as a Spring bean.
+ * Registering any {@code KafkaTemplate} bean would satisfy Spring Boot's
+ * {@code @ConditionalOnMissingBean(KafkaOperations.class)} guard and prevent the default
+ * {@code KafkaTemplate} from being auto-configured in consuming services.
  *
  * <p>Retry policy: 2 retries after the initial attempt with exponential backoff
  * starting at 1 s (multiplier 2.0). After exhaustion the failed record is forwarded
  * to the original topic name + {@code .DLT} (e.g., {@code task-changed.DLT}) and the
  * offset is committed so the consumer moves on.
  */
-@Configuration
 public class KafkaDlqConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
     /**
-     * A dedicated KafkaTemplate whose value serializer is {@link ByteArraySerializer}.
+     * Publishes the failed record verbatim to {@code <original-topic>.DLT}.
+     * Spring Kafka appends the exception class, message, and cause as Kafka headers
+     * — queryable with any Kafka consumer or inspection tool (e.g. Kafdrop).
+     * The record's key, original bytes, and trace context headers are all preserved.
      *
-     * <p>{@link DeadLetterPublishingRecoverer} receives the raw bytes of the failed record
-     * and must forward them as-is — using {@code ByteArraySerializer} avoids double-serialization.
-     * Named {@code dltKafkaTemplate} to avoid conflicting with service-owned templates.
+     * <p>The {@link KafkaTemplate} used here is created inline (not a bean) to avoid
+     * triggering Spring Boot's {@code @ConditionalOnMissingBean(KafkaOperations.class)}
+     * guard, which would prevent auto-configuration of the service's own template.
      */
-    @Bean("dltKafkaTemplate")
-    public KafkaTemplate<String, byte[]> dltKafkaTemplate() {
+    @Bean
+    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer() {
         Map<String, Object> props = Map.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class
         );
-        return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
-    }
-
-    /**
-     * Publishes the failed record verbatim to {@code <original-topic>.DLT}.
-     * Spring Kafka appends the exception class, message, and cause as Kafka headers
-     * — queryable with any Kafka consumer or inspection tool (e.g. Kafdrop).
-     * The record's key, original bytes, and trace context headers are all preserved.
-     */
-    @Bean
-    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(
-            @Qualifier("dltKafkaTemplate") KafkaTemplate<String, byte[]> dltKafkaTemplate) {
-        return new DeadLetterPublishingRecoverer(dltKafkaTemplate);
+        KafkaTemplate<String, byte[]> dltTemplate =
+                new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
+        return new DeadLetterPublishingRecoverer(dltTemplate);
     }
 
     /**
