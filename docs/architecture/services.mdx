@@ -12,14 +12,15 @@ All application services register with **Eureka** and are discoverable by name. 
 
 | Service | Eureka ID | Port | Database | Publishes to Kafka | Consumes from Kafka |
 |---|---|---|---|---|---|
+| **config-server** | — | 8888 (fixed) | — | — | — |
 | **api-gateway** | `API-GATEWAY` | 8080 (fixed) | — | — | — |
-| **task-service** | `TASK-SERVICE` | random | `task_db` (Postgres) | `task-changed` | — |
+| **task-service** | `TASK-SERVICE` | random | `task_db` (Postgres) | `task-changed`, `task-events` | — |
 | **user-service** | `USER-SERVICE` | random | — (Keycloak) | `user-events` | — |
 | **notification-service** | `NOTIFICATION-SERVICE` | random | `notification_db` (Postgres) | — | `task-changed` |
-| **audit-service** | `AUDIT-SERVICE` | random | `audit_db` (Postgres) | — | `task-changed` |
-| **reporting-service** | `REPORTING-SERVICE` | random | `reporting_db` (Postgres) | — | `task-changed` |
-| **search-service** | `SEARCH-SERVICE` | random | Elasticsearch | — | `task-changed`, `user-events` |
-| **file-service** | `FILE-SERVICE` | random | `file_db` (Postgres) | — | — |
+| **audit-service** | `AUDIT-SERVICE` | random | `audit_db` (Postgres) | — | `task-changed`, `task-events` |
+| **reporting-service** | `REPORTING-SERVICE` | random | `reporting_db` (Postgres) | — | `task-changed`, `task-events` |
+| **search-service** | `SEARCH-SERVICE` | random | Elasticsearch | — | `task-changed`, `task-events`, `user-events` |
+| **file-service** | `FILE-SERVICE` | random | `file_db` (Postgres) | — | `task-events` |
 | **eureka-server** | — | 8761/8762 | — | — | — |
 
 ## Dependency graph
@@ -61,6 +62,58 @@ All services depend on the `common` Maven module. It provides:
 <Note>
 Any DTO or event used by two or more services **must** live in `common`. Never duplicate these classes across services.
 </Note>
+
+## Config Server
+
+The config-server module is a Spring Cloud Config Server running at port 8888. It uses a **native filesystem backend** — the `config-repo/` directory in the monorepo root is the single source of truth for all shared and service-specific configuration.
+
+### Config resolution
+
+Every application service (except eureka-server) fetches its merged configuration on startup:
+
+```
+config-repo/application.yml          ← shared by ALL services
+config-repo/{service-name}.yml       ← service-specific overrides
+```
+
+The merged result is what a service actually sees at runtime. Services use `spring.config.import` (not the older `bootstrap.yml`) to pull from Config Server:
+
+```yaml
+# Each service's local application.yml contains only:
+spring:
+  application:
+    name: task-service   # Config Server uses this to find task-service.yml
+  config:
+    import: "optional:configserver:http://${CONFIG_SERVER_URL:localhost:8888}"
+```
+
+The `optional:` prefix allows services to start in isolation (e.g. unit test runs) even when Config Server is not running.
+
+### Startup order
+
+Config Server must be healthy before any application service starts. It runs as a Docker container and is health-checked before Eureka:
+
+```
+Postgres / Kafka / Keycloak / MinIO / Redis (Docker)
+  → config-server (Docker, health-checked at /actuator/health)
+  → eureka-server (local process)
+  → all application services (local processes)
+```
+
+### Verify config is loaded
+
+```bash
+# Check merged config for task-service
+curl http://localhost:8888/task-service/default
+
+# Check which property sources a running service resolved
+curl http://localhost:<port>/actuator/env | jq '.propertySources[].name'
+# Should include: "configserver:..."
+```
+
+### Adding or changing shared config
+
+Edit `config-repo/application.yml` for a change that affects all services. Edit `config-repo/{service}.yml` for a single-service change. Restart the affected service — no code changes required.
 
 ## Eureka HA setup
 

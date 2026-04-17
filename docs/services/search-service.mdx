@@ -23,9 +23,13 @@ Documents are written to Elasticsearch on every relevant Kafka event and queried
 
 ## Kafka consumers
 
-**From `task-changed`:**
+**From `task-events`:**
 - `TASK_CREATED` → index new `TaskDocument`
 - `TASK_UPDATED` → update `TaskDocument`
+- `TASK_DELETED` → remove `TaskDocument` from index
+- `TASK_ARCHIVED` → remove `TaskDocument` from index (task is no longer queryable after archiving)
+
+**From `task-changed`:**
 - `STATUS_CHANGED` → update status in `TaskDocument`
 - `PHASE_CHANGED` → update phase in `TaskDocument`
 
@@ -50,6 +54,16 @@ The `POST /api/v1/search/reindex` endpoint bulk-rebuilds both indices:
 3. Writes all documents to Elasticsearch in batches
 
 This is an admin operation intended for recovery after index corruption or a cluster restart. Feign calls are protected by Resilience4j circuit breakers.
+
+## Elasticsearch log index ILM
+
+On startup, `ElasticsearchIlmConfig` bootstraps an ILM (Index Lifecycle Management) policy named `logstash-ttl-policy` and an index template that applies it to all `logstash-*` indices created by Logstash. The delete phase triggers after `ttl.elasticsearch.log-retention-days` (default 30 days).
+
+Both the PUT policy and PUT template operations are idempotent — safe to run on every startup.
+
+<Warning>
+The ILM policy applies only to **new** indices created after the template is registered. Existing `logstash-*` indices must be manually associated with the policy via Kibana (Stack Management → Index Lifecycle Policies) or the `_ilm/move` API.
+</Warning>
 
 ## Circuit breaker
 

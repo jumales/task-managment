@@ -40,8 +40,25 @@ Events are consumed with manual acknowledgement from `task-changed`. The service
 
 All endpoints return paginated results ordered chronologically (oldest first).
 
+## Audit archiving
+
+When task-service archives a task it publishes a `TASK_ARCHIVED` event on the `task-events` topic. The audit service consumes this event and moves all audit records for that task into monthly archive tables in the `archive` PostgreSQL schema.
+
+| Main table | Archive table |
+|---|---|
+| `audit_records` | `archive.audit_records_YYYYMM` |
+| `comment_audit_records` | `archive.comment_audit_records_YYYYMM` |
+| `phase_audit_records` | `archive.phase_audit_records_YYYYMM` |
+| `booked_work_audit_records` | `archive.booked_work_audit_records_YYYYMM` |
+| `planned_work_audit_records` | `archive.planned_work_audit_records_YYYYMM` |
+
+The YYYYMM suffix comes from the `archiveMonth` field of the `TASK_ARCHIVED` event (derived from the task's creation date, not close date).
+
+A nightly scheduler drops audit archive tables older than `ttl.audit.archive-retention-months` (default 24 months).
+
 ## Design notes
 
-- Audit records are **never updated or deleted** — they are a compliance-grade event log.
+- Audit records are **never updated** — they are a compliance-grade event log.
+- Records are archived (not deleted) — the archive schema preserves full history for the configured retention window.
 - The service does not call any other service. All data it needs is carried in the event payload.
 - Queries are simple `findByTaskId` lookups — no complex joins or aggregations.

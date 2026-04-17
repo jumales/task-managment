@@ -46,6 +46,15 @@ The WebSocket endpoint is at `/ws/**` (SockJS, proxied by API Gateway).
 
 Reports that filter by project, user, or date range use composite indexes on `(project_id, status)`, `(assigned_user_id, status)`, and `(created_at)` to avoid full table scans on large datasets.
 
+## Projection cleanup on TASK_ARCHIVED
+
+The reporting service also consumes from `task-events`. When a `TASK_ARCHIVED` event arrives it hard-deletes all projection rows for that task:
+
+- `report_tasks` — the per-task snapshot row
+- `report_booked_works` and `report_planned_works` — all hours rows for that task
+
+Projections are not authoritative so they are not archived — they can always be rebuilt by replaying Kafka events.
+
 ## Design notes
 
 - The reporting service **never calls task-service** for report queries. All data it needs is in its own database.

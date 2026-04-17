@@ -59,6 +59,10 @@ All `TaskChangeType` values produce a notification. The email content varies by 
 |---|---|---|
 | `/api/v1/notifications/tasks/{taskId}` | `GET` | Notification history for a task |
 
+## Notification cleanup
+
+`NotificationCleanupScheduler` runs nightly at 05:00 and hard-deletes `Notification` records older than `ttl.notification.retention-days` (default 365 days). This prevents the `notifications` table from growing unbounded over time.
+
 ## Service-to-service auth
 
 The notification service uses the **client credentials** flow (not request token forwarding) to call `user-service`. It obtains a Keycloak service account token and includes it as Bearer on outbound Feign requests.

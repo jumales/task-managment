@@ -6,14 +6,28 @@ keywords: ["configuration", "application.yml", "environment variables", "minio",
 
 # Configuration reference
 
-Configuration is split across two layers:
+Configuration is managed by **Spring Cloud Config Server** (`config-server` module, port 8888). All shared and service-specific properties live in the `config-repo/` directory at the monorepo root. Services fetch their merged config on startup — no shared properties are hardcoded in individual service `application.yml` files.
 
-- **`config-repo/application.yml`** — shared properties applied to every service (Eureka, Kafka, Keycloak issuer-URI, JPA dialect, management endpoints, tracing, Feign timeouts, log levels). Edit this file to change a value across all services in one place.
-- **`config-repo/{service-name}.yml`** — service-specific properties (datasource, Redis, Kafka serializers/consumer groups, resilience4j, MinIO, mail, CORS, gateway routes).
+## Config layers
 
-At startup each service fetches its merged config from the Config Server (`http://localhost:8888`). The local `src/main/resources/application.yml` contains only `spring.application.name` and the `spring.config.import` pointer — no shared properties.
+| File | Scope |
+|---|---|
+| `config-repo/application.yml` | Shared by **all** services — Eureka, Kafka bootstrap, Keycloak issuer-URI, JPA dialect, management endpoints, tracing, Feign timeouts, log levels, TTL settings |
+| `config-repo/{service-name}.yml` | Service-specific — datasource, Redis, Kafka serializers/consumer groups, Resilience4j, MinIO, mail, CORS, gateway routes |
 
-Secrets and environment-specific values are injected via environment variables or Docker Compose environment blocks.
+The Config Server merges these two files and serves the result. A service's local `src/main/resources/application.yml` contains only `spring.application.name` and the `spring.config.import` pointer:
+
+```yaml
+spring:
+  application:
+    name: task-service
+  config:
+    import: "optional:configserver:http://${CONFIG_SERVER_URL:localhost:8888}"
+```
+
+The `optional:` prefix allows services to start in isolation (e.g. unit tests) without Config Server.
+
+Secrets and environment-specific values are injected via environment variables or Docker Compose environment blocks and referenced in `config-repo` files as `${ENV_VAR:default}`.
 
 ## Common settings (all services)
 
@@ -165,6 +179,37 @@ logging:
 ```
 
 The Logback config adds a `LogstashTcpSocketAppender` targeting `logstash:5000`.
+
+## TTL & archiving
+
+All TTL thresholds live in `config-repo/application.yml` under the `ttl` prefix. No Java changes are needed to adjust them — update the value and restart the affected service.
+
+```yaml
+ttl:
+  task:
+    archive-after-closed-days: 90    # days after RELEASED/REJECTED before task is archived
+    archive-retention-months: 12     # months to keep archive tables before dropping them
+    batch-size: 100                  # max tasks archived per nightly scheduler run
+  outbox:
+    retention-days: 30               # days to keep published outbox_events rows
+  task-code-job:
+    retention-days: 30               # days to keep processed task_code_jobs rows
+  audit:
+    archive-retention-months: 24     # months to keep audit archive tables
+  notification:
+    retention-days: 365              # days to keep notification records
+  file:
+    deleted-object-retention-days: 30  # days after soft-delete before MinIO object is purged
+  kafka:
+    task-events-retention-hours: 168   # Kafka topic retention for task-events (7 days)
+    task-changed-retention-hours: 168  # Kafka topic retention for task-changed (7 days)
+  elasticsearch:
+    log-retention-days: 30           # days to retain Logstash log indices via ILM policy
+```
+
+<Tip>
+To trigger archiving immediately in a dev environment, set `ttl.task.archive-after-closed-days: 0` and restart task-service. Revert to `90` after testing.
+</Tip>
 
 ## Environment variables reference
 
