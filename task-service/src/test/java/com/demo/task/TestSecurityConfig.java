@@ -1,5 +1,6 @@
 package com.demo.task;
 
+import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -41,6 +43,16 @@ public class TestSecurityConfig {
     @SuppressWarnings("resource")
     GenericContainer<?> redisContainer() {
         return new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+    }
+
+    /**
+     * Satisfies the JwtDecoder dependency required by SecurityConfig's oauth2ResourceServer
+     * configuration. Without this, the application context fails to start in tests because
+     * no issuer-uri is configured.
+     */
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return Mockito.mock(JwtDecoder.class);
     }
 
     /** Makes @Async methods run synchronously in tests so IT assertions don't race the background thread. */
