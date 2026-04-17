@@ -43,6 +43,13 @@ All services produce **JSON-structured logs** via Logstash Logback Encoder. Log 
 | `traceId` | Micrometer Tracing | Distributed trace correlation ID |
 | `spanId` | Micrometer Tracing | Current span ID |
 | `userId` | `MdcFilter` | Authenticated user UUID from JWT `sub` |
+| `requestId` | `MdcFilter` / `mdcRecordInterceptor` | Correlation ID propagated from HTTP request through the outbox `correlationId` header into Kafka listener threads; falls back to a fresh UUID when absent |
+| `kafkaTopic` | `mdcRecordInterceptor` | Kafka topic name — set on Kafka listener threads only |
+| `kafkaPartition` | `mdcRecordInterceptor` | Kafka partition number — set on Kafka listener threads only |
+
+<Note>
+`@Async` threads inherit **all** MDC fields (including `requestId`, `userId`, `traceId`) from the calling HTTP thread via `MdcTaskDecorator`. This means a single `requestId` links HTTP request logs, async processing logs, and downstream Kafka consumer logs — enabling full request tracing in Kibana without a distributed tracing backend.
+</Note>
 
 ### Activating log shipping
 

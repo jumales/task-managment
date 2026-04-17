@@ -57,10 +57,26 @@ All services depend on the `common` Maven module. It provides:
 - **Enums** — `TaskStatus`, `TaskType`, `TaskPhaseName`, `TaskChangeType`, `WorkType`, `UserEventType`, and more
 - **Events** — `TaskChangedEvent`, `UserEvent` (Kafka message payloads)
 - **Security** — `SecurityConfig`, `JwtAuthConverter`, `FeignAuthInterceptor`, `MdcFilter`
+- **Async & Kafka threading** — `AsyncConfig`, `MdcTaskDecorator`, `mdcRecordInterceptor` (see below)
 - **Web utilities** — `ControllerLoggingAspect`, `LoggingAuthenticationEntryPoint`, `ResponseCode`
 
 <Note>
 Any DTO or event used by two or more services **must** live in `common`. Never duplicate these classes across services.
+</Note>
+
+### MDC propagation across thread boundaries
+
+`common` owns all MDC propagation infrastructure so every service gets it automatically:
+
+| Component | What it does |
+|---|---|
+| `MdcFilter` | Populates MDC with `requestId` and `userId` on every HTTP request |
+| `AsyncConfig` | Enables `@Async` for all services and installs `MdcTaskDecorator` as the executor decorator |
+| `MdcTaskDecorator` | Copies the calling thread's full MDC snapshot into each `@Async` worker thread |
+| `mdcRecordInterceptor` | Injects MDC into Kafka listener threads using the `correlationId` Kafka header; falls back to a fresh UUID when the header is absent |
+
+<Note>
+`AsyncConfig` is the single `@EnableAsync` declaration for the whole platform. Never add `@EnableAsync` to an individual service — it would create a second executor bean and bypass the MDC decorator.
 </Note>
 
 ## Config Server
