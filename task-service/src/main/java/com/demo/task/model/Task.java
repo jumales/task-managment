@@ -4,6 +4,7 @@ import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.TaskType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UuidGenerator;
@@ -56,6 +57,13 @@ public class Task {
      *  Null briefly after creation until the background scheduler assigns it. */
     @Column(name = "task_code")
     private String taskCode;
+
+    /** Set on insert; used by the archive scheduler to determine the _YYYYMM archive table suffix. */
+    @CreationTimestamp
+    private Instant createdAt;
+
+    /** Set when the task transitions to RELEASED or REJECTED; drives the archive TTL window. */
+    private Instant closedAt;
 
     private Instant deletedAt;
 }

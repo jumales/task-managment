@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -41,6 +42,12 @@ public class TaskEvent {
     /** Unique ID for this event; used by consumers for idempotent deduplication. */
     private UUID eventId;
 
+    /** Populated for ARCHIVED events only. Format: {@code "YYYYMM"} derived from the task's creation date. */
+    private String archiveMonth;
+
+    /** Populated for ARCHIVED events only. IDs of file_metadata records in file-service that should be soft-deleted. */
+    private List<UUID> archivedFileIds;
+
     /** Factory for a task-created event carrying full task data. */
     public static TaskEvent created(UUID taskId, String taskCode, String title, String description, TaskStatus status,
                                     UUID projectId, String projectName,
@@ -61,6 +68,24 @@ public class TaskEvent {
         return full(TaskEventType.UPDATED, taskId, taskCode, title, description, status,
                 projectId, projectName, phaseId, phaseName, assignedUserId, assignedUserName,
                 plannedStart, plannedEnd);
+    }
+
+    /**
+     * Factory for a task-archived event carrying only the task ID, archive month, and file IDs.
+     *
+     * @param taskId         the task that was archived
+     * @param archiveMonth   format {@code "YYYYMM"} derived from the task's {@code createdAt}
+     * @param archivedFileIds IDs of file-service records that should be soft-deleted
+     */
+    public static TaskEvent archived(UUID taskId, String archiveMonth, List<UUID> archivedFileIds) {
+        TaskEvent e = new TaskEvent();
+        e.taskId = taskId;
+        e.eventType = TaskEventType.ARCHIVED;
+        e.timestamp = Instant.now();
+        e.archiveMonth = archiveMonth;
+        e.archivedFileIds = archivedFileIds;
+        e.eventId = UUID.randomUUID();
+        return e;
     }
 
     /** Factory for a task-deleted event carrying only the task ID. */

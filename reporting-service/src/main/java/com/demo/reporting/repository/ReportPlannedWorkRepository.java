@@ -3,6 +3,7 @@ package com.demo.reporting.repository;
 import com.demo.common.dto.WorkType;
 import com.demo.reporting.model.ReportPlannedWork;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -54,4 +55,12 @@ public interface ReportPlannedWorkRepository extends JpaRepository<ReportPlanned
         WorkType getWorkType();
         Long getTotalHours();
     }
+
+    /**
+     * Hard-deletes all planned-work projection rows for the given task.
+     * Used when a task is archived so the projection table stays clean.
+     */
+    @Modifying
+    @Query(value = "DELETE FROM report_planned_works WHERE task_id = :taskId", nativeQuery = true)
+    void deleteAllByTaskId(@Param("taskId") UUID taskId);
 }

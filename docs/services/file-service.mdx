@@ -59,3 +59,24 @@ Validation is enforced at the service boundary before anything is written to Min
 - **Size check** — the file size is checked against the bucket's `max-size-bytes` limit
 
 Spring's `spring.servlet.multipart.max-file-size` is set generously (e.g. 50 MB) so Spring does not reject the request before service validation runs.
+
+## File cleanup & TTL
+
+File objects are never deleted immediately. The service uses a two-phase cleanup:
+
+### Phase 1 — Soft-delete on TASK_ARCHIVED
+
+When task-service archives a task it publishes a `TASK_ARCHIVED` event on `task-events`. The file service consumes this event and sets `deleted_at = NOW()` on every `file_metadata` row whose `id` appears in `event.archivedFileIds`. The MinIO object is not yet removed at this point.
+
+### Phase 2 — Physical purge by scheduler
+
+`FileCleanupScheduler` runs nightly at 06:00 and permanently removes objects whose `deleted_at` is older than `ttl.file.deleted-object-retention-days` (default 30 days):
+
+```
+FileCleanupScheduler (06:00 nightly)
+  → SELECT * FROM file_metadata WHERE deleted_at < NOW() - retention
+  → minioClient.removeObject(bucket, objectKey) per row
+  → DELETE FROM file_metadata WHERE id = ?
+```
+
+This two-phase approach applies to both task-archived files and files soft-deleted directly by users.

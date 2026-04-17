@@ -2,8 +2,11 @@ package com.demo.task.repository;
 
 import com.demo.task.model.TaskCodeJob;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,4 +22,13 @@ public interface TaskCodeJobRepository extends JpaRepository<TaskCodeJob, UUID> 
     @Query(value = "SELECT * FROM task_code_jobs WHERE processed_at IS NULL ORDER BY created_at ASC FOR UPDATE SKIP LOCKED",
             nativeQuery = true)
     List<TaskCodeJob> findPendingForUpdate();
+
+    /**
+     * Deletes processed job rows older than the given cutoff.
+     * Called nightly by the TTL cleanup scheduler to prevent unbounded table growth.
+     */
+    @Modifying
+    @Query(value = "DELETE FROM task_code_jobs WHERE processed_at IS NOT NULL AND created_at < :cutoff",
+            nativeQuery = true)
+    int deleteProcessedOlderThan(@Param("cutoff") Instant cutoff);
 }

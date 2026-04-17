@@ -2,8 +2,11 @@ package com.demo.task.repository;
 
 import com.demo.task.model.OutboxEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,4 +29,12 @@ public interface OutboxRepository extends JpaRepository<OutboxEvent, UUID> {
      * which can silently skip rows locked by the scheduler and produce false-positive empty results.
      */
     List<OutboxEvent> findByPublishedFalse();
+
+    /**
+     * Deletes published outbox events older than the given cutoff.
+     * Called nightly by the TTL cleanup scheduler to keep the table from growing unbounded.
+     */
+    @Modifying
+    @Query("DELETE FROM OutboxEvent e WHERE e.published = true AND e.createdAt < :cutoff")
+    int deletePublishedOlderThan(@Param("cutoff") Instant cutoff);
 }

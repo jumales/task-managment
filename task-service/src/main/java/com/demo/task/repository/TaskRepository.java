@@ -11,7 +11,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,4 +53,23 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
     @Modifying
     @Query("UPDATE Task t SET t.taskCode = :code WHERE t.id = :taskId")
     void updateTaskCode(@Param("taskId") UUID taskId, @Param("code") String code);
+
+    /**
+     * Returns tasks in a terminal phase (RELEASED or REJECTED) whose {@code closed_at} is older
+     * than the given cutoff, up to {@code limit} rows. Used by the archive scheduler.
+     *
+     * <p>Native query is required because the Task entity has no JPA relationship to TaskPhase —
+     * the join must be expressed in SQL. The {@code deleted_at IS NULL} guard is explicit here
+     * because native queries bypass {@code @SQLRestriction}.
+     */
+    @Query(value = """
+            SELECT t.* FROM tasks t
+            JOIN task_phases tp ON t.phase_id = tp.id
+            WHERE tp.name IN ('RELEASED', 'REJECTED')
+              AND t.closed_at < :cutoff
+              AND t.deleted_at IS NULL
+              AND tp.deleted_at IS NULL
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Task> findExpiredClosedTasks(@Param("cutoff") Instant cutoff, @Param("limit") int limit);
 }

@@ -16,6 +16,11 @@ A microservices-based task management platform built to explore modern Java back
 ## Architecture Overview
 
 ```
+                      ┌───────────────────────────────┐
+                      │       Config Server :8888      │
+                      │  (Spring Cloud Config, native) │
+                      └───────────────┬───────────────┘
+                                      │ config on startup (all services)
 ┌─────────────┐     ┌──────────────────────────────────────────────────┐
 │   React UI  │────▶│                  API Gateway                      │
 │  (Vite/TS)  │     │  (Spring Cloud Gateway + OAuth2 + Redis sessions) │
@@ -78,6 +83,19 @@ A microservices-based task management platform built to explore modern Java back
 - **Micrometer + OpenTelemetry** — distributed tracing
 - **Flyway** — database migrations
 - **Testcontainers** — integration testing
+
+---
+
+## Key Features
+
+- **Task lifecycle management** — projects, phases, comments, participants, planned/booked work, file attachments, task codes
+- **Event-driven architecture** — transactional outbox pattern; all mutations produce Kafka events consumed by audit, notification, reporting, and search services
+- **TTL & archiving** — closed tasks (RELEASED/REJECTED) are automatically archived to monthly `archive.*_YYYYMM` PostgreSQL tables after a configurable retention window (default 90 days); related data (comments, participants, timelines, work logs, attachments) moves atomically in the same transaction; a `TASK_ARCHIVED` Kafka event triggers cross-service cleanup in audit, reporting, search, and file services; MinIO file objects are purged on a separate TTL schedule; all thresholds are configurable in `config-repo/application.yml` under `ttl.*` with no code changes required
+- **Centralized configuration** — Spring Cloud Config Server (`config-server`, port 8888) serves all configuration from the `config-repo/` directory using a native filesystem backend. Shared properties (Eureka, Kafka bootstrap, Keycloak issuer-URI, JPA dialect, tracing, Feign timeouts, TTL thresholds) live in `config-repo/application.yml`; service-specific properties (datasource, Redis, Kafka serializers, Resilience4j, MinIO, mail) live in `config-repo/{service-name}.yml`. Every application service fetches its merged config on startup via `spring.config.import` — no shared properties are hardcoded in individual service files. Config Server is health-checked before any service starts; verify with `curl http://localhost:8888/task-service/default`
+- **Full-text search** — Elasticsearch indices for tasks and users, kept current via Kafka events; ILM policy automatically expires Logstash log indices
+- **Real-time updates** — WebSocket push (SockJS/STOMP) from notification-service and reporting-service to connected browser clients
+- **Resilience** — Resilience4j circuit breakers on all inter-service Feign calls; bounded Kafka retry with dead-letter queue; idempotent consumers with deduplication table
+- **Observability** — distributed tracing (Micrometer/OpenTelemetry → Zipkin), structured JSON logs (Logstash → Kibana), Prometheus metrics → Grafana dashboards
 
 ---
 

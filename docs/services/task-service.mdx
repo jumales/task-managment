@@ -85,6 +85,64 @@ OutboxPublisher (background, every 1s)
   → markPublished()
 ```
 
+## Task archiving & TTL
+
+Closed tasks (RELEASED or REJECTED phase) are automatically archived after a configurable retention window.
+
+### How it works
+
+When a task transitions to RELEASED or REJECTED, `closed_at` is stamped on the row. A nightly scheduler (`TaskArchiveScheduler`) finds tasks where `closed_at` is older than `ttl.task.archive-after-closed-days` (default 90) and archives them in batches.
+
+```
+TaskArchiveScheduler (02:00 nightly)
+  → TaskArchiveService.archiveExpiredTasks()
+    → find eligible tasks (closed_at < cutoff, RELEASED/REJECTED phase, not deleted)
+    → group by YearMonth(task.created_at)
+    → for each month group:
+        CREATE TABLE IF NOT EXISTS archive.tasks_YYYYMM (LIKE tasks INCLUDING ALL)
+        INSERT INTO archive.tasks_YYYYMM SELECT * FROM tasks WHERE id IN (...)
+        INSERT INTO archive.{child_table}_YYYYMM ... (comments, participants, timelines, etc.)
+        DELETE child rows → DELETE task rows
+        publish TASK_ARCHIVED outbox event per task
+```
+
+### Archive schema
+
+All archive tables live in the PostgreSQL `archive` schema. The table name suffix is derived from the task's **creation date** (not close date), so all history for a task lands in one consistent table.
+
+| Main table | Archive table |
+|---|---|
+| `tasks` | `archive.tasks_YYYYMM` |
+| `task_comments` | `archive.task_comments_YYYYMM` |
+| `task_participants` | `archive.task_participants_YYYYMM` |
+| `task_timelines` | `archive.task_timelines_YYYYMM` |
+| `task_planned_works` | `archive.task_planned_works_YYYYMM` |
+| `task_booked_works` | `archive.task_booked_works_YYYYMM` |
+| `task_attachments` | `archive.task_attachments_YYYYMM` |
+
+Archive tables are dropped after `ttl.task.archive-retention-months` (default 12) by a second nightly job at 03:00.
+
+### Cross-service cleanup via TASK_ARCHIVED event
+
+After archiving, one `TASK_ARCHIVED` Kafka event is published per task on the `task-events` topic. Each downstream service cleans up its own projection independently:
+
+| Service | Action |
+|---|---|
+| audit-service | Moves audit records to `archive.audit_records_YYYYMM` |
+| reporting-service | Hard-deletes `report_tasks` and `report_hours` rows |
+| search-service | Deletes the `TaskDocument` from Elasticsearch |
+| file-service | Soft-deletes `file_metadata` rows; `FileCleanupScheduler` later purges MinIO objects |
+
+### DB queue cleanup
+
+Two additional schedulers (04:00 nightly) remove stale rows from internal queue tables:
+- `outbox_events` where `published = TRUE AND created_at < cutoff` (default 30 days)
+- `task_code_jobs` where `processed_at IS NOT NULL AND created_at < cutoff` (default 30 days)
+
+### Kafka topic retention
+
+`KafkaTopicConfig` creates/updates the `task-events` and `task-changed` topic configs on startup via `NewTopic` beans, setting `retention.ms` to the values in `ttl.kafka.*` (default 7 days each).
+
 ## Flyway migrations
 
 Schema is managed in `task-service/src/main/resources/db/migration/`. Migration files follow the `V{n}__{description}.sql` naming convention. Never edit a migration once merged; create a new version instead.
