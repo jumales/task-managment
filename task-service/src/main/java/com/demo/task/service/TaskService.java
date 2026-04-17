@@ -26,6 +26,7 @@ import com.demo.common.exception.RelatedEntityActiveException;
 import com.demo.common.exception.ResourceNotFoundException;
 import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
+import com.demo.task.config.CacheConfig;
 import com.demo.task.model.OutboxEventType;
 import com.demo.task.model.Task;
 import com.demo.task.model.TaskCodeJob;
@@ -38,6 +39,8 @@ import com.demo.task.repository.TaskCommentRepository;
 import com.demo.task.repository.TaskRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -110,7 +113,11 @@ public class TaskService {
         return toSummaryPageResponse(page);
     }
 
-    /** Returns the task with the given ID, or throws {@link com.demo.common.exception.ResourceNotFoundException}. */
+    /**
+     * Returns the task with the given ID, caching the assembled response in Redis.
+     * Evicted on any mutation (update, phase change, delete, participant change).
+     */
+    @Cacheable(value = CacheConfig.TASKS, key = "#id")
     public TaskResponse findById(UUID id) {
         return toResponse(getOrThrow(id));
     }
@@ -286,6 +293,7 @@ public class TaskService {
 
     /** Updates task fields (title, description, status, type, progress, assignee, project). Phase is unchanged — use {@code updatePhase} for that. */
     @Transactional
+    @CacheEvict(value = CacheConfig.TASKS, key = "#id")
     public TaskResponse update(UUID id, TaskRequest request) {
         // PESSIMISTIC_WRITE (SELECT FOR UPDATE) serialises concurrent writes on the same task.
         // After the previous holder commits, the next waiter re-reads the committed version, so
@@ -341,6 +349,7 @@ public class TaskService {
      * Enforces the one-way gate: a task that has left PLANNING may never return to it.
      */
     @Transactional
+    @CacheEvict(value = CacheConfig.TASKS, key = "#id")
     public TaskResponse updatePhase(UUID id, UUID phaseId) {
         Task task = getOrThrow(id);
         UUID oldPhaseId = task.getPhaseId();
@@ -489,6 +498,7 @@ public class TaskService {
 
     /** Soft-deletes the task; throws if the task has any associated comments. */
     @Transactional
+    @CacheEvict(value = CacheConfig.TASKS, key = "#id")
     public void delete(UUID id) {
         getOrThrow(id);
         if (commentRepository.existsByTaskId(id)) {
