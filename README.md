@@ -146,6 +146,39 @@ Postman collections for all services live in `postman/`. Import `postman/local.p
 
 ---
 
+## Documentation
+
+Technical documentation lives in the `docs/` folder and is built with [Mintlify](https://mintlify.com).
+
+### Preview locally
+
+```bash
+npm install -g mintlify   # one-time install
+mintlify dev              # starts at http://localhost:3000
+```
+
+> If port 3000 is taken by the React frontend, Mintlify will pick the next available port and print it.
+
+### Structure
+
+| Path | Contents |
+|------|----------|
+| `docs/docs.json` | Navigation, theme, and site config |
+| `docs/index.mdx` | Landing page |
+| `docs/architecture/` | System design, services, data flow, database, auth, infra |
+| `docs/development/` | Local setup, migrations, testing, conventions, Claude automation |
+| `docs/services/` | Per-service reference pages |
+| `docs/api/` | REST API overview and endpoint docs |
+| `docs/frontend/` | React client overview, pages, real-time |
+| `docs/operations/` | Monitoring and configuration |
+
+### Adding a page
+
+1. Create a `.mdx` file in the relevant folder.
+2. Add its path (without extension) to the correct `pages` array in `docs/docs.json`.
+
+---
+
 ## ⚠️ Production Warning
 
 **This project is a learning exercise. Do not deploy it to production without expert review. It's made from experienced developer, but allways need more experienced eyes, especially before production.**
