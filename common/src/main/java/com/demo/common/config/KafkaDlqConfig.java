@@ -1,18 +1,25 @@
 package com.demo.common.config;
 
+import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.RecordInterceptor;
 import org.springframework.kafka.support.serializer.DeserializationException;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.ExponentialBackOff;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Shared Kafka DLQ configuration providing bounded retry and dead-letter forwarding.
@@ -38,10 +45,17 @@ public class KafkaDlqConfig {
     private String bootstrapServers;
 
     /**
-     * Publishes the failed record verbatim to {@code <original-topic>.DLT}.
+     * Publishes the failed record to {@code <original-topic>.DLT}.
      * Spring Kafka appends the exception class, message, and cause as Kafka headers
      * — queryable with any Kafka consumer or inspection tool (e.g. Kafdrop).
-     * The record's key, original bytes, and trace context headers are all preserved.
+     *
+     * <p>Uses {@link JsonSerializer} (not {@code ByteArraySerializer}) because consumers
+     * deserialize records with {@code JsonDeserializer} — by the time a processing error
+     * reaches the recoverer, the value is already a Java object. {@code ByteArraySerializer}
+     * cannot re-serialize a deserialized object; {@code JsonSerializer} handles both
+     * deserialized objects (processing errors) and raw bytes extracted from
+     * {@link DeserializationException#getData()} (deserialization errors).
+     * Type-info headers are disabled so DLT consumers are not constrained to a specific class.
      *
      * <p>The {@link KafkaTemplate} used here is created inline (not a bean) to avoid
      * triggering Spring Boot's {@code @ConditionalOnMissingBean(KafkaOperations.class)}
@@ -52,11 +66,43 @@ public class KafkaDlqConfig {
         Map<String, Object> props = Map.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class,
+            JsonSerializer.ADD_TYPE_INFO_HEADERS, false
         );
-        KafkaTemplate<String, byte[]> dltTemplate =
+        KafkaTemplate<String, Object> dltTemplate =
                 new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
         return new DeadLetterPublishingRecoverer(dltTemplate);
+    }
+
+    /**
+     * Injects MDC context into Kafka listener threads before each record is processed.
+     * Extracts {@code correlationId} from the record header if present; falls back to a fresh UUID.
+     * Clears MDC after each record to prevent context leaking into the next record's thread.
+     */
+    @Bean
+    public RecordInterceptor<Object, Object> mdcRecordInterceptor() {
+        return new RecordInterceptor<>() {
+            private static final String HEADER_CORRELATION_ID = "correlationId";
+
+            @Override
+            public ConsumerRecord<Object, Object> intercept(ConsumerRecord<Object, Object> record,
+                                                            Consumer<Object, Object> consumer) {
+                Header header = record.headers().lastHeader(HEADER_CORRELATION_ID);
+                String correlationId = header != null
+                        ? new String(header.value(), StandardCharsets.UTF_8)
+                        : UUID.randomUUID().toString();
+                MDC.put("requestId", correlationId);
+                MDC.put("kafkaTopic", record.topic());
+                MDC.put("kafkaPartition", String.valueOf(record.partition()));
+                return record;
+            }
+
+            @Override
+            public void afterRecord(ConsumerRecord<Object, Object> record,
+                                    Consumer<Object, Object> consumer) {
+                MDC.clear();
+            }
+        };
     }
 
     /**

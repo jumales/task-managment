@@ -35,9 +35,13 @@ OutboxPublisher (background thread, @Scheduled)
 ┌─────────────────────────────────────────────────────┐
 │  1. SELECT * FROM outbox_events WHERE published=false│
 │  2. For each event: kafka.send(topic, payload)       │
+│     → attaches correlationId header (MDC requestId  │
+│       or a generated UUID if MDC is empty)           │
 │  3. UPDATE outbox_events SET published=true          │
 └─────────────────────────────────────────────────────┘
 ```
+
+The `correlationId` Kafka header is sourced from the outbox publisher's MDC `requestId` (set by `MdcFilter` on the originating HTTP request). Downstream consumers extract this header via `mdcRecordInterceptor` and store it back into their MDC, so the same `requestId` appears in logs across the full chain — HTTP handler → async outbox publisher → Kafka consumer — without requiring a distributed tracing backend.
 
 ## TaskChangedEvent change types
 
