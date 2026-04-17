@@ -2,16 +2,21 @@ package com.demo.task.outbox;
 
 import com.demo.task.model.OutboxEvent;
 import com.demo.task.repository.OutboxRepository;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -50,9 +55,18 @@ public class OutboxPublisher {
 
         // Fire all Kafka sends concurrently — KafkaTemplate.send() is non-blocking;
         // the producer batches them on its internal I/O thread.
+        // correlationId header carries the originating requestId through the full
+        // HTTP → Outbox → Kafka → Consumer trace path without requiring Zipkin.
+        String correlationId = Optional.ofNullable(MDC.get("requestId"))
+                .orElse(java.util.UUID.randomUUID().toString());
         List<CompletableFuture<SendResult<String, String>>> futures = pending.stream()
-                .map(event -> kafkaTemplate.send(
-                        event.getTopic(), event.getAggregateId().toString(), event.getPayload()))
+                .map(event -> kafkaTemplate.send(new ProducerRecord<>(
+                        event.getTopic(),
+                        null,
+                        event.getAggregateId().toString(),
+                        event.getPayload(),
+                        List.of(new RecordHeader("correlationId",
+                                correlationId.getBytes(StandardCharsets.UTF_8))))))
                 .toList();
 
         // Collect results: mark each event published only after its send succeeds.

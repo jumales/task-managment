@@ -8,6 +8,7 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.listener.ContainerProperties.AckMode;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.RecordInterceptor;
 
 /**
  * Wires the shared DLQ error handler into the Kafka listener container factory.
@@ -26,11 +27,13 @@ public class KafkaConsumerConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<?, ?> kafkaListenerContainerFactory(
             ConsumerFactory<Object, Object> consumerFactory,
-            DefaultErrorHandler kafkaErrorHandler) {
+            DefaultErrorHandler kafkaErrorHandler,
+            RecordInterceptor<Object, Object> mdcRecordInterceptor) {
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setCommonErrorHandler(kafkaErrorHandler);
+        factory.setRecordInterceptor(mdcRecordInterceptor);
         factory.getContainerProperties().setAckMode(AckMode.RECORD);
         return factory;
     }

@@ -15,13 +15,20 @@ import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.WorkType;
 import com.demo.common.event.TaskChangeType;
 import com.demo.common.event.TaskChangedEvent;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.apache.kafka.common.record.TimestampType;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.RecordInterceptor;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -29,7 +36,9 @@ import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -72,6 +81,9 @@ class AuditConsumerIT {
     @Autowired
     ProcessedEventRepository processedEventRepository;
 
+    @Autowired
+    RecordInterceptor<Object, Object> mdcRecordInterceptor;
+
     @BeforeEach
     void setUp() {
         auditRepository.deleteAll();
@@ -80,6 +92,11 @@ class AuditConsumerIT {
         plannedWorkAuditRepository.deleteAll();
         bookedWorkAuditRepository.deleteAll();
         processedEventRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDownMdc() {
+        MDC.clear();
     }
 
     // ── Status events ─────────────────────────────────────────────
@@ -367,5 +384,53 @@ class AuditConsumerIT {
             assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
             assertThat(processedEventRepository.count()).isEqualTo(1);
         });
+    }
+
+    // ── MDC record interceptor ────────────────────────────────────
+
+    @Test
+    void mdcRecordInterceptor_setsRequestIdFromCorrelationIdHeader() {
+        String correlationId = "trace-kafka-xyz-123";
+        RecordHeaders headers = new RecordHeaders();
+        headers.add(new RecordHeader("correlationId", correlationId.getBytes(StandardCharsets.UTF_8)));
+        ConsumerRecord<Object, Object> record = new ConsumerRecord<>(
+                "task-changed", 0, 0L,
+                ConsumerRecord.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE,
+                -1, -1, "key", "value", headers, Optional.empty());
+
+        mdcRecordInterceptor.intercept(record, null);
+
+        assertThat(MDC.get("requestId")).isEqualTo(correlationId);
+        assertThat(MDC.get("kafkaTopic")).isEqualTo("task-changed");
+        assertThat(MDC.get("kafkaPartition")).isEqualTo("0");
+    }
+
+    @Test
+    void mdcRecordInterceptor_generatesFallbackRequestIdWhenNoHeader() {
+        ConsumerRecord<Object, Object> record = new ConsumerRecord<>(
+                "task-changed", 0, 0L,
+                ConsumerRecord.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE,
+                -1, -1, "key", "value", new RecordHeaders(), Optional.empty());
+
+        mdcRecordInterceptor.intercept(record, null);
+
+        assertThat(MDC.get("requestId"))
+                .isNotNull()
+                .matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+    }
+
+    @Test
+    void mdcRecordInterceptor_clearsMdcAfterRecord() {
+        ConsumerRecord<Object, Object> record = new ConsumerRecord<>(
+                "task-changed", 0, 0L,
+                ConsumerRecord.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE,
+                -1, -1, "key", "value", new RecordHeaders(), Optional.empty());
+
+        mdcRecordInterceptor.intercept(record, null);
+        assertThat(MDC.get("requestId")).isNotNull();
+
+        mdcRecordInterceptor.afterRecord(record, null);
+        assertThat(MDC.get("requestId")).isNull();
+        assertThat(MDC.get("kafkaTopic")).isNull();
     }
 }
