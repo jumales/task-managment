@@ -1,0 +1,9 @@
+spring:
+  main:
+    # Allows TestSecurityConfig.taskExecutor() (SyncTaskExecutor) to override
+    # AsyncConfig.taskExecutor() so @Async methods run synchronously in tests.
+    allow-bean-definition-overriding: true
+  cloud:
+    config:
+      # Disable config server client in tests — no CONFIG_SERVER_URL is available.
+      enabled: false
