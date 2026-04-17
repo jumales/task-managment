@@ -4,5 +4,7 @@ package com.demo.common.event;
 public enum TaskEventType {
     CREATED,
     UPDATED,
-    DELETED
+    DELETED,
+    /** Task moved to the archive schema after exceeding the configured closed-task TTL. */
+    ARCHIVED
 }

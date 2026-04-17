@@ -40,7 +40,7 @@ public class TaskEventConsumer {
 
         switch (event.getEventType()) {
             case CREATED, UPDATED -> indexService.index(event);
-            case DELETED           -> indexService.delete(event);
+            case DELETED, ARCHIVED -> indexService.delete(event);
         }
     }
 }

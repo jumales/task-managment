@@ -53,6 +53,17 @@ public class OutboxWriter {
     }
 
     /**
+     * Serializes the archive event to JSON and persists it as an unpublished outbox entry on
+     * the {@code task-events} topic. Must be called inside an active transaction.
+     *
+     * @param event the fully-populated archived event (taskId, archiveMonth, archivedFileIds)
+     * @throws RuntimeException wrapping {@link JsonProcessingException} if serialization fails
+     */
+    public void writeArchivedEvent(TaskEvent event) {
+        writeTaskEvent(event.getTaskId(), OutboxEventType.TASK_ARCHIVED, event);
+    }
+
+    /**
      * Serializes the lifecycle event to JSON and persists it as an unpublished outbox entry on
      * the {@code task-events} topic. Must be called inside an active transaction.
      *

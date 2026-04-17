@@ -8,5 +8,7 @@ public enum OutboxEventType {
     /** Full task updated — consumed by search-service. */
     TASK_UPDATED,
     /** Task deleted — consumed by search-service. */
-    TASK_DELETED
+    TASK_DELETED,
+    /** Task archived — consumed by search-service, audit-service, reporting-service, and file-service. */
+    TASK_ARCHIVED
 }

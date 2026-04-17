@@ -366,6 +366,10 @@ public class TaskService {
         }
 
         task.setPhaseId(phaseId);
+        // Record when the task becomes "closed" so the archive scheduler can enforce the TTL window.
+        if (TaskPhaseName.FINISHED_PHASES.contains(newPhase.getName()) && task.getClosedAt() == null) {
+            task.setClosedAt(Instant.now());
+        }
         Task saved = repository.save(task);
 
         recordAutomaticTimelines(saved, currentPhase.getName(), newPhase.getName());

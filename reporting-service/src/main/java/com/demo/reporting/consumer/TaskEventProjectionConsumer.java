@@ -3,6 +3,8 @@ package com.demo.reporting.consumer;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskEvent;
 import com.demo.reporting.model.ReportTask;
+import com.demo.reporting.repository.ReportBookedWorkRepository;
+import com.demo.reporting.repository.ReportPlannedWorkRepository;
 import com.demo.reporting.repository.ReportTaskRepository;
 import com.demo.reporting.service.ReportPushService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -27,13 +29,19 @@ public class TaskEventProjectionConsumer {
     private static final Logger log = LoggerFactory.getLogger(TaskEventProjectionConsumer.class);
 
     private final ReportTaskRepository repository;
+    private final ReportBookedWorkRepository bookedWorkRepository;
+    private final ReportPlannedWorkRepository plannedWorkRepository;
     private final ObjectMapper objectMapper;
     private final ReportPushService pushService;
 
     public TaskEventProjectionConsumer(ReportTaskRepository repository,
+                                       ReportBookedWorkRepository bookedWorkRepository,
+                                       ReportPlannedWorkRepository plannedWorkRepository,
                                        ObjectMapper objectMapper,
                                        ReportPushService pushService) {
         this.repository = repository;
+        this.bookedWorkRepository = bookedWorkRepository;
+        this.plannedWorkRepository = plannedWorkRepository;
         this.objectMapper = objectMapper;
         this.pushService = pushService;
     }
@@ -51,6 +59,7 @@ public class TaskEventProjectionConsumer {
         switch (event.getEventType()) {
             case CREATED, UPDATED -> upsert(event);
             case DELETED          -> softDelete(event);
+            case ARCHIVED         -> deleteProjections(event);
         }
     }
 
@@ -79,5 +88,20 @@ public class TaskEventProjectionConsumer {
             repository.delete(task);
             pushService.notifyUser(task.getAssignedUserId());
         });
+    }
+
+    /**
+     * Hard-deletes all reporting projections for an archived task.
+     * Projections are read-model replicas — deleting them frees space without data loss.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    private void deleteProjections(TaskEvent event) {
+        bookedWorkRepository.deleteAllByTaskId(event.getTaskId());
+        plannedWorkRepository.deleteAllByTaskId(event.getTaskId());
+        repository.findById(event.getTaskId()).ifPresent(task -> {
+            repository.delete(task);
+            pushService.notifyUser(task.getAssignedUserId());
+        });
+        log.debug("Deleted reporting projections for archived task={}", event.getTaskId());
     }
 }

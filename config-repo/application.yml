@@ -53,3 +53,24 @@ logging:
     org.apache.kafka.clients.NetworkClient: ERROR
     org.springframework.kafka: WARN
     org.hibernate: WARN
+
+ttl:
+  task:
+    archive-after-closed-days: 90    # days after close (RELEASED/REJECTED) before archiving
+    archive-retention-months: 12     # months to keep archive tables before dropping
+    batch-size: 100                  # max tasks archived per nightly run
+  outbox:
+    retention-days: 30               # days to keep published outbox_events rows
+  task-code-job:
+    retention-days: 30               # days to keep processed task_code_jobs rows
+  audit:
+    archive-retention-months: 24     # months to keep audit archive tables
+  notification:
+    retention-days: 365              # days to keep notification records
+  file:
+    deleted-object-retention-days: 30  # days after soft-delete before MinIO object is removed
+  kafka:
+    task-events-retention-hours: 168   # 7 days
+    task-changed-retention-hours: 168  # 7 days
+  elasticsearch:
+    log-retention-days: 30           # days to retain Logstash indices

@@ -5,6 +5,7 @@ import com.demo.reporting.repository.ReportPlannedWorkRepository.DetailedHoursPr
 import com.demo.reporting.repository.ReportPlannedWorkRepository.ProjectHoursProjection;
 import com.demo.reporting.repository.ReportPlannedWorkRepository.TaskHoursProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -40,4 +41,12 @@ public interface ReportBookedWorkRepository extends JpaRepository<ReportBookedWo
             group by b.userId, b.workType
            """)
     List<DetailedHoursProjection> sumBookedHoursByUserAndType(@Param("taskId") UUID taskId);
+
+    /**
+     * Hard-deletes all booked-work projection rows for the given task.
+     * Used when a task is archived so the projection table does not grow unbounded with soft-deleted rows.
+     */
+    @Modifying
+    @Query(value = "DELETE FROM report_booked_works WHERE task_id = :taskId", nativeQuery = true)
+    void deleteAllByTaskId(@Param("taskId") UUID taskId);
 }
