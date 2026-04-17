@@ -23,6 +23,7 @@
               "architecture/overview",
               "architecture/services",
               "architecture/data-flow",
+              "architecture/database",
               "architecture/authentication",
               "architecture/infrastructure"
             ]
@@ -41,7 +42,8 @@
               "development/local-setup",
               "development/database-migrations",
               "development/testing",
-              "development/conventions"
+              "development/conventions",
+              "development/claude-automation"
             ]
           },
           {

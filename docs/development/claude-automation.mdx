@@ -1,0 +1,213 @@
+---
+title: Claude Code Automation
+description: Skills, agents, and their connections in this project's Claude Code setup.
+---
+
+## Overview
+
+This project uses [Claude Code](https://claude.ai/code) as an AI-powered development assistant with a structured automation layer built on top of two primitives:
+
+| Primitive | How to invoke | What it is |
+|-----------|--------------|------------|
+| **Skill** | `/skill-name` in the Claude Code prompt | An interactive prompt template that runs in-conversation. Guides Claude through a repeatable task step by step. |
+| **Agent** | Spawned automatically by Claude when a trigger condition is met | An autonomous sub-process with its own tool access, scoped responsibility, and persistent memory. Claude decides when to launch it. |
+
+Skills are for you to invoke deliberately. Agents are invoked by Claude itself — you don't call them directly.
+
+---
+
+## Agents
+
+Agents live in `.claude/agents/`. Each agent has a single well-defined responsibility and can maintain persistent memory in `.claude/agent-memory/<agent-name>/`.
+
+### Git & PR Pipeline
+
+These agents form the guardrails around every code change pushed to the repo.
+
+#### `branch-changelog-updater`
+**Trigger:** Automatically after a new Git branch is created.
+
+Detects any PRs merged into `main` since the branch point and updates `CHANGES.md` with entries for each. Commits the update to the feature branch (never pushes). Ensures `CHANGES.md` stays current even when multiple parallel feature branches are active.
+
+#### `it-runner`
+**Trigger:** Proactively before any `git push` or `gh pr create`.
+
+Detects which of `user-service` and `task-service` are affected by the current branch's diff (changes in `common/` affect both). Runs `mvn test` with Testcontainers for only the affected modules. Saves CI round-trips by catching test failures locally first.
+
+#### `ci-validator`
+**Trigger:** After implementation is complete and ready to push.
+
+Runs the full post-implementation pipeline in order:
+1. Verifies the branch is not `main`
+2. Runs `mvn clean install -DskipTests=true`
+3. Pushes to remote
+4. Watches `gh run` until CI passes or fails
+
+Reports a structured `CI Validation Report` at the end.
+
+#### `ci-failure-diagnoser`
+**Trigger:** When a GitHub Actions CI run fails.
+
+Given a run ID or pasted failure log, matches the failure against a known-patterns table (Docker API version errors, Kafka consumer timeout, Flyway schema conflicts, `TestSecurityConfig` missing, etc.) and outputs a structured root cause + fix.
+
+#### `pre-pr-docs-reviewer`
+**Trigger:** Automatically before any PR is created.
+
+Diffs the branch against `main`, categorizes every changed file by documentation impact (new endpoint → API docs, new env var → README config section, new service → service catalogue, etc.), and either approves PR creation or produces a numbered checklist of required doc updates.
+
+---
+
+### Database
+
+#### `migration-reviewer`
+**Trigger:** After any new Flyway migration file is written (also called automatically by the `/flyway-migration` skill).
+
+Checks the migration against seven rules: naming convention, backward-compatible columns, no single-step destructive changes, partial unique indexes for soft-delete tables, service ownership, no raw DML, and idempotency guards. Outputs `APPROVED` or a list of `VIOLATION` entries.
+
+#### `db-index-advisor`
+**Trigger:** When a new query, report endpoint, or repository method with `WHERE`/`ORDER BY`/`JOIN` is added.
+
+Analyzes the query shape (filter columns, selectivity, sort columns) against existing Flyway migrations to determine whether a new composite or partial index is needed. Produces ready-to-use `CREATE INDEX` DDL and the corresponding migration file content.
+
+---
+
+### Quality & Security
+
+#### `production-readiness-auditor`
+**Trigger:** On phrases like "prepare for production", "production readiness check", "deploy to prod".
+
+Performs a five-dimension audit: OWASP Top 10, microservice architecture, maintainability (per `CLAUDE.md` Java style rules), performance (N+1, cache eviction, indexes), and a deployment checklist. Outputs severity-ranked findings (CRITICAL / HIGH / MEDIUM / LOW).
+
+---
+
+### Performance & Infrastructure
+
+#### `k6-load-tester`
+**Trigger:** When the user explicitly requests a load test or performance test.
+
+Runs `scripts/k6-load-test.js` via the `k6` CLI, captures all metrics, and analyzes results against project-configured thresholds.
+
+#### `infra-data-cleaner`
+**Trigger:** After load testing completes and the environment needs reset.
+
+Discovers all Docker-managed infrastructure (PostgreSQL databases, Redis, MinIO buckets, Kafka topics) from `docker-compose.yml` and `application.yml`, presents a destruction plan, and requires explicit user confirmation before executing any destructive operation.
+
+---
+
+### Planning
+
+#### `plan-file-creator`
+**Trigger:** After a plan is discussed and accepted by the user.
+
+Persists the agreed plan as a structured Markdown file in the `plans/` directory. Referenced in future sessions to track progress across long-running tasks.
+
+---
+
+## Skills
+
+Skills live in `.claude/skills/`. Invoke them with a `/` prefix in the Claude Code prompt.
+
+### Scaffolding
+
+| Skill | What it does |
+|-------|-------------|
+| `/new-entity` | Scaffold a full JPA entity: class, repository, DTOs in `common`, service, controller with OpenAPI docs, and integration tests. Follows soft-delete, UUID v7, and index conventions. |
+| `/new-service-module` | Scaffold a new Spring Boot microservice module: Maven pom, application class, `application.yml`, OpenAPI config, Docker Compose wiring, and startup script registration. |
+| `/new-kafka-event` | Add a new `TaskChangeType` enum value and wire it end-to-end: outbox write in `task-service`, Kafka consumer case in `audit-service`, audit record entity, controller endpoint, and integration tests. |
+| `/flyway-migration` | Create a correctly numbered Flyway migration file with backward-compatible SQL. **Automatically triggers the `migration-reviewer` agent** before finishing. |
+
+### Analysis & Audit
+
+| Skill | What it does |
+|-------|-------------|
+| `/analyze-microservices` | Structured review across 11 microservice architecture principles (bounded context, DB-per-service, gateway, etc.). |
+| `/analyze-performance` | Scans for N+1 queries, missing indexes, unbounded list endpoints, eager loading, and React waterfall patterns. |
+| `/analyze-react` | Audits the React frontend against the Vercel React Best Practices guide (waterfalls, bundle size, re-renders). |
+| `/owasp` | Full OWASP Top 10 (2021) security audit of the stack. |
+| `/maintainability` | Ten-dimension maintainability audit: cyclomatic complexity, duplication, coupling, documentation gaps, etc. |
+| `/business_logic` | Cross-checks business logic consistency between the Spring Boot backend and the React frontend (enum completeness, field validation parity). |
+
+### Refactoring
+
+| Skill | What it does |
+|-------|-------------|
+| `/move-dtos-to-common` | Scans all service modules for `*Request`, `*Response`, `*Dto` classes that belong in `common` and moves them. |
+| `/consolidate-pom` | Identifies duplicated dependency versions across all `pom.xml` files and centralizes them in the root POM. |
+
+### Reference & Planning
+
+| Skill | What it does |
+|-------|-------------|
+| `/keycloak` | Reference guide for managing Keycloak in this project: adding roles, service accounts, users, debugging auth flows. |
+| `/plan-internal` | Guided task planning: understand scope, produce a chunked plan, choose branch strategy, and execute chunks with CI checks between each. |
+
+---
+
+## Agent Connections
+
+Agents are designed to chain. The diagram below shows the primary flows:
+
+### Feature Development Flow
+
+```
+New branch created
+       │
+       ▼
+branch-changelog-updater  ──► syncs CHANGES.md
+       │
+       ▼
+  [implement feature]
+       │
+       ├──► db-index-advisor        (if new query pattern added)
+       │
+       ├──► /flyway-migration skill
+       │          │
+       │          └──► migration-reviewer  (auto-triggered by skill)
+       │
+       ▼
+  it-runner  ──► runs local ITs for affected modules
+       │
+       ▼
+ ci-validator  ──► clean build → push → watch CI
+       │
+       ├──► ci-failure-diagnoser   (if CI fails)
+       │
+       ▼
+pre-pr-docs-reviewer  ──► audit docs completeness
+       │
+       ▼
+     Open PR
+```
+
+### Load Test Flow
+
+```
+k6-load-tester  ──► run scripts/k6-load-test.js
+       │
+       ▼
+infra-data-cleaner  ──► confirm + wipe Docker infra
+```
+
+### Planning Flow
+
+```
+/plan-internal skill  ──► scope → chunked plan
+       │
+       ▼
+plan-file-creator agent  ──► write plans/<name>.md
+       │
+       ▼
+[execute chunk 1]  ──► ci-validator  ──► [execute chunk 2] ──► ...
+```
+
+---
+
+## File Locations
+
+| Artifact | Path |
+|----------|------|
+| Agent definitions | `.claude/agents/<name>.md` |
+| Agent persistent memory | `.claude/agent-memory/<name>/` |
+| Skill definitions | `.claude/skills/<name>/SKILL.md` |
+| Project conventions for Claude | `.claude/CLAUDE.md` |
+| React best practices reference | `.claude/react-best-practices.md` |
