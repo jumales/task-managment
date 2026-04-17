@@ -75,10 +75,10 @@ class MdcTaskDecoratorTest {
     @Test
     void shouldClearMdcOnAsyncThreadAfterTaskCompletes() throws InterruptedException {
         MDC.put("requestId", "req-to-clear");
-        AtomicReference<String> capturedInsideTask   = new AtomicReference<>();
-        AtomicReference<String> capturedAfterTask    = new AtomicReference<>();
-        CountDownLatch taskDone    = new CountDownLatch(1);
-        CountDownLatch secondDone  = new CountDownLatch(1);
+        AtomicReference<String> capturedInsideTask = new AtomicReference<>();
+        AtomicReference<String> capturedAfterTask  = new AtomicReference<>();
+        CountDownLatch taskDone   = new CountDownLatch(1);
+        CountDownLatch secondDone = new CountDownLatch(1);
 
         executor.execute(() -> {
             capturedInsideTask.set(MDC.get("requestId"));
@@ -87,7 +87,11 @@ class MdcTaskDecoratorTest {
 
         assertThat(taskDone.await(5, TimeUnit.SECONDS)).isTrue();
 
-        // A subsequent task on the same thread must not inherit the previous task's MDC.
+        // Clear MDC on the calling thread before submitting the second task.
+        // The decorator snapshots caller MDC at submission time — if caller still has MDC set,
+        // the second task would correctly inherit it. We want to verify the async thread's MDC
+        // was cleared by the finally block, not that new tasks spawn with empty context.
+        MDC.clear();
         executor.execute(() -> {
             capturedAfterTask.set(MDC.get("requestId"));
             secondDone.countDown();
