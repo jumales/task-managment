@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/audit_db
+    username: audit_svc
+    password: audit_svc_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000 # 20 s — balanced: fail fast vs allow queued requests to drain
+
+  flyway:
+
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: audit-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      max-poll-records: 200  # consumer pulls up to 200 records per poll; default 500 can overwhelm slow consumers
+      properties:
+        spring.json.trusted.packages: "com.demo.common.event"
+        spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)
+    com.demo.audit.consumer: DEBUG    # important: app-level event consumption
+    org.springframework.kafka.listener: INFO   # DLT routing and retry attempts

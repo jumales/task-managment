@@ -1,0 +1,33 @@
+spring:
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 5s
+    socket-timeout: 10s
+
+  kafka:
+    consumer:
+      group-id: search-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      searchTaskService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      searchUserService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+
+logging:
+  level:
+    org.springframework.data.elasticsearch: DEBUG
+    com.demo.search.consumer: DEBUG   # important: app-level event consumption
+    org.springframework.kafka.listener: INFO   # DLT routing and retry attempts

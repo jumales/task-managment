@@ -1,0 +1,55 @@
+# Shared configuration applied to ALL microservices.
+# Properties here are merged with each service's own {service-name}.yml.
+# Service-specific files win over this file on conflicts.
+
+eureka:
+  instance:
+    instance-id: ${spring.application.name}:${random.value}
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/,http://localhost:8762/eureka/}
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/demo}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 2000   # 2 s — fail fast on connection refused
+        read-timeout: 5000      # 5 s — prevent thread starvation on slow responses
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info,loggers
+  endpoint:
+    health:
+      show-details: never
+  tracing:
+    sampling:
+      probability: 1.0  # 100% in dev; reduce to 0.05-0.1 in prod
+
+logging:
+  level:
+    com.demo.common.web: DEBUG        # controller param tracing + MDC filter
+    org.apache.kafka: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
+    org.springframework.kafka: WARN
+    org.hibernate: WARN

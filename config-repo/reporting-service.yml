@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/reporting_db
+    username: reporting_svc
+    password: reporting_svc_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  kafka:
+    consumer:
+      group-id: reporting-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+websocket:
+  security:
+    path-matcher: /ws/**
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4173}
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG            # SQL statements (replaces show-sql: true)
+    com.demo.reporting.consumer: DEBUG  # important: app-level event consumption
+    org.springframework.kafka.listener: INFO   # DLT routing and retry attempts

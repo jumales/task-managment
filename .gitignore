@@ -9,6 +9,7 @@
 /search-service/target/
 /notification-service/target/
 /reporting-service/target/
+/config-server/target/
 .claude/settings.local.json
 .claude/agent-memory/
 

@@ -137,7 +137,7 @@ pkill -f "web-client.*vite" 2>/dev/null || true
 pkill -f "web-client.*node" 2>/dev/null || true
 
 # Free known service ports: eureka (primary + HA peer), gateway, microservices, web-client
-for port in 8761 8762 8080 8081 8082 8083 8084 8085 8086 3000; do
+for port in 8761 8762 8080 8081 8082 8083 8084 8085 8086 8888 3000; do
   pids=$(lsof -ti:"$port" 2>/dev/null) || true
   if [[ -n "$pids" ]]; then
     log "Freeing port $port (pids: $pids)"
@@ -154,7 +154,7 @@ log "All stopped. Starting fresh ..."
 
 # ── Step 1: Docker infrastructure ────────────────────────────────────────────
 
-INFRA_SERVICES="postgres kafka keycloak minio minio-init redis mailhog prometheus grafana"
+INFRA_SERVICES="config-server postgres kafka keycloak minio minio-init redis mailhog prometheus grafana"
 if [[ "$SKIP_ELK" == false ]]; then
   INFRA_SERVICES="$INFRA_SERVICES elasticsearch logstash kibana"
   log "Starting Docker infrastructure (including ELK) ..."
@@ -210,13 +210,14 @@ if [[ "$DOCKER_ONLY" == true ]]; then
   ┌───────────────────────────────────────────┐
   │  Docker infrastructure is running         │
   │                                           │
-  │  Keycloak    http://localhost:8180        │
-  │  Kibana      http://localhost:5601        │
-  │  MinIO       http://localhost:9001        │
-  │  Redis       localhost:6379              │
-  │  MailHog     http://localhost:8025        │
-  │  Prometheus  http://localhost:9090        │
-  │  Grafana     http://localhost:3001        │
+  │  Config Server  http://localhost:8888     │
+  │  Keycloak       http://localhost:8180     │
+  │  Kibana         http://localhost:5601     │
+  │  MinIO          http://localhost:9001     │
+  │  Redis          localhost:6379           │
+  │  MailHog        http://localhost:8025     │
+  │  Prometheus     http://localhost:9090     │
+  │  Grafana        http://localhost:3001     │
   └───────────────────────────────────────────┘
 
   Start services:  ./scripts/start-dev.sh
@@ -225,6 +226,9 @@ if [[ "$DOCKER_ONLY" == true ]]; then
 BANNER
   exit 0
 fi
+
+# Config Server — must be healthy before any service fetches its config
+wait_for_http "Config Server" "http://localhost:8888/actuator/health" 60
 
 # ── Step 3: Eureka Server (service registry — must start first) ───────────────
 # Single-node mode (default for local dev). For HA testing, start a second node:

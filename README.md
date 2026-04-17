@@ -45,6 +45,7 @@ A microservices-based task management platform built to explore modern Java back
 
 | Service | Port | Responsibility |
 |---|---|---|
+| `config-server` | 8888 | Centralized configuration server (Spring Cloud Config, native backend) |
 | `api-gateway` | 8080 | Entry point, routing, auth, rate limiting |
 | `eureka-server` | 8761 | Service registry (HA: peer1 + peer2) |
 | `user-service` | 8081 | User management, Keycloak integration |
