@@ -2,12 +2,14 @@ package com.demo.common.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.UUID;
 
 @Getter
 @AllArgsConstructor
+@NoArgsConstructor
 public class TaskResponse {
     private UUID id;
     /** Auto-generated code combining the project prefix and a sequential number (e.g. "TASK_1"). */

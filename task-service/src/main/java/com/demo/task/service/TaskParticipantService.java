@@ -6,11 +6,14 @@ import com.demo.common.dto.UserDto;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.common.exception.BusinessLogicException;
 import com.demo.common.exception.ResourceNotFoundException;
-import com.demo.task.client.UserClient;
 import com.demo.task.client.UserClientHelper;
+import com.demo.task.config.CacheConfig;
 import com.demo.task.model.TaskParticipant;
 import com.demo.task.outbox.OutboxWriter;
 import com.demo.task.repository.TaskParticipantRepository;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,25 +33,27 @@ import java.util.stream.Collectors;
 public class TaskParticipantService {
 
     private final TaskParticipantRepository repository;
-    private final UserClient userClient;
     private final UserClientHelper userClientHelper;
     private final OutboxWriter outboxWriter;
+    private final CacheManager cacheManager;
 
     public TaskParticipantService(TaskParticipantRepository repository,
-                                  UserClient userClient,
                                   UserClientHelper userClientHelper,
-                                  OutboxWriter outboxWriter) {
+                                  OutboxWriter outboxWriter,
+                                  CacheManager cacheManager) {
         this.repository = repository;
-        this.userClient = userClient;
         this.userClientHelper = userClientHelper;
         this.outboxWriter = outboxWriter;
+        this.cacheManager = cacheManager;
     }
 
     /**
      * Adds the user as a WATCHER on the task and returns the created participant response.
      * If the user already has any active participant entry on the task, the existing entry is returned instead.
+     * Evicts the task response cache since participants are part of the cached TaskResponse.
      */
     @Transactional
+    @CacheEvict(value = CacheConfig.TASKS, key = "#taskId")
     public TaskParticipantResponse watch(UUID taskId, UUID userId) {
         if (!repository.existsByTaskIdAndUserId(taskId, userId)) {
             repository.save(TaskParticipant.builder()
@@ -59,7 +64,7 @@ public class TaskParticipantService {
                     .build());
             outboxWriter.write(TaskChangedEvent.participantAdded(taskId, userId));
         }
-        UserDto user = userClient.getUserById(userId);
+        UserDto user = userClientHelper.fetchUser(userId);
         return repository.findByTaskId(taskId).stream()
                 .filter(p -> p.getUserId().equals(userId))
                 .findFirst()
@@ -71,8 +76,10 @@ public class TaskParticipantService {
      * Adds the authenticated user as a CONTRIBUTOR on the task and returns the participant entry.
      * If the user already has any active participant entry (any role), the existing entry is returned.
      * Called explicitly by the frontend after the user comments, uploads an attachment, or logs booked work.
+     * Evicts the task response cache since participants are part of the cached TaskResponse.
      */
     @Transactional
+    @CacheEvict(value = CacheConfig.TASKS, key = "#taskId")
     public TaskParticipantResponse join(UUID taskId, UUID userId) {
         if (!repository.existsByTaskIdAndUserId(taskId, userId)) {
             repository.save(TaskParticipant.builder()
@@ -83,7 +90,7 @@ public class TaskParticipantService {
                     .build());
             outboxWriter.write(TaskChangedEvent.participantAdded(taskId, userId));
         }
-        UserDto user = userClient.getUserById(userId);
+        UserDto user = userClientHelper.fetchUser(userId);
         return repository.findByTaskId(taskId).stream()
                 .filter(p -> p.getUserId().equals(userId))
                 .findFirst()
@@ -94,6 +101,7 @@ public class TaskParticipantService {
     /**
      * Removes a participant entry. Only WATCHER entries may be removed, and only by the
      * participant themselves. All other roles are managed automatically.
+     * Evicts the task response cache using the participant's taskId resolved before deletion.
      */
     @Transactional
     public void remove(UUID participantId, UUID requestingUserId) {
@@ -106,7 +114,14 @@ public class TaskParticipantService {
             throw new BusinessLogicException("You can only remove your own WATCHER entry");
         }
         repository.deleteById(participantId);
+        evictTaskCache(participant.getTaskId());
         outboxWriter.write(TaskChangedEvent.participantRemoved(participant.getTaskId(), participant.getUserId()));
+    }
+
+    /** Evicts the cached TaskResponse for a task by ID. Used when @CacheEvict cannot be applied declaratively. */
+    private void evictTaskCache(UUID taskId) {
+        Cache taskCache = cacheManager.getCache(CacheConfig.TASKS);
+        if (taskCache != null) taskCache.evict(taskId);
     }
 
     /** Returns all participants for a task, enriched with user details. */
@@ -166,16 +181,15 @@ public class TaskParticipantService {
                 .build());
     }
 
-    /** Enriches a list of participants with user names and emails from user-service. */
+    /**
+     * Enriches participants with user details using the per-user Redis cache.
+     * Each {@link UserClientHelper#fetchUser} call is individually cached, so repeated lookups
+     * for the same user IDs (common when few users share many tasks) are served from Redis.
+     */
     private List<TaskParticipantResponse> enrich(List<TaskParticipant> participants) {
         if (participants.isEmpty()) return List.of();
-        Set<UUID> userIds = participants.stream().map(TaskParticipant::getUserId).collect(Collectors.toSet());
-        Map<UUID, UserDto> usersById = userClientHelper.fetchUsers(userIds);
         return participants.stream()
-                .map(p -> {
-                    UserDto u = usersById.get(p.getUserId());
-                    return toResponse(p, u);
-                })
+                .map(p -> toResponse(p, userClientHelper.fetchUser(p.getUserId())))
                 .toList();
     }
 
