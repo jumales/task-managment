@@ -16,5 +16,14 @@ public final class KafkaTopics {
     /** Topic for user lifecycle events (created, updated, deleted). Consumed by search-service. */
     public static final String USER_EVENTS = "user-events";
 
+    /** Dead-letter topic for unprocessable task-changed events (after all retries exhausted). */
+    public static final String TASK_CHANGED_DLT = TASK_CHANGED + ".DLT";
+
+    /** Dead-letter topic for unprocessable task-events events. */
+    public static final String TASK_EVENTS_DLT = TASK_EVENTS + ".DLT";
+
+    /** Dead-letter topic for unprocessable user-events events. */
+    public static final String USER_EVENTS_DLT = USER_EVENTS + ".DLT";
+
     private KafkaTopics() {}
 }

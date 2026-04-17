@@ -5,11 +5,11 @@ import com.demo.common.event.TaskEvent;
 import com.demo.reporting.model.ReportTask;
 import com.demo.reporting.repository.ReportTaskRepository;
 import com.demo.reporting.service.ReportPushService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -18,6 +18,7 @@ import java.time.Instant;
  * Consumes task lifecycle events from the {@code task-events} topic and maintains the
  * reporting read-model ({@link ReportTask}). Uses the same JSON-over-String pattern as
  * search-service so the listener is decoupled from any spring-kafka default-type config.
+ * Exceptions propagate to {@code DefaultErrorHandler} for bounded retry and DLT forwarding.
  * After each successful write the assigned user is notified via WebSocket push.
  */
 @Component
@@ -37,21 +38,19 @@ public class TaskEventProjectionConsumer {
         this.pushService = pushService;
     }
 
-    /** Upserts / soft-deletes a {@link ReportTask} row based on the incoming event type. */
+    /**
+     * Upserts / soft-deletes a {@link ReportTask} row based on the incoming event type.
+     *
+     * @throws JsonProcessingException if the message cannot be deserialized — propagates to DLT immediately
+     */
     @KafkaListener(topics = KafkaTopics.TASK_EVENTS, groupId = "reporting-group", concurrency = "3")
-    public void consume(String message, Acknowledgment ack) {
-        try {
-            TaskEvent event = objectMapper.readValue(message, TaskEvent.class);
-            log.debug("Received TaskEvent: task={} type={}", event.getTaskId(), event.getEventType());
+    public void consume(String message) throws JsonProcessingException {
+        TaskEvent event = objectMapper.readValue(message, TaskEvent.class);
+        log.debug("Received TaskEvent: task={} type={}", event.getTaskId(), event.getEventType());
 
-            switch (event.getEventType()) {
-                case CREATED, UPDATED -> upsert(event);
-                case DELETED -> softDelete(event);
-            }
-            ack.acknowledge(); // commit offset only after successful DB write
-        } catch (Exception e) {
-            log.error("Failed to process task event: {}", e.getMessage(), e);
-            // Do not acknowledge — offset not committed, message will be retried
+        switch (event.getEventType()) {
+            case CREATED, UPDATED -> upsert(event);
+            case DELETED          -> softDelete(event);
         }
     }
 

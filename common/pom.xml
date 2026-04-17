@@ -71,5 +71,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Spring Kafka — needed by KafkaDlqConfig (shared DLQ error handler).
+             Optional so non-Kafka services (file-service, etc.) do not pull in the dependency. -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
