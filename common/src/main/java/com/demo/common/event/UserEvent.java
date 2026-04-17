@@ -29,6 +29,9 @@ public class UserEvent {
     private String username;
     private boolean active;
 
+    /** Unique ID for this event; used by consumers for idempotent deduplication. */
+    private UUID eventId;
+
     /** Factory for a user-created event. */
     public static UserEvent created(UUID userId, String name, String email, String username, boolean active) {
         return full(UserEventType.CREATED, userId, name, email, username, active);
@@ -45,6 +48,7 @@ public class UserEvent {
         e.userId = userId;
         e.eventType = UserEventType.DELETED;
         e.timestamp = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -58,6 +62,7 @@ public class UserEvent {
         e.email = email;
         e.username = username;
         e.active = active;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 }

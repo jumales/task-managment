@@ -1,5 +1,6 @@
 package com.demo.audit;
 
+import com.demo.audit.dedup.ProcessedEventRepository;
 import com.demo.audit.model.StatusAuditRecord;
 import com.demo.audit.model.BookedWorkAuditRecord;
 import com.demo.audit.model.CommentAuditRecord;
@@ -68,6 +69,9 @@ class AuditConsumerIT {
     @Autowired
     PhaseAuditRepository phaseAuditRepository;
 
+    @Autowired
+    ProcessedEventRepository processedEventRepository;
+
     @BeforeEach
     void setUp() {
         auditRepository.deleteAll();
@@ -75,6 +79,7 @@ class AuditConsumerIT {
         phaseAuditRepository.deleteAll();
         plannedWorkAuditRepository.deleteAll();
         bookedWorkAuditRepository.deleteAll();
+        processedEventRepository.deleteAll();
     }
 
     // ── Status events ─────────────────────────────────────────────
@@ -343,6 +348,24 @@ class AuditConsumerIT {
             assertThat(records.get(0).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_CREATED);
             assertThat(records.get(1).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_UPDATED);
             assertThat(records.get(2).getChangeType()).isEqualTo(TaskChangeType.BOOKED_WORK_DELETED);
+        });
+    }
+
+    // ── Idempotency ───────────────────────────────────────────────
+
+    @Test
+    void duplicateEvent_persistsOnlyOneAuditRecord() {
+        UUID taskId = UUID.randomUUID();
+        // Same object = same eventId → second delivery must be discarded
+        TaskChangedEvent event = TaskChangedEvent.statusChanged(taskId, UUID.randomUUID(), null, null,
+                TaskStatus.TODO, TaskStatus.IN_PROGRESS);
+
+        kafkaTemplate.send("task-changed", taskId.toString(), event);
+        kafkaTemplate.send("task-changed", taskId.toString(), event);
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            assertThat(auditRepository.findByTaskIdOrderByChangedAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
+            assertThat(processedEventRepository.count()).isEqualTo(1);
         });
     }
 }

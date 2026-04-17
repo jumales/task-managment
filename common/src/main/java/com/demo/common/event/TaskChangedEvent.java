@@ -70,6 +70,9 @@ public class TaskChangedEvent {
     private UUID attachmentId;
     private String fileName;
 
+    /** Unique ID for this event; used by consumers for idempotent deduplication. */
+    private UUID eventId;
+
     /** Factory for task updated events (title, description, assignee, progress, type, status). */
     public static TaskChangedEvent taskUpdated(UUID taskId, UUID assignedUserId,
                                                UUID projectId, String taskTitle) {
@@ -80,6 +83,7 @@ public class TaskChangedEvent {
         e.taskTitle = taskTitle;
         e.changeType = TaskChangeType.TASK_UPDATED;
         e.changedAt = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -90,6 +94,7 @@ public class TaskChangedEvent {
         e.assignedUserId = userId;
         e.changeType = TaskChangeType.PARTICIPANT_ADDED;
         e.changedAt = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -100,6 +105,7 @@ public class TaskChangedEvent {
         e.assignedUserId = userId;
         e.changeType = TaskChangeType.PARTICIPANT_REMOVED;
         e.changedAt = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -109,6 +115,7 @@ public class TaskChangedEvent {
         e.taskId = taskId;
         e.changeType = TaskChangeType.TIMELINE_CHANGED;
         e.changedAt = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -122,6 +129,7 @@ public class TaskChangedEvent {
         e.taskTitle = taskTitle;
         e.changeType = TaskChangeType.TASK_CREATED;
         e.changedAt = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -138,6 +146,7 @@ public class TaskChangedEvent {
         e.changedAt = Instant.now();
         e.fromStatus = from;
         e.toStatus = to;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -154,6 +163,7 @@ public class TaskChangedEvent {
         e.changedAt = Instant.now();
         e.commentId = commentId;
         e.commentContent = content;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -173,6 +183,7 @@ public class TaskChangedEvent {
         e.fromPhaseName = fromPhaseName;
         e.toPhaseId = toPhaseId;
         e.toPhaseName = toPhaseName;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -190,6 +201,7 @@ public class TaskChangedEvent {
         e.workLogUserId = userId;
         e.workType = workType;
         e.plannedHours = plannedHours;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -219,6 +231,7 @@ public class TaskChangedEvent {
         e.changeType = TaskChangeType.BOOKED_WORK_DELETED;
         e.changedAt = Instant.now();
         e.workLogId = bookedWorkId;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -236,6 +249,7 @@ public class TaskChangedEvent {
         e.workLogUserId = userId;
         e.workType = workType;
         e.bookedHours = bookedHours;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -251,6 +265,7 @@ public class TaskChangedEvent {
         e.attachmentId = attachmentId;
         e.fileName = fileName;
         e.assignedUserId = uploadedByUserId;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -267,6 +282,7 @@ public class TaskChangedEvent {
         e.taskTitle = taskTitle;
         e.changeType = TaskChangeType.TASK_CODE_ASSIGNED;
         e.changedAt = Instant.now();
+        e.eventId = UUID.randomUUID();
         return e;
     }
 
@@ -281,6 +297,7 @@ public class TaskChangedEvent {
         e.changedAt = Instant.now();
         e.attachmentId = attachmentId;
         e.fileName = fileName;
+        e.eventId = UUID.randomUUID();
         return e;
     }
 }

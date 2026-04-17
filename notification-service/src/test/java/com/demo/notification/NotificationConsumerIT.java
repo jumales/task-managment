@@ -7,6 +7,7 @@ import com.demo.common.event.TaskChangeType;
 import com.demo.common.event.TaskChangedEvent;
 import com.demo.notification.client.TaskServiceClient;
 import com.demo.notification.client.UserClient;
+import com.demo.notification.dedup.ProcessedEventRepository;
 import com.demo.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -123,6 +124,9 @@ class NotificationConsumerIT {
     NotificationRepository notificationRepository;
 
     @Autowired
+    ProcessedEventRepository processedEventRepository;
+
+    @Autowired
     TestRestTemplate restTemplate;
 
     @MockBean
@@ -137,6 +141,7 @@ class NotificationConsumerIT {
     @BeforeEach
     void setUp() {
         notificationRepository.deleteAll();
+        processedEventRepository.deleteAll();
         // Reset MailHog inbox before each test
         mailhogClient().delete(mailhogApiUrl() + "/api/v1/messages");
         // Default mock: return a user with a valid email
@@ -302,6 +307,26 @@ class NotificationConsumerIT {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat((List<?>) response.getBody().get("content")).hasSize(2);
+    }
+
+    // ── Idempotency ───────────────────────────────────────────────────────────
+
+    @Test
+    void duplicateEvent_sendsOnlyOneEmailAndPersistsOneRecord() {
+        UUID taskId   = UUID.randomUUID();
+        UUID assignee = UUID.randomUUID();
+        // Same object = same eventId → second delivery must be discarded
+        TaskChangedEvent event = TaskChangedEvent.statusChanged(taskId, assignee, null, "Test Task",
+                TaskStatus.TODO, TaskStatus.IN_PROGRESS);
+
+        kafkaTemplate.send("task-changed", taskId.toString(), event);
+        kafkaTemplate.send("task-changed", taskId.toString(), event);
+
+        await().atMost(15, SECONDS).untilAsserted(() -> {
+            assertThat(notificationRepository.findByTaskIdOrderBySentAtAsc(taskId, Pageable.unpaged()).getContent()).hasSize(1);
+            assertThat(processedEventRepository.count()).isEqualTo(1);
+            assertThat(getMailhogMessages()).hasSize(1);
+        });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
