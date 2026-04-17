@@ -7,8 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -61,17 +63,34 @@ public class UserClientHelper {
      * Returns the display name of a single user, or {@code null} if the user is not found
      * or user-service is unavailable. Result is cached to avoid repeated remote calls.
      * Falls back to email, then username, if the user has no display name set.
+     *
+     * <p>Returns {@code null} silently when called from a thread with no auth context
+     * (e.g. scheduler threads) to avoid unauthenticated requests to user-service.
+     * The cache will be populated on the first authenticated request for the same user.
      */
     @Cacheable(value = CacheConfig.USER_NAMES, key = "#userId", unless = "#result == null")
     @CircuitBreaker(name = "userService", fallbackMethod = "resolveUserNameFallback")
     public String resolveUserName(UUID userId) {
         if (userId == null) return null;
+        // Skip HTTP call when no auth token is available — caller handles null gracefully
+        if (!hasAuthContext()) return null;
         return displayName(userClient.getUserById(userId));
     }
 
     private String resolveUserNameFallback(UUID userId, Throwable t) {
         log.warn("user-service circuit open — cannot resolve name for user {}: {}", userId, t.getMessage());
         return null;
+    }
+
+    /**
+     * Returns true when the current thread carries an auth token that FeignAuthInterceptor
+     * can forward — either a live HTTP request or a propagated SecurityContext.
+     * Scheduler and startup threads return false, suppressing unauthenticated Feign calls.
+     */
+    private boolean hasAuthContext() {
+        if (RequestContextHolder.getRequestAttributes() != null) return true;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth instanceof JwtAuthenticationToken;
     }
 
     /**
@@ -106,21 +125,6 @@ public class UserClientHelper {
     private UserDto fetchUserFallback(UUID userId, Throwable t) {
         log.warn("user-service circuit open — cannot fetch user {}: {}", userId, t.getMessage());
         return null;
-    }
-
-    /**
-     * Batch-fetches full {@link UserDto} objects keyed by UUID.
-     * Returns an empty map if user-service is unavailable.
-     */
-    @CircuitBreaker(name = "userService", fallbackMethod = "fetchUsersFallback")
-    public Map<UUID, UserDto> fetchUsers(Set<UUID> userIds) {
-        return userClient.getUsersByIds(new ArrayList<>(userIds)).stream()
-                .collect(Collectors.toMap(UserDto::getId, u -> u));
-    }
-
-    private Map<UUID, UserDto> fetchUsersFallback(Set<UUID> userIds, Throwable t) {
-        log.warn("user-service circuit open — cannot fetch users for {} ids: {}", userIds.size(), t.getMessage());
-        return Map.of();
     }
 
     /**

@@ -34,6 +34,9 @@ public class CacheConfig {
     /** Cache name for full UserDto objects fetched from user-service, keyed by user UUID. */
     public static final String USER_DTOS  = "userDtos";
 
+    /** Cache name for assembled TaskResponse objects, keyed by task UUID. Evicted on any task mutation. */
+    public static final String TASKS = "tasks";
+
     /** Creates a Redis-backed cache manager with JSON serialization and a 10-minute TTL. */
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
@@ -48,6 +51,7 @@ public class CacheConfig {
                 .cacheDefaults(config)
                 .withCacheConfiguration(USER_NAMES, config)
                 .withCacheConfiguration(USER_DTOS, config)
+                .withCacheConfiguration(TASKS, config)
                 .build();
     }
 }
