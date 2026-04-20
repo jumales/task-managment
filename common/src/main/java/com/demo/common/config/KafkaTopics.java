@@ -25,5 +25,14 @@ public final class KafkaTopics {
     /** Dead-letter topic for unprocessable user-events events. */
     public static final String USER_EVENTS_DLT = USER_EVENTS + ".DLT";
 
+    /**
+     * Consumer group IDs for DLT topics. Used by DLQ monitoring (consumer lag = end_offset - committed_offset)
+     * and by any DLT replay consumer. Until a DLT consumer commits offsets, lag equals the end offset —
+     * every dead-lettered message is treated as unprocessed.
+     */
+    public static final String TASK_CHANGED_DLT_GROUP = "dlt-task-changed-group";
+    public static final String TASK_EVENTS_DLT_GROUP  = "dlt-task-events-group";
+    public static final String USER_EVENTS_DLT_GROUP  = "dlt-user-events-group";
+
     private KafkaTopics() {}
 }

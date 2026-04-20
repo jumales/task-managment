@@ -26,6 +26,13 @@ spring:
         spring.json.trusted.packages: "com.demo.common.event"
         spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
 
+# Override global actuator defaults so DLT health details are visible to ops.
+# Gateway / K8s readiness probes can drill into /actuator/health/dlt when the composite is DOWN.
+management:
+  endpoint:
+    health:
+      show-details: always
+
 logging:
   level:
     org.hibernate.SQL: DEBUG          # SQL statements (replaces show-sql: true)

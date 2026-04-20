@@ -96,7 +96,7 @@
       "name": "DLQ",
       "item": [
         {
-          "name": "Get DLT message counts",
+          "name": "Get DLT consumer lag",
           "request": {
             "method": "GET",
             "header": [],
@@ -112,7 +112,7 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Has dltMessageCounts', () => pm.expect(pm.response.json()).to.have.property('dltMessageCounts'));"
+                  "pm.test('Has dltConsumerLag', () => pm.expect(pm.response.json()).to.have.property('dltConsumerLag'));"
                 ],
                 "type": "text/javascript"
               }
