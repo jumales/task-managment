@@ -49,7 +49,17 @@ import static org.awaitility.Awaitility.await;
 @Testcontainers
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "eureka.client.enabled=false"
+        properties = {
+                "eureka.client.enabled=false",
+                // Producer: use JSON so tests can send TaskChangedEvent directly via KafkaTemplate.
+                "spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer",
+                // Consumer: mirror prod config from config-repo/audit-service.yml — required because
+                // tests cannot reach the Spring Cloud Config server.
+                "spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer",
+                "spring.kafka.consumer.properties.spring.json.trusted.packages=com.demo.common.event",
+                "spring.kafka.consumer.properties.spring.json.value.default.type=com.demo.common.event.TaskChangedEvent",
+                "spring.kafka.consumer.auto-offset-reset=earliest"
+        }
 )
 @Import(TestSecurityConfig.class)
 class AuditConsumerIT {

@@ -7,3 +7,9 @@ spring:
     config:
       # Disable config server client in tests — no CONFIG_SERVER_URL is available.
       enabled: false
+
+# Enable DEBUG on com.demo so MdcFilterIT / ControllerLoggingAspectIT log lines
+# reach the root ListAppender (root defaults to INFO which would drop DEBUG events).
+logging:
+  level:
+    com.demo: DEBUG

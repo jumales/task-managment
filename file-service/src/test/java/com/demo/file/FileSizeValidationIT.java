@@ -16,10 +16,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
+import org.mockito.Mockito;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -55,6 +57,12 @@ class FileSizeValidationIT {
 
     @TestConfiguration
     static class TestSecurityConfig {
+        /** Mock bean — common SecurityConfig oauth2ResourceServer.jwt() requires it. */
+        @Bean
+        public JwtDecoder jwtDecoder() {
+            return Mockito.mock(JwtDecoder.class);
+        }
+
         @Bean
         @Order(1)
         public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
