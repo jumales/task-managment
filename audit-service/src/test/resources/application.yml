@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.demo.common.event"
+        spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

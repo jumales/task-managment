@@ -43,7 +43,7 @@ public class NotificationService {
                                 UserClientHelper userClientHelper,
                                 EmailService emailService,
                                 TaskServiceClient taskServiceClient,
-                                @Value("${app.frontend-url}") String frontendUrl) {
+                                @Value("${app.frontend-url:http://localhost:3000}") String frontendUrl) {
         this.repository = repository;
         this.userClientHelper = userClientHelper;
         this.emailService = emailService;

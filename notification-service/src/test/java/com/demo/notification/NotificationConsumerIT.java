@@ -23,10 +23,12 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.mockito.Mockito;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.test.annotation.DirtiesContext;
@@ -73,6 +75,12 @@ class NotificationConsumerIT {
      */
     @TestConfiguration
     static class TestSecurityConfig {
+        /** Mock bean — common SecurityConfig oauth2ResourceServer.jwt() requires it. */
+        @Bean
+        public JwtDecoder jwtDecoder() {
+            return Mockito.mock(JwtDecoder.class);
+        }
+
         @Bean
         @Order(1)
         public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {

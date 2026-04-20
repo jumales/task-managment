@@ -9,6 +9,7 @@ import com.demo.search.service.TaskIndexService;
 import com.demo.search.service.UserIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -23,6 +24,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -67,6 +69,15 @@ class SearchControllerIT {
      */
     @TestConfiguration
     static class TestSecurityConfig {
+        /**
+         * Satisfies the JwtDecoder dependency required by common SecurityConfig's
+         * oauth2ResourceServer. No issuer-uri is configured in tests, so we mock.
+         */
+        @Bean
+        public JwtDecoder jwtDecoder() {
+            return Mockito.mock(JwtDecoder.class);
+        }
+
         @Bean
         @Order(1)
         public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {

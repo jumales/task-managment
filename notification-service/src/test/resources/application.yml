@@ -1,0 +1,26 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.demo.common.event"
+        spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+
+  # Stub OAuth2 client registration so FeignClientConfig can wire an AuthorizedClientManager
+  # in tests (real Keycloak is unreachable). Tests never actually call the external clients.
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: notification-service
+            client-secret: test-secret
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            token-uri: http://localhost:0/realms/test/protocol/openid-connect/token

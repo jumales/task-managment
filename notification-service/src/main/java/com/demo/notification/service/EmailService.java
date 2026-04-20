@@ -20,7 +20,7 @@ public class EmailService {
     private final String from;
 
     public EmailService(JavaMailSender mailSender,
-                        @Value("${notification.mail.from}") String from) {
+                        @Value("${notification.mail.from:noreply@demo.local}") String from) {
         this.mailSender = mailSender;
         this.from = from;
     }

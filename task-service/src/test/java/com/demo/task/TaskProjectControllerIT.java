@@ -39,7 +39,9 @@ import org.springframework.context.annotation.Import;
 import java.util.List;
 import java.util.UUID;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.when;
 
 @Import(TestSecurityConfig.class)
@@ -198,6 +200,11 @@ class TaskProjectControllerIT {
     @Test
     void createProject_autoCreatesOnePhaseForEveryPhaseName() {
         TaskProjectResponse project = createProject("Auto Phase Project", null);
+
+        // Default phase creation is @Async — wait for the executor to complete.
+        await().atMost(5, SECONDS)
+                .until(() -> phaseRepository.findByProjectId(project.getId()).size()
+                        == TaskPhaseName.values().length);
 
         ResponseEntity<TaskPhaseResponse[]> response =
                 restTemplate.getForEntity("/api/v1/phases?projectId=" + project.getId(), TaskPhaseResponse[].class);

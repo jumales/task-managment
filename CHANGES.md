@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased] — Fix IT test suite across all services
+
+### Fixed
+- **`AuditConsumerIT`** — added `spring.kafka.producer.value-serializer=JsonSerializer` and matching consumer deserializer/trusted-packages/default-type properties inline; moved Kafka config to `audit-service/src/test/resources/application.yml` so the test can round-trip `TaskChangedEvent` without a config server.
+- **`FileControllerIT` / `FileSizeValidationIT`** — added a `JwtDecoder` mock bean to `TestSecurityConfig` so `common` `SecurityConfig`'s `oauth2ResourceServer.jwt()` wires correctly in tests; added `file-service/src/test/resources/application.yml` with MinIO bucket config and multipart limits.
+- **`NotificationConsumerIT`** — added `JwtDecoder` mock bean; added `notification-service/src/test/resources/application.yml` with Kafka deserializer config and a stub OAuth2 client registration so `FeignClientConfig` can wire an `AuthorizedClientManager` without a live Keycloak.
+- **`SearchControllerIT`** — added `JwtDecoder` mock bean; added `search-service/src/test/resources/application.yml` disabling config server and setting `auto-offset-reset: earliest`.
+- **`TaskProjectControllerIT`** — added Awaitility wait for async default-phase creation before asserting phase count, fixing a race condition where the `@Async` executor had not yet committed the phases.
+- **`task-service` test `application.yml`** — enabled `com.demo: DEBUG` so `MdcFilterIT` and `ControllerLoggingAspectIT` receive their expected log events.
+- **`notification-service` / `reporting-service` `WebSocketConfig`** — changed `@Value("${cors.allowed-origins}")` to `@Value("${cors.allowed-origins:*}")` so the service starts without a config server in tests.
+- **`EmailService`** — `@Value("${notification.mail.from:noreply@demo.local}")` default prevents startup failure when config server is unavailable.
+- **`NotificationService`** — `@Value("${app.frontend-url:http://localhost:3000}")` default prevents startup failure when config server is unavailable.
+- Added `reporting-service/src/test/resources/application.yml` disabling config server and setting Kafka `auto-offset-reset: earliest`.
+
+---
+
 ## [Unreleased] — Local CI via act (self-hosted)
 
 ### Added
