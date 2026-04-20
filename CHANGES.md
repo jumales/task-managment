@@ -1,6 +1,65 @@
 # Changelog
 
-## [Unreleased] — TTL & Archiving System
+## [PR #176] — DLQ Monitoring: Consumer Lag, Health, Prometheus Gauge
+
+### Added
+- **`DltLagService`** — shared AdminClient computation of `end_offset − committed_offset` per DLT, so the signal drops to 0 once dead-lettered messages are processed or replayed.
+- **`DltHealthIndicator`** — `/actuator/health/dlt` reports `DOWN` whenever any DLT has consumer lag > 0. Suitable as a Kubernetes readiness probe gate.
+- **`DltMetricsPublisher`** — Micrometer gauge `kafka.dlt.consumer.lag` tagged by topic, refreshed every 30 s; scraped by Prometheus.
+- **DLT consumer group constants in `KafkaTopics`** — `TASK_CHANGED_DLT_GROUP`, `TASK_EVENTS_DLT_GROUP`, `USER_EVENTS_DLT_GROUP`.
+
+### Changed
+- `DlqController` response field renamed `dltMessageCounts` → `dltConsumerLag` (end offset → lag semantics).
+- `config-repo/audit-service.yml` — overrides `management.endpoint.health.show-details: always` so DLT lag values are visible on the health endpoint.
+
+### Docs
+- `docs/services/audit-service.mdx` — DLQ monitoring section (endpoint, health indicator, gauge, alert rule).
+- `docs/operations/monitoring.mdx` — `/actuator/health/dlt` actuator row and cross-link.
+- `postman/audit-service.postman_collection.json` — DLQ status test asserts new `dltConsumerLag` field.
+
+---
+
+## [PR #175] — MDC Async / Kafka Listener Propagation
+
+### Added
+- **`MdcTaskDecorator`** — propagates MDC context (including `requestId`, `userId`, `traceId`) into `@Async` threads via the shared `ThreadPoolTaskExecutor` in `common`.
+- **Kafka listener `mdcRecordInterceptor`** — extracts `correlationId` header from the Kafka record and seeds MDC on listener threads; clears after each record.
+- **`correlationId` Kafka header** — producers stamp the originating request's `requestId` on outbox-published records so the trace survives HTTP → Outbox → Kafka → Consumer.
+
+### Fixed
+- `MdcTaskDecoratorTest` isolates async-thread MDC cleanup from caller context (no cross-test leakage).
+
+---
+
+## [PR #174] — Production-Risk TODO Plans
+
+### Added
+- `plans/todo/fix_outbox_at_least_once.md` — consumer idempotency audit; explains why `SKIP LOCKED` alone is insufficient under crash/retry scenarios.
+- `plans/todo/fix_mdc_async_propagation.md` — plan later executed by PR #175.
+- `plans/todo/fix_dlq_monitoring.md` — plan later executed by PR #176.
+
+Documentation-only; no code changes.
+
+---
+
+## [PR #173] — Claude Automation Docs
+
+### Added
+- `docs/development/claude-automation.mdx` — catalogues the 11 agents and 14 skills used in this project, their responsibilities, and the chains between them (feature dev, load test, planning flows).
+- `docs.json` — registers the new page under the Development group.
+- `README.md` — Documentation section with Mintlify install/preview instructions, folder structure table, and page-addition guide.
+
+---
+
+## [PR #172] — Test Security: Mock `JwtDecoder` Bean
+
+### Fixed
+- Every `TestSecurityConfig` now provides a mocked `JwtDecoder` bean. Without it, `SecurityConfig.oauth2ResourceServer().jwt()` (in `common`) requires a real `issuer-uri` at context startup, which no test environment provides — all 183 ITs in `task-service` and `user-service` failed with `No qualifying bean of type JwtDecoder`.
+- Affected: `task-service`, `reporting-service`, `user-service/UserControllerIT` inner config.
+
+---
+
+## [PR #171] — TTL & Archiving System
 
 ### Added
 - **Task archiving** — closed tasks (RELEASED/REJECTED) are automatically archived to `archive.tasks_YYYYMM` PostgreSQL tables after a configurable TTL window (`ttl.task.archive-after-closed-days`, default 90 days). Related data (comments, participants, timelines, planned/booked work, attachments) is archived in the same batch transaction.
