@@ -37,8 +37,36 @@ Events are consumed with manual acknowledgement from `task-changed`. The service
 | `/api/v1/audit/tasks/{id}/comments` | `GET` | Paginated comment history |
 | `/api/v1/audit/tasks/{id}/planned-work` | `GET` | Planned work log history |
 | `/api/v1/audit/tasks/{id}/booked-work` | `GET` | Actual work log history |
+| `/api/v1/dlq/status` | `GET` | DLT consumer lag per dead-letter topic (admin only) |
 
 All endpoints return paginated results ordered chronologically (oldest first).
+
+## DLQ monitoring
+
+Failed Kafka messages are forwarded to `<topic>.DLT` after the bounded retry budget is exhausted
+(`KafkaDlqConfig`). Audit-service exposes three complementary monitoring surfaces for these topics:
+
+| Surface | Purpose |
+|---|---|
+| `GET /api/v1/dlq/status` | Returns `dltConsumerLag` — unconsumed messages per DLT. Drops to 0 once messages are processed or replayed. |
+| `/actuator/health/dlt` | Reports `DOWN` whenever any DLT has consumer lag &gt; 0. Suitable as a Kubernetes readiness probe gate. |
+| `kafka.dlt.consumer.lag` gauge | Micrometer gauge tagged by topic, scraped by Prometheus. Refreshed every 30 s. |
+
+Lag is computed as `end_offset − committed_offset` for the DLT's dedicated consumer group
+(constants in `KafkaTopics`). Unlike raw end offsets, this signal drops back to zero after
+drain or replay, so dashboards and alerts can rely on it.
+
+Recommended Prometheus alert rule:
+
+```yaml
+- alert: DltMessagesPending
+  expr: kafka_dlt_consumer_lag > 0
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Dead-letter topic {{ $labels.topic }} has {{ $value }} unprocessed messages"
+```
 
 ## Audit archiving
 

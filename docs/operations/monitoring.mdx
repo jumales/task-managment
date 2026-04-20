@@ -101,5 +101,12 @@ All services expose Spring Boot Actuator at `/actuator`. Key endpoints:
 | `/actuator/prometheus` | Prometheus metrics scrape endpoint |
 | `/actuator/info` | Application info (version, build) |
 | `/actuator/loggers` | Runtime log level adjustment |
+| `/actuator/health/dlt` (audit-service only) | Reports `DOWN` when any Kafka dead-letter topic has unconsumed messages |
 
 The gateway does **not** expose `/actuator` to external clients.
+
+## DLT monitoring
+
+Audit-service publishes a `kafka.dlt.consumer.lag` gauge per DLT topic (refreshed every 30 s)
+and a dedicated health indicator. See the [audit service DLQ monitoring](/services/audit-service#dlq-monitoring)
+section for the full surface area and recommended alert rule.
