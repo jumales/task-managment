@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — Fix IT test suite across all services
+## [PR #178] — Fix IT test suite across all services
 
 ### Fixed
 - **`AuditConsumerIT`** — added `spring.kafka.producer.value-serializer=JsonSerializer` and matching consumer deserializer/trusted-packages/default-type properties inline; moved Kafka config to `audit-service/src/test/resources/application.yml` so the test can round-trip `TaskChangedEvent` without a config server.
@@ -16,7 +16,7 @@
 
 ---
 
-## [Unreleased] — Local CI via act (self-hosted)
+## [PR #177] — Local CI via act (self-hosted)
 
 ### Added
 - **`.actrc`** — pins `act` to self-hosted runner (`-P ubuntu-latest=-self-hosted`) and `--artifact-server-path /tmp/act-artifacts`. Self-hosted mode executes workflow steps directly on the host so Testcontainers use the host Docker daemon natively — no nested Docker.
