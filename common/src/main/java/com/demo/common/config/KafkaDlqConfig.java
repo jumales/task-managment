@@ -6,7 +6,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -41,8 +41,17 @@ import java.util.UUID;
  */
 public class KafkaDlqConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    /**
+     * Injected {@link KafkaProperties} is populated by Spring Boot from both raw
+     * {@code spring.kafka.*} YAML properties and testcontainers {@code @ServiceConnection}
+     * connection details — so this works in both production and Testcontainer-backed ITs,
+     * unlike {@code @Value("${spring.kafka.bootstrap-servers}")} which only sees raw properties.
+     */
+    private final KafkaProperties kafkaProperties;
+
+    public KafkaDlqConfig(KafkaProperties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
+    }
 
     /**
      * Publishes the failed record to {@code <original-topic>.DLT}.
@@ -64,7 +73,7 @@ public class KafkaDlqConfig {
     @Bean
     public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer() {
         Map<String, Object> props = Map.of(
-            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers(),
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class,
             JsonSerializer.ADD_TYPE_INFO_HEADERS, false

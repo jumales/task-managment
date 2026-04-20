@@ -9,11 +9,15 @@ import org.apache.kafka.common.TopicPartition;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 
 /**
  * Computes unconsumed-message lag per dead-letter topic.
@@ -57,21 +61,15 @@ public class DltLagService {
 
     /**
      * Computes consumer lag for one (topic, group) pair. Returns 0 if the topic does not yet
-     * exist (no failures have occurred), {@link #UNKNOWN_LAG} on any AdminClient failure.
+     * exist (no failures have occurred) or if the DLT consumer group has never committed
+     * (treated as 0 committed offset). Returns {@link #UNKNOWN_LAG} on any other failure.
      */
     long consumerLag(AdminClient admin, String topic, String groupId) {
         try {
-            var descriptions = admin.describeTopics(List.of(topic)).allTopicNames().get();
-            if (!descriptions.containsKey(topic)) return 0L;
+            Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> endOffsets = endOffsets(admin, topic);
+            if (endOffsets.isEmpty()) return 0L;
 
-            Map<TopicPartition, OffsetSpec> query = new HashMap<>();
-            descriptions.get(topic).partitions()
-                    .forEach(p -> query.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest()));
-            Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> endOffsets =
-                    admin.listOffsets(query).all().get();
-
-            Map<TopicPartition, OffsetAndMetadata> committed =
-                    admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
+            Map<TopicPartition, OffsetAndMetadata> committed = committedOffsets(admin, groupId);
 
             return endOffsets.entrySet().stream().mapToLong(entry -> {
                 long end = entry.getValue().offset();
@@ -82,6 +80,35 @@ public class DltLagService {
             }).sum();
         } catch (Exception e) {
             return UNKNOWN_LAG;
+        }
+    }
+
+    /** Returns end offsets for the topic; empty map if the topic does not exist. */
+    private Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> endOffsets(AdminClient admin, String topic)
+            throws InterruptedException, ExecutionException {
+        try {
+            var descriptions = admin.describeTopics(List.of(topic)).allTopicNames().get();
+            if (!descriptions.containsKey(topic)) return Collections.emptyMap();
+            Map<TopicPartition, OffsetSpec> query = new HashMap<>();
+            descriptions.get(topic).partitions()
+                    .forEach(p -> query.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest()));
+            return admin.listOffsets(query).all().get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof UnknownTopicOrPartitionException) return Collections.emptyMap();
+            throw e;
+        }
+    }
+
+    /**
+     * Returns committed offsets for the DLT consumer group; empty map if the group does not
+     * exist yet (common case — no DLT consumer has run, so every dead-lettered message counts
+     * as unprocessed).
+     */
+    private Map<TopicPartition, OffsetAndMetadata> committedOffsets(AdminClient admin, String groupId) {
+        try {
+            return admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
+        } catch (Exception e) {
+            return Collections.emptyMap();
         }
     }
 }

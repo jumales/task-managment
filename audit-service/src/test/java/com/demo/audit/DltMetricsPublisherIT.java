@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -28,6 +29,7 @@ import static org.awaitility.Awaitility.await;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "eureka.client.enabled=false"
 )
+@Import(TestSecurityConfig.class)
 class DltMetricsPublisherIT {
 
     private static final String GAUGE_NAME = "kafka.dlt.consumer.lag";
