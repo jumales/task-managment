@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased] — Local CI via act (self-hosted)
+
+### Added
+- **`.actrc`** — pins `act` to self-hosted runner (`-P ubuntu-latest=-self-hosted`) and `--artifact-server-path /tmp/act-artifacts`. Self-hosted mode executes workflow steps directly on the host so Testcontainers use the host Docker daemon natively — no nested Docker.
+- **`scripts/ci-local.sh`** — wraps `act workflow_dispatch -W .github/workflows/ci.yml -j <job>`. Runs a single service job, every service job sequentially, or lists available jobs (`-l`). Exits non-zero with the failed-job list on failure.
+- **`.claude/agents/act-ci-validator.md`** — new Claude Code agent that runs local CI via `act` instead of `git push` + `gh run watch`. Existing `ci-validator` and `custom-pr` agents left unchanged.
+
+---
+
 ## [PR #176] — DLQ Monitoring: Consumer Lag, Health, Prometheus Gauge
 
 ### Added

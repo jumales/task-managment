@@ -1,0 +1,4 @@
+# Self-hosted mode: run workflow steps directly on host.
+# Avoids docker-in-docker; Testcontainers use host Docker daemon natively.
+-P ubuntu-latest=-self-hosted
+--artifact-server-path /tmp/act-artifacts
