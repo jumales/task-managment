@@ -1,4 +1,4 @@
-package com.demo.notification.dedup;
+package com.demo.reporting.dedup;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;

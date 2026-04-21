@@ -4,6 +4,7 @@ import com.demo.common.config.KafkaTopics;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.dto.WorkType;
 import com.demo.common.event.TaskChangedEvent;
+import com.demo.reporting.dedup.ProcessedEventRepository;
 import com.demo.reporting.dto.DetailedHoursResponse;
 import com.demo.reporting.dto.ProjectHoursResponse;
 import com.demo.reporting.dto.TaskHoursResponse;
@@ -67,6 +68,7 @@ class HoursReportIT {
     @Autowired private KafkaTemplate<String, String> kafkaTemplate;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private ProcessedEventRepository processedEventRepository;
 
     private static final UUID PROJECT_ID = UUID.randomUUID();
     private static final UUID TASK_ID = UUID.randomUUID();
@@ -79,6 +81,7 @@ class HoursReportIT {
         jdbcTemplate.execute("DELETE FROM report_booked_works");
         jdbcTemplate.execute("DELETE FROM report_planned_works");
         jdbcTemplate.execute("DELETE FROM report_tasks");
+        processedEventRepository.deleteAll();
 
         // Seed a parent task so by-task/by-project responses can enrich code/name.
         ReportTask task = new ReportTask();
@@ -150,6 +153,30 @@ class HoursReportIT {
         assertThat(byTask).hasSize(1);
         assertThat(byTask.get(0).getPlannedHours()).isEqualTo(5L);
         assertThat(byTask.get(0).getBookedHours()).isZero();
+    }
+
+    @Test
+    void duplicateBookedWorkEvent_upsertsOnce() throws Exception {
+        UUID bookedId = UUID.randomUUID();
+        // Same object → same eventId → second delivery must be skipped by dedup guard
+        TaskChangedEvent event = TaskChangedEvent.bookedWorkCreated(TASK_ID, PROJECT_ID, "Hours task",
+                bookedId, USER_ID, WorkType.DEVELOPMENT, BigInteger.valueOf(6));
+
+        publish(event);
+        publish(event);
+
+        // pollDelay: the second delivery is silently discarded by dedup, so the
+        // first Awaitility check would pass after only message #1 is processed —
+        // leaving message #2 in the consumer pipeline and leaking into the next test.
+        // Delay the first poll long enough for both events to be committed.
+        Awaitility.await()
+                .pollDelay(Duration.ofSeconds(2))
+                .atMost(Duration.ofSeconds(20))
+                .untilAsserted(() -> {
+                    assertThat(bookedRepository.findAll()).hasSize(1);
+                    assertThat(bookedRepository.findAll().get(0).getBookedHours()).isEqualTo(6L);
+                    assertThat(processedEventRepository.count()).isEqualTo(1);
+                });
     }
 
     private void publish(TaskChangedEvent event) throws Exception {

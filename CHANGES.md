@@ -1,6 +1,21 @@
 # Changelog
 
-## [Unreleased] — Fix IT test suite across all services
+## [Unreleased] — Outbox consumer idempotency (Option A)
+
+### Added
+- **`reporting-service` dedup** — new `com.demo.reporting.dedup` package (`ProcessedKafkaEvent`, `ProcessedEventRepository`, `ProcessedEventService`) and Flyway migration `V5__add_processed_kafka_events.sql`. Wired into `TaskEventProjectionConsumer` and `TaskChangedProjectionConsumer` so duplicate outbox deliveries no longer trigger duplicate WebSocket pushes or repeated upserts.
+- **`audit-service` `TaskLifecycleConsumer`** — idempotency guard added so replayed `TASK_ARCHIVED` events cannot re-run the archive routine.
+- **Duplicate-delivery integration tests** — `ReportingControllerIT#duplicateTaskEvent_projectsOnce` and `HoursReportIT#duplicateBookedWorkEvent_upsertsOnce` assert single-sided effect under replayed events.
+
+### Changed
+- `ProcessedEventService.CONSUMER_GROUP` constant removed from both `audit-service` and `notification-service` — each `@KafkaListener` now owns its consumer-group constant to match the Kafka groupId it binds to. Callers of `markProcessed` pass the group explicitly.
+
+### Why
+`OutboxPublisher` uses `SELECT FOR UPDATE SKIP LOCKED`, which prevents concurrent pick-up but not crash recovery — if the publisher crashes between the Kafka ACK and the `published = true` commit, events are re-sent on the next poll. Consumers must be idempotent end-to-end. `search-service` and `file-service` consumers are naturally idempotent (Elasticsearch upsert by doc ID, `softDeleteById` is a no-op once the row is already soft-deleted) — explanatory Javadoc added instead of dedup tables.
+
+---
+
+## [PR #178] — Fix IT test suite across all services
 
 ### Fixed
 - **`AuditConsumerIT`** — added `spring.kafka.producer.value-serializer=JsonSerializer` and matching consumer deserializer/trusted-packages/default-type properties inline; moved Kafka config to `audit-service/src/test/resources/application.yml` so the test can round-trip `TaskChangedEvent` without a config server.
@@ -16,7 +31,7 @@
 
 ---
 
-## [Unreleased] — Local CI via act (self-hosted)
+## [PR #177] — Local CI via act (self-hosted)
 
 ### Added
 - **`.actrc`** — pins `act` to self-hosted runner (`-P ubuntu-latest=-self-hosted`) and `--artifact-server-path /tmp/act-artifacts`. Self-hosted mode executes workflow steps directly on the host so Testcontainers use the host Docker daemon natively — no nested Docker.

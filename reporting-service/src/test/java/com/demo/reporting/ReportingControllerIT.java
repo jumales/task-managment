@@ -3,6 +3,7 @@ package com.demo.reporting;
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.dto.TaskStatus;
 import com.demo.common.event.TaskEvent;
+import com.demo.reporting.dedup.ProcessedEventRepository;
 import com.demo.reporting.dto.MyTaskResponse;
 import com.demo.reporting.dto.ProjectTaskCountResponse;
 import com.demo.reporting.model.ReportTask;
@@ -60,10 +61,12 @@ class ReportingControllerIT {
     @Autowired private ReportTaskRepository repository;
     @Autowired private KafkaTemplate<String, String> kafkaTemplate;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private ProcessedEventRepository processedEventRepository;
 
     @BeforeEach
     void cleanUp() {
         repository.deleteAll();
+        processedEventRepository.deleteAll();
     }
 
     @Test
@@ -108,6 +111,34 @@ class ReportingControllerIT {
 
         List<MyTaskResponse> body = getMyTasks(null);
         assertThat(body).anyMatch(t -> "KAFKA-1".equals(t.getTaskCode()));
+    }
+
+    @Test
+    void duplicateTaskEvent_projectsOnce() throws Exception {
+        UUID taskId = UUID.randomUUID();
+        // Same object → same eventId → second delivery must be discarded by dedup
+        TaskEvent event = TaskEvent.created(taskId, "DUP-1", "Dup task", "desc",
+                TaskStatus.IN_PROGRESS,
+                UUID.randomUUID(), "Proj",
+                null, null,
+                TestSecurityConfig.TEST_USER_ID, "Tester",
+                null, null);
+        String payload = objectMapper.writeValueAsString(event);
+
+        kafkaTemplate.send(KafkaTopics.TASK_EVENTS, taskId.toString(), payload);
+        kafkaTemplate.send(KafkaTopics.TASK_EVENTS, taskId.toString(), payload);
+
+        // pollDelay: the second delivery is silently discarded by dedup, so the
+        // first Awaitility check would pass after only message #1 is processed —
+        // leaving message #2 in the consumer pipeline and leaking into the next test.
+        // Delay the first poll long enough for both events to be committed.
+        Awaitility.await()
+                .pollDelay(Duration.ofSeconds(2))
+                .atMost(Duration.ofSeconds(20))
+                .untilAsserted(() -> {
+                    assertThat(repository.findById(taskId)).isPresent();
+                    assertThat(processedEventRepository.count()).isEqualTo(1);
+                });
     }
 
     @Test

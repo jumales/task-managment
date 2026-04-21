@@ -20,6 +20,9 @@ public class TaskEventNotificationConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(TaskEventNotificationConsumer.class);
 
+    /** Kafka consumer group — paired with the {@link #consume} @KafkaListener groupId. */
+    private static final String CONSUMER_GROUP = "notification-group";
+
     private final NotificationService notificationService;
     private final TaskPushService taskPushService;
     private final ProcessedEventService processedEventService;
@@ -33,10 +36,10 @@ public class TaskEventNotificationConsumer {
     }
 
     /** Receives a task change event from Kafka, triggers an email notification, and pushes via WebSocket. */
-    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "notification-group", concurrency = "3")
+    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = CONSUMER_GROUP, concurrency = "3")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
-        if (!processedEventService.markProcessed(event.getEventId(), ProcessedEventService.CONSUMER_GROUP)) {
+        if (!processedEventService.markProcessed(event.getEventId(), CONSUMER_GROUP)) {
             log.info("Duplicate event {} — skipping", event.getEventId());
             return;
         }

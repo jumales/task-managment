@@ -28,6 +28,8 @@ Each change type is recorded in its own table for clean separation and efficient
 
 Events are consumed with manual acknowledgement from `task-changed`. The service dispatches on `changeType` and writes to the appropriate audit table in a single insert. There is no complex business logic — every event maps directly to an insert.
 
+Every consumer guards its work with a dedup check against `processed_kafka_events` (`(event_id, consumer_group)` unique index). Duplicate deliveries — which happen whenever the task-service outbox publisher crashes after a Kafka ACK but before its `published = true` commit — are silently skipped so no duplicate audit row is written. The same guard protects the `TaskLifecycleConsumer` archive path on the `task-events` topic.
+
 ## Controllers
 
 | Endpoint | Method | Description |

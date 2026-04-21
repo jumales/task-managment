@@ -30,6 +30,9 @@ public class TaskEventConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(TaskEventConsumer.class);
 
+    /** Kafka consumer group — paired with the {@link #consume} @KafkaListener groupId. */
+    private static final String CONSUMER_GROUP = "audit-group";
+
     private final AuditRepository auditRepository;
     private final CommentAuditRepository commentAuditRepository;
     private final PhaseAuditRepository phaseAuditRepository;
@@ -52,10 +55,10 @@ public class TaskEventConsumer {
     }
 
     /** Receives a task change event from Kafka and routes it to the appropriate audit store. */
-    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "audit-group", concurrency = "12")
+    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = CONSUMER_GROUP, concurrency = "12")
     public void consume(TaskChangedEvent event) {
         log.info("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
-        if (!processedEventService.markProcessed(event.getEventId(), ProcessedEventService.CONSUMER_GROUP)) {
+        if (!processedEventService.markProcessed(event.getEventId(), CONSUMER_GROUP)) {
             log.info("Duplicate event {} — skipping", event.getEventId());
             return;
         }

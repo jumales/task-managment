@@ -95,7 +95,7 @@ On each event:
 
 ## Eventual consistency guarantees
 
-Because consumers are asynchronous, there is a small propagation delay between a write in `task-service` and visibility in audit/reporting/search. In practice this is milliseconds in normal operation. Consumers are designed to be idempotent where possible.
+Because consumers are asynchronous, there is a small propagation delay between a write in `task-service` and visibility in audit/reporting/search. In practice this is milliseconds in normal operation. All consumers are end-to-end idempotent: audit-service, notification-service, and reporting-service guard their `@KafkaListener` methods with a `processed_kafka_events` table keyed on `(event_id, consumer_group)`; search-service and file-service consumers are naturally idempotent by design (Elasticsearch upsert by document ID, `softDeleteById` is a no-op on already-deleted rows). Duplicate deliveries from the outbox publisher (e.g. after a crash between Kafka ACK and the `published = true` commit) therefore produce no observable side effect.
 
 <Info>
 If Kafka is unavailable, outbox events accumulate in the `outbox_events` table and are delivered once Kafka recovers. No events are lost.
