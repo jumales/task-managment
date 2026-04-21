@@ -1,13 +1,31 @@
 # Changelog
 
-## [Unreleased] — Fix MinIO InputStream leak on client disconnect
+## [PR #182] — Fix MinIO InputStream leak on client disconnect
 
 ### Fixed
 - **`file-service` download endpoint** — replaced `InputStreamResource` with `StreamingResponseBody` + try-with-resources so the MinIO `InputStream` is always closed even when the HTTP client disconnects mid-transfer, preventing connection pool exhaustion under sustained partial-download traffic.
 
 ---
 
-## [Unreleased] — Outbox consumer idempotency (Option A)
+## [PR #181] — Nightly cleanup of processed_kafka_events dedup table
+
+### Added
+- **`ProcessedEventCleanupScheduler`** — nightly scheduler added to `audit-service`, `notification-service`, and `reporting-service` that hard-deletes rows from `processed_kafka_events` older than a configurable retention window, preventing unbounded table growth.
+- **Flyway index migrations** — `processed_at` index on `processed_kafka_events` in all three services to keep the cleanup query efficient at scale.
+- **`plans/memory_leak_findings.md`** — documents the MinIO/dedup memory investigation findings.
+
+---
+
+## [PR #180] — Android app feature plans
+
+### Added
+- **`plans/android/`** — 19-task breakdown covering scaffold, Keycloak mobile auth, networking, domain/navigation, all UI screens (task list, detail, create/edit, work logging, attachments, projects/phases, users, search, reports, notification templates), FCM push notifications (backend publisher + Android client), tests, and dev/env docs.
+
+Documentation-only; no code changes.
+
+---
+
+## [PR #179] — Outbox consumer idempotency (Option A)
 
 ### Added
 - **`reporting-service` dedup** — new `com.demo.reporting.dedup` package (`ProcessedKafkaEvent`, `ProcessedEventRepository`, `ProcessedEventService`) and Flyway migration `V5__add_processed_kafka_events.sql`. Wired into `TaskEventProjectionConsumer` and `TaskChangedProjectionConsumer` so duplicate outbox deliveries no longer trigger duplicate WebSocket pushes or repeated upserts.
