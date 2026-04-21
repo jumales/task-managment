@@ -11,8 +11,6 @@ import io.minio.http.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -99,9 +97,11 @@ public class FileService {
     }
 
     /**
-     * Streams the raw file bytes from MinIO for the given file ID.
-     * Returns both the {@link Resource} and the original content type so the
-     * controller can set the correct {@code Content-Type} response header.
+     * Opens an InputStream from MinIO for the given file ID.
+     * The caller is responsible for closing the stream (use try-with-resources).
+     * Returning the raw stream instead of an {@code InputStreamResource} lets the
+     * controller wrap it in a {@code StreamingResponseBody} so the stream is always
+     * closed via try-with-resources, even when the client disconnects mid-transfer.
      *
      * @throws ResourceNotFoundException if no active file record exists for the given ID
      */
@@ -114,14 +114,14 @@ public class FileService {
                             .bucket(metadata.getBucket())
                             .object(metadata.getObjectKey())
                             .build());
-            return new DownloadResult(new InputStreamResource(stream), metadata.getContentType());
+            return new DownloadResult(stream, metadata.getContentType());
         } catch (Exception e) {
             throw new RuntimeException("Failed to download file from MinIO: " + e.getMessage(), e);
         }
     }
 
-    /** Carries the file bytes and content type from a MinIO download. */
-    public record DownloadResult(Resource resource, String contentType) {}
+    /** Carries a raw MinIO InputStream and content type. The caller must close the stream. */
+    public record DownloadResult(InputStream inputStream, String contentType) {}
 
     /**
      * Deletes the file record and removes the object from MinIO.

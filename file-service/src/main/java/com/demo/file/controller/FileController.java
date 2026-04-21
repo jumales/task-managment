@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -72,6 +73,8 @@ public class FileController {
 
     /**
      * Streams the raw file bytes from MinIO, authenticated via the gateway JWT.
+     * Uses {@link StreamingResponseBody} with try-with-resources so the MinIO
+     * InputStream is always closed — even if the client disconnects mid-transfer.
      * Prefer this over the presigned-URL endpoint for in-browser image display,
      * as it avoids direct browser-to-MinIO requests and respects gateway CORS policy.
      */
@@ -81,12 +84,17 @@ public class FileController {
             @ApiResponse(responseCode = ResponseCode.NOT_FOUND, description = "File not found")
     })
     @GetMapping("/{fileId}/download")
-    public ResponseEntity<org.springframework.core.io.Resource> download(
+    public ResponseEntity<StreamingResponseBody> download(
             @Parameter(description = "File UUID") @PathVariable UUID fileId) {
         FileService.DownloadResult result = fileService.download(fileId);
+        StreamingResponseBody body = outputStream -> {
+            try (var stream = result.inputStream()) {
+                stream.transferTo(outputStream);
+            }
+        };
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(result.contentType()))
-                .body(result.resource());
+                .body(body);
     }
 
     /**
