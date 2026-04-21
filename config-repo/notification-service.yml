@@ -21,6 +21,8 @@ spring:
       properties:
         spring.json.trusted.packages: "com.demo.common.event"
         spring.json.value.default.type: "com.demo.common.event.TaskChangedEvent"
+        max.poll.interval.ms: 300000
+        session.timeout.ms: 45000
 
   mail:
     host: localhost
