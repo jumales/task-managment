@@ -1,9 +1,23 @@
 # Changelog
 
-## [Unreleased] — Graceful shutdown for AsyncConfig thread pool
+## [Unreleased] — Kafka consumer poll interval tuning for slow email sends
+
+### Fixed
+- **`config-repo/notification-service.yml`** — explicitly configured `spring.kafka.consumer.max-poll-interval-ms: 300000` (5 minutes) and `session-timeout-ms: 45000` (45 seconds) to prevent unnecessary consumer group rebalances when `NotificationService` takes longer than the default 5-second poll interval to send an email via SMTP. Prevents transient task delivery failures during slow sends.
+
+---
+
+## [PR #187] — Graceful shutdown for AsyncConfig thread pool
 
 ### Fixed
 - **`common/AsyncConfig`** — added `setWaitForTasksToCompleteOnShutdown(true)` and `setAwaitTerminationSeconds(10)` to the `ThreadPoolTaskExecutor` bean so queued async tasks are drained on SIGTERM instead of being silently dropped during shutdown.
+
+---
+
+## [PR #186] — Pagination for FileCleanupScheduler
+
+### Fixed
+- **`file-service` `FileCleanupScheduler`** — paginated deletion of soft-deleted files from `file_metadata` to avoid full-table load in the cleanup query; reduces heap pressure and GC pauses when the table grows large.
 
 ---
 
