@@ -12,9 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Fetches all users and tasks from their respective services and re-indexes them in Elasticsearch.
  * Use this to populate the index on first run or to recover from index corruption.
@@ -49,81 +46,77 @@ public class ReindexService {
      * due to downstream unavailability.
      */
     public ReindexResult reindex() {
-        PageFetch<UserDto> userFetch = reindexUsers();
-        PageFetch<TaskSummaryResponse> taskFetch = reindexTasks();
-        return new ReindexResult(
-                userFetch.items().size(), taskFetch.items().size(),
-                userFetch.failedPages(), taskFetch.failedPages());
+        PageSummary users = reindexUsers();
+        PageSummary tasks = reindexTasks();
+        return new ReindexResult(users.indexed(), tasks.indexed(), users.failedPages(), tasks.failedPages());
     }
 
-    private PageFetch<UserDto> reindexUsers() {
+    private PageSummary reindexUsers() {
         esOps.indexOps(UserDocument.class).delete();
         esOps.indexOps(UserDocument.class).createWithMapping();
-        PageFetch<UserDto> result = fetchAllUsers();
-        userIndexService.indexAll(result.items());
+        PageSummary result = fetchAndIndexAllUsers();
         if (result.failedPages() > 0) {
             log.warn("User reindex completed with {} failed pages — index may be incomplete", result.failedPages());
         }
-        log.info("Re-indexed {} users ({} pages failed)", result.items().size(), result.failedPages());
+        log.info("Re-indexed {} users ({} pages failed)", result.indexed(), result.failedPages());
         return result;
     }
 
-    private PageFetch<TaskSummaryResponse> reindexTasks() {
+    private PageSummary reindexTasks() {
         esOps.indexOps(TaskDocument.class).delete();
         esOps.indexOps(TaskDocument.class).createWithMapping();
-        PageFetch<TaskSummaryResponse> result = fetchAllTasks();
-        taskIndexService.indexAll(result.items());
+        PageSummary result = fetchAndIndexAllTasks();
         if (result.failedPages() > 0) {
             log.warn("Task reindex completed with {} failed pages — index may be incomplete", result.failedPages());
         }
-        log.info("Re-indexed {} tasks ({} pages failed)", result.items().size(), result.failedPages());
+        log.info("Re-indexed {} tasks ({} pages failed)", result.indexed(), result.failedPages());
         return result;
     }
 
     /**
-     * Fetches all user pages via the circuit-breaker-protected helper.
-     * On failure, stops paging and records the number of failed pages so the caller
-     * can report a partial result rather than failing entirely.
+     * Fetches user pages one at a time and indexes each immediately, so no full-dataset list
+     * is held in memory. On failure, stops paging and records the failed page count.
      */
-    private PageFetch<UserDto> fetchAllUsers() {
-        List<UserDto> all = new ArrayList<>();
+    private PageSummary fetchAndIndexAllUsers() {
+        int indexed = 0;
         int page = 0;
         int failedPages = 0;
         try {
             PageResponse<UserDto> response;
             do {
                 response = clientHelper.fetchUserPage(page++, PAGE_SIZE);
-                all.addAll(response.getContent());
+                userIndexService.indexAll(response.getContent());
+                indexed += response.getContent().size();
             } while (!response.isLast());
         } catch (RuntimeException e) {
             failedPages++;
             log.warn("Stopped fetching users after page {} due to error: {}", page, e.getMessage());
         }
-        return new PageFetch<>(all, failedPages);
+        return new PageSummary(indexed, failedPages);
     }
 
     /**
-     * Fetches all task pages via the circuit-breaker-protected helper.
-     * On failure, stops paging and records the number of failed pages so the caller
-     * can report a partial result rather than failing entirely.
+     * Fetches task pages one at a time and indexes each immediately, so no full-dataset list
+     * is held in memory. On failure, stops paging and records the failed page count.
      */
-    private PageFetch<TaskSummaryResponse> fetchAllTasks() {
-        List<TaskSummaryResponse> all = new ArrayList<>();
+    private PageSummary fetchAndIndexAllTasks() {
+        int indexed = 0;
         int page = 0;
         int failedPages = 0;
         try {
             PageResponse<TaskSummaryResponse> response;
             do {
                 response = clientHelper.fetchTaskPage(page++, PAGE_SIZE);
-                all.addAll(response.getContent());
+                taskIndexService.indexAll(response.getContent());
+                indexed += response.getContent().size();
             } while (!response.isLast());
         } catch (RuntimeException e) {
             failedPages++;
             log.warn("Stopped fetching tasks after page {} due to error: {}", page, e.getMessage());
         }
-        return new PageFetch<>(all, failedPages);
+        return new PageSummary(indexed, failedPages);
     }
 
-    /** Bundles fetched items with the count of pages that could not be retrieved. */
-    private record PageFetch<T>(List<T> items, int failedPages) {}
+    /** Tracks total items indexed and pages that failed during a reindex run. */
+    private record PageSummary(int indexed, int failedPages) {}
 }
