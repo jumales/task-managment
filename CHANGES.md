@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] — Fix MinIO InputStream leak on client disconnect
+
+### Fixed
+- **`file-service` download endpoint** — replaced `InputStreamResource` with `StreamingResponseBody` + try-with-resources so the MinIO `InputStream` is always closed even when the HTTP client disconnects mid-transfer, preventing connection pool exhaustion under sustained partial-download traffic.
+
+---
+
 ## [Unreleased] — Outbox consumer idempotency (Option A)
 
 ### Added
