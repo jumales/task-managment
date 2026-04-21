@@ -9,21 +9,23 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 
 /** Persistence layer for {@link FileMetadata}. */
 public interface FileMetadataRepository extends JpaRepository<FileMetadata, UUID> {
 
     /**
-     * Returns soft-deleted file records whose {@code deleted_at} is older than the given cutoff.
+     * Returns a page of soft-deleted file records whose {@code deleted_at} is older than the given cutoff.
      * Used by {@link com.demo.file.scheduler.FileCleanupScheduler} to find objects ready for
-     * permanent removal from MinIO.
+     * permanent removal from MinIO in bounded batches.
      *
      * <p>Bypasses {@code @SQLRestriction("deleted_at IS NULL")} via a native query so
-     * soft-deleted rows are visible.
+     * soft-deleted rows are visible. Caller must supply {@code PageRequest.of(0, batchSize)} —
+     * offset is always 0 because processed rows are hard-deleted between batches.
      */
-    @Query(value = "SELECT * FROM file_metadata WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff",
+    @Query(value = "SELECT * FROM file_metadata WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff LIMIT :#{#pageable.pageSize}",
             nativeQuery = true)
-    List<FileMetadata> findExpiredDeletedFiles(@Param("cutoff") Instant cutoff);
+    List<FileMetadata> findExpiredDeletedFiles(@Param("cutoff") Instant cutoff, Pageable pageable);
 
     /**
      * Soft-deletes the file record for the given file ID if it is not already soft-deleted.

@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -35,17 +37,25 @@ public class FileCleanupScheduler {
         this.minioClient = minioClient;
     }
 
-    /** Runs nightly at 06:00; purges MinIO objects and metadata rows past their retention window. */
+    private static final int CLEANUP_BATCH_SIZE = 100;
+
+    /** Runs nightly at 06:00; purges MinIO objects and metadata rows past their retention window in batches. */
     @Scheduled(cron = "0 0 6 * * *")
     public void cleanup() {
         Instant cutoff = Instant.now().minus(deletedObjectRetentionDays, ChronoUnit.DAYS);
-        List<FileMetadata> expired = fileMetadataRepository.findExpiredDeletedFiles(cutoff);
+        int totalPurged = 0;
+        List<FileMetadata> batch;
 
-        log.info("Found {} expired file(s) for permanent deletion (deleted before {})", expired.size(), cutoff);
+        // Always query offset 0 — processed rows are hard-deleted so they disappear from subsequent batches
+        do {
+            batch = fileMetadataRepository.findExpiredDeletedFiles(cutoff, PageRequest.of(0, CLEANUP_BATCH_SIZE));
+            for (FileMetadata file : batch) {
+                purge(file);
+            }
+            totalPurged += batch.size();
+        } while (batch.size() == CLEANUP_BATCH_SIZE);
 
-        for (FileMetadata file : expired) {
-            purge(file);
-        }
+        log.info("Cleanup complete: purged {} expired file(s) deleted before {}", totalPurged, cutoff);
     }
 
     /** Removes the MinIO object then hard-deletes the metadata row; logs and skips on error. */
