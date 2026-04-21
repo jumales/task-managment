@@ -7,6 +7,21 @@
 - **Clean build before every push** — run `mvn clean install -DskipTests=true` from the project root and confirm it passes before every `git push`; tests run automatically via GitHub Actions on every push
 - **Check CI after pushing** — run `gh run watch` to follow the GitHub Actions run, or `gh run list` to see recent results; a failing CI run must be fixed before opening or merging a PR
 
+# Build & Test Commands
+- Java: Run `mvn test` (or `./gradlew test`) after modifying any Java source files
+- TypeScript: Run `npm run typecheck` and `npm run lint` after TS changes
+- Always verify builds pass before suggesting a commit
+
+# Code Style
+- This is primarily a Java + TypeScript codebase
+- Follow existing patterns in neighboring files before introducing new conventions
+- Prefer Edit over Write when modifying existing files
+
+# Commit Conventions
+- Use conventional commit format (feat:, fix:, chore:, refactor:)
+- Keep commits focused and atomic
+- Do not include Claude co-author trailers unless asked
+
 # Database Schema Changes
 
 - **Use Flyway for all schema changes** — never modify the database manually or rely on `spring.jpa.hibernate.ddl-auto: update`; production services use `validate`
