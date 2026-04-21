@@ -10,13 +10,10 @@ import java.util.UUID;
 
 /**
  * Guards Kafka consumers against duplicate event processing.
- * Uses an atomic INSERT with a unique constraint to detect and reject already-seen events.
+ * Uses a check-then-insert pattern; the DB unique index is defense-in-depth only.
  */
 @Service
 public class ProcessedEventService {
-
-    /** Kafka consumer group ID for audit-service; must match the @KafkaListener groupId. */
-    public static final String CONSUMER_GROUP = "audit-group";
 
     private final ProcessedEventRepository repository;
 
@@ -27,12 +24,21 @@ public class ProcessedEventService {
     /**
      * Attempts to mark the given event as processed. Returns {@code true} if the event is new,
      * {@code false} if it was already processed (duplicate delivery).
-     * Runs in its own transaction so the dedup record commits before any async work begins.
+     *
+     * <p>Checks existence first (a single partition is assigned to a single consumer thread, so
+     * same-eventId retries are serialized). The saveAndFlush + catch is a safety net for the rare
+     * cross-instance race on the same partition during a rebalance.
+     *
+     * <p>Runs in its own transaction so the dedup record commits independently from any downstream work.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW,
+            noRollbackFor = DataIntegrityViolationException.class)
     public boolean markProcessed(UUID eventId, String consumerGroup) {
+        if (repository.existsByEventIdAndConsumerGroup(eventId, consumerGroup)) {
+            return false;
+        }
         try {
-            repository.save(ProcessedKafkaEvent.builder()
+            repository.saveAndFlush(ProcessedKafkaEvent.builder()
                     .eventId(eventId)
                     .consumerGroup(consumerGroup)
                     .processedAt(Instant.now())

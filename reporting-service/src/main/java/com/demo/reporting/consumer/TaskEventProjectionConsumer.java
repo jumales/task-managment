@@ -2,6 +2,7 @@ package com.demo.reporting.consumer;
 
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskEvent;
+import com.demo.reporting.dedup.ProcessedEventService;
 import com.demo.reporting.model.ReportTask;
 import com.demo.reporting.repository.ReportBookedWorkRepository;
 import com.demo.reporting.repository.ReportPlannedWorkRepository;
@@ -28,33 +29,48 @@ public class TaskEventProjectionConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(TaskEventProjectionConsumer.class);
 
+    /** Kafka consumer group — paired with the {@link #consume} @KafkaListener groupId. */
+    private static final String CONSUMER_GROUP = "reporting-group";
+
     private final ReportTaskRepository repository;
     private final ReportBookedWorkRepository bookedWorkRepository;
     private final ReportPlannedWorkRepository plannedWorkRepository;
     private final ObjectMapper objectMapper;
     private final ReportPushService pushService;
+    private final ProcessedEventService processedEventService;
 
     public TaskEventProjectionConsumer(ReportTaskRepository repository,
                                        ReportBookedWorkRepository bookedWorkRepository,
                                        ReportPlannedWorkRepository plannedWorkRepository,
                                        ObjectMapper objectMapper,
-                                       ReportPushService pushService) {
+                                       ReportPushService pushService,
+                                       ProcessedEventService processedEventService) {
         this.repository = repository;
         this.bookedWorkRepository = bookedWorkRepository;
         this.plannedWorkRepository = plannedWorkRepository;
         this.objectMapper = objectMapper;
         this.pushService = pushService;
+        this.processedEventService = processedEventService;
     }
 
     /**
      * Upserts / soft-deletes a {@link ReportTask} row based on the incoming event type.
      *
+     * <p>Idempotency: {@link ProcessedEventService#markProcessed} prevents a duplicate WebSocket push
+     * notification on events re-delivered after an outbox publisher crash.
+     *
      * @throws JsonProcessingException if the message cannot be deserialized — propagates to DLT immediately
      */
-    @KafkaListener(topics = KafkaTopics.TASK_EVENTS, groupId = "reporting-group", concurrency = "3")
+    @KafkaListener(topics = KafkaTopics.TASK_EVENTS, groupId = CONSUMER_GROUP, concurrency = "3")
     public void consume(String message) throws JsonProcessingException {
         TaskEvent event = objectMapper.readValue(message, TaskEvent.class);
         log.debug("Received TaskEvent: task={} type={}", event.getTaskId(), event.getEventType());
+
+        if (event.getEventId() != null
+                && !processedEventService.markProcessed(event.getEventId(), CONSUMER_GROUP)) {
+            log.info("Duplicate event {} — skipping", event.getEventId());
+            return;
+        }
 
         switch (event.getEventType()) {
             case CREATED, UPDATED -> upsert(event);

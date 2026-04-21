@@ -17,6 +17,9 @@ import java.util.UUID;
 /**
  * Consumes {@code TASK_ARCHIVED} events and soft-deletes the associated file metadata records
  * so that the {@link com.demo.file.scheduler.FileCleanupScheduler} can later purge them from MinIO.
+ *
+ * <p>Idempotency: no dedup table is needed — {@code softDeleteById} is a no-op once
+ * {@code deleted_at} is set, so duplicate deliveries converge to the same row state.
  */
 @Component
 public class TaskArchivedConsumer {

@@ -2,6 +2,7 @@ package com.demo.reporting.consumer;
 
 import com.demo.common.config.KafkaTopics;
 import com.demo.common.event.TaskChangedEvent;
+import com.demo.reporting.dedup.ProcessedEventService;
 import com.demo.reporting.model.ReportBookedWork;
 import com.demo.reporting.model.ReportPlannedWork;
 import com.demo.reporting.repository.ReportBookedWorkRepository;
@@ -29,30 +30,45 @@ public class TaskChangedProjectionConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(TaskChangedProjectionConsumer.class);
 
+    /** Kafka consumer group — paired with the {@link #consume} @KafkaListener groupId. */
+    private static final String CONSUMER_GROUP = "reporting-group";
+
     private final ReportPlannedWorkRepository plannedRepository;
     private final ReportBookedWorkRepository bookedRepository;
     private final ObjectMapper objectMapper;
     private final ReportPushService pushService;
+    private final ProcessedEventService processedEventService;
 
     public TaskChangedProjectionConsumer(ReportPlannedWorkRepository plannedRepository,
                                          ReportBookedWorkRepository bookedRepository,
                                          ObjectMapper objectMapper,
-                                         ReportPushService pushService) {
+                                         ReportPushService pushService,
+                                         ProcessedEventService processedEventService) {
         this.plannedRepository = plannedRepository;
         this.bookedRepository = bookedRepository;
         this.objectMapper = objectMapper;
         this.pushService = pushService;
+        this.processedEventService = processedEventService;
     }
 
     /**
      * Receives a task changed event from Kafka and updates the reporting planned/booked work projections.
      *
+     * <p>Idempotency: {@link ProcessedEventService#markProcessed} prevents duplicate WebSocket pushes and
+     * repeated upserts on events re-delivered after an outbox publisher crash.
+     *
      * @throws JsonProcessingException if the message cannot be deserialized — propagates to DLT immediately
      */
-    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = "reporting-group", concurrency = "3")
+    @KafkaListener(topics = KafkaTopics.TASK_CHANGED, groupId = CONSUMER_GROUP, concurrency = "3")
     public void consume(String message) throws JsonProcessingException {
         TaskChangedEvent event = objectMapper.readValue(message, TaskChangedEvent.class);
         log.debug("Received TaskChangedEvent: task={} changeType={}", event.getTaskId(), event.getChangeType());
+
+        if (event.getEventId() != null
+                && !processedEventService.markProcessed(event.getEventId(), CONSUMER_GROUP)) {
+            log.info("Duplicate event {} — skipping", event.getEventId());
+            return;
+        }
 
         switch (event.getChangeType()) {
             case PLANNED_WORK_CREATED                    -> upsertPlannedWork(event);

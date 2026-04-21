@@ -60,3 +60,4 @@ Projections are not authoritative so they are not archived — they can always b
 - The reporting service **never calls task-service** for report queries. All data it needs is in its own database.
 - Eventual consistency: there is a small delay between a task write and visibility in reports. This is acceptable for dashboard use cases.
 - Because it is a pure consumer, it can be rebuilt from scratch by replaying all Kafka events from the beginning of the topic.
+- **Idempotent consumption**: both `TaskEventProjectionConsumer` and `TaskChangedProjectionConsumer` guard against duplicate deliveries via a `processed_kafka_events` table keyed on `(event_id, consumer_group)` (Flyway migration `V5`). This prevents duplicate WebSocket pushes and repeated upserts when the task-service outbox publisher replays an event after a crash.

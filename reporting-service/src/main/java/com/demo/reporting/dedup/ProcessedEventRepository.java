@@ -1,4 +1,4 @@
-package com.demo.audit.dedup;
+package com.demo.reporting.dedup;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

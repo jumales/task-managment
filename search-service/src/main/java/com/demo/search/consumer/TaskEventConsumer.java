@@ -14,6 +14,10 @@ import org.springframework.stereotype.Component;
  * Consumes task lifecycle events from the {@code task-events} Kafka topic and
  * keeps the Elasticsearch task index in sync.
  * Exceptions propagate to {@code DefaultErrorHandler} for bounded retry and DLT forwarding.
+ *
+ * <p>Idempotency: no dedup table is needed — indexing by {@code taskId} is an upsert
+ * (Elasticsearch replaces the document with the same ID) and delete-by-ID is a no-op on the
+ * second call. Duplicate events from the outbox publisher converge to the same index state.
  */
 @Component
 public class TaskEventConsumer {

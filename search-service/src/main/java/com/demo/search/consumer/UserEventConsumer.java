@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
  * Consumes user lifecycle events from the {@code user-events} Kafka topic and
  * keeps the Elasticsearch user index in sync.
  * Exceptions propagate to {@code DefaultErrorHandler} for bounded retry and DLT forwarding.
+ *
+ * <p>Idempotency: no dedup table is needed — indexing by {@code userId} is an upsert
+ * and delete-by-ID is a no-op on the second call. Duplicate events converge to the same state.
  */
 @Component
 public class UserEventConsumer {
