@@ -1,5 +1,12 @@
 # Changelog
 
+## [PR #185] — Cap Redis memory with allkeys-lru eviction policy
+
+### Fixed
+- **`docker-compose.yml`** — added `--maxmemory 256mb --maxmemory-policy allkeys-lru` to the Redis service command; without a ceiling Redis grows unbounded under many unique cache keys and can trigger OOM.
+
+---
+
 ## [PR #182] — Fix MinIO InputStream leak on client disconnect
 
 ### Fixed
