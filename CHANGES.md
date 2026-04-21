@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] — Graceful shutdown for AsyncConfig thread pool
+
+### Fixed
+- **`common/AsyncConfig`** — added `setWaitForTasksToCompleteOnShutdown(true)` and `setAwaitTerminationSeconds(10)` to the `ThreadPoolTaskExecutor` bean so queued async tasks are drained on SIGTERM instead of being silently dropped during shutdown.
+
+---
+
 ## [PR #185] — Cap Redis memory with allkeys-lru eviction policy
 
 ### Fixed
