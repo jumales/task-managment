@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased] — Kafka consumer poll interval tuning for slow email sends
+## [Unreleased] — Replace Kafka test container with @EmbeddedKafka in SearchControllerIT
+
+### Fixed
+- **`search-service` `SearchControllerIT`** — replaced `testcontainers:kafka` (`KafkaContainer` with `confluentinc/cp-kafka:7.6.1`) with Spring's `@EmbeddedKafka` to eliminate startup timeouts caused by resource contention between the Kafka container and the Elasticsearch container (`tc:elasticsearch`). Embedded Kafka is simpler, faster, and avoids inter-container network overhead in test environments.
+- **`search-service` pom.xml** — swapped `testcontainers:kafka` dependency for `spring-kafka-test` (already in test classpath via spring-boot-starter-test).
+
+---
+
+## [PR #188] — Kafka consumer poll interval tuning for slow email sends
 
 ### Fixed
 - **`config-repo/notification-service.yml`** — explicitly configured `spring.kafka.consumer.max-poll-interval-ms: 300000` (5 minutes) and `session-timeout-ms: 45000` (45 seconds) to prevent unnecessary consumer group rebalances when `NotificationService` takes longer than the default 5-second poll interval to send an email via SMTP. Prevents transient task delivery failures during slow sends.

@@ -30,10 +30,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
@@ -46,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "eureka.client.enabled=false"
 )
+@EmbeddedKafka(partitions = 1, topics = {"task-events", "user-events"})
 class SearchControllerIT {
 
     @Container
@@ -53,14 +54,9 @@ class SearchControllerIT {
             DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch:8.13.0"))
             .withEnv("xpack.security.enabled", "false");
 
-    @Container
-    static KafkaContainer kafka = new KafkaContainer(
-            DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
-
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.elasticsearch.uris", elasticsearch::getHttpHostAddress);
-        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
     }
 
     /**
