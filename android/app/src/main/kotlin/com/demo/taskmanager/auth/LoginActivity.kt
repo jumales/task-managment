@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.demo.taskmanager.MainActivity
 import com.demo.taskmanager.core.network.auth.AuthManager
-import com.demo.taskmanager.ui.theme.AppTheme
+import com.demo.taskmanager.core.ui.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 

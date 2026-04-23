@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Navigation labels -->
+    <string name="nav_tasks">Zadaci</string>
+    <string name="nav_projects">Projekti</string>
+    <string name="nav_users">Korisnici</string>
+    <string name="nav_search">Pretraži</string>
+    <string name="nav_reports">Izvještaji</string>
+    <string name="nav_config">Konfiguracija</string>
+    <string name="nav_profile">Profil</string>
+
+    <!-- Common actions -->
+    <string name="action_save">Spremi</string>
+    <string name="action_cancel">Odustani</string>
+    <string name="action_delete">Obriši</string>
+    <string name="action_edit">Uredi</string>
+    <string name="action_create">Stvori</string>
+    <string name="action_retry">Pokušaj ponovo</string>
+    <string name="action_confirm">Potvrdi</string>
+    <string name="action_logout">Odjava</string>
+
+    <!-- Auth -->
+    <string name="login_button">Prijava</string>
+    <string name="login_title">Dobrodošli</string>
+    <string name="login_subtitle">Prijavite se na vaš račun</string>
+
+    <!-- Task status -->
+    <string name="status_todo">Za napraviti</string>
+    <string name="status_in_progress">U tijeku</string>
+    <string name="status_done">Završeno</string>
+
+    <!-- Loading / error / empty -->
+    <string name="loading">Učitavanje…</string>
+    <string name="error_generic">Nešto je pošlo po krivu.</string>
+    <string name="empty_no_items">Još nema sadržaja.</string>
+
+    <!-- Language names -->
+    <string name="language_en">Engleski</string>
+    <string name="language_hr">Hrvatski</string>
+</resources>
