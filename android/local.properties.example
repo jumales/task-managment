@@ -1,0 +1,11 @@
+# Copy this file to local.properties (not committed) and fill in your values.
+
+# SDK path — Android Studio sets this automatically.
+# sdk.dir=/Users/<you>/Library/Android/sdk
+
+# Used by the "device" flavor — your machine's LAN IP.
+LAN_BASE_URL=http://192.168.x.x:8080
+
+# Used by the "tunnel" flavor — e.g. an ngrok or Tailscale URL.
+TUNNEL_BASE_URL=https://xxxx.ngrok.io
+TUNNEL_KEYCLOAK_ISSUER=https://xxxx.ngrok.io/realms/task-manager
