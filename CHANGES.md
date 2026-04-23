@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] — Android task list UI: screen, ViewModel, data layer integration
+
+### Added
+- Placeholder section for android_task06_tasks_list feature development.
+
+---
+
 ## [Unreleased] — Android core-network module: AppAuth PKCE + token store + Retrofit
 
 ### Added
