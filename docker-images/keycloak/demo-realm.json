@@ -34,6 +34,10 @@
       {
         "name": "SUPERVISOR",
         "description": "Supervisor \u2014 read-only access across all services; write operations are blocked at the gateway"
+      },
+      {
+        "name": "MOBILE_APP",
+        "description": "Grants access to the mobile application API; present in every token issued to a mobile client"
       }
     ]
   },
@@ -53,6 +57,27 @@
       "webOrigins": [
         "http://localhost:3000",
         "http://localhost:4173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "mobile-app",
+      "name": "Mobile Application",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "taskmanager://callback"
+      ],
+      "postLogoutRedirectUris": [
+        "taskmanager://logout"
+      ],
+      "webOrigins": [
+        "+"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
@@ -135,7 +160,8 @@
       ],
       "realmRoles": [
         "ADMIN",
-        "WEB_APP"
+        "WEB_APP",
+        "MOBILE_APP"
       ],
       "id": "11111111-1111-1111-1111-111111111101"
     },
@@ -155,7 +181,8 @@
       ],
       "realmRoles": [
         "DEVELOPER",
-        "WEB_APP"
+        "WEB_APP",
+        "MOBILE_APP"
       ],
       "id": "11111111-1111-1111-1111-111111111102"
     },
@@ -175,7 +202,8 @@
       ],
       "realmRoles": [
         "QA",
-        "WEB_APP"
+        "WEB_APP",
+        "MOBILE_APP"
       ],
       "id": "11111111-1111-1111-1111-111111111103"
     },
@@ -195,7 +223,8 @@
       ],
       "realmRoles": [
         "DEVOPS",
-        "WEB_APP"
+        "WEB_APP",
+        "MOBILE_APP"
       ],
       "id": "11111111-1111-1111-1111-111111111104"
     },
@@ -215,7 +244,8 @@
       ],
       "realmRoles": [
         "PM",
-        "WEB_APP"
+        "WEB_APP",
+        "MOBILE_APP"
       ],
       "id": "11111111-1111-1111-1111-111111111105"
     },
@@ -235,7 +265,8 @@
       ],
       "realmRoles": [
         "SUPERVISOR",
-        "WEB_APP"
+        "WEB_APP",
+        "MOBILE_APP"
       ],
       "id": "11111111-1111-1111-1111-111111111106"
     }
