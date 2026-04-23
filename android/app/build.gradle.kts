@@ -1,0 +1,130 @@
+import java.util.Properties
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
+}
+
+// Load developer-supplied LAN URL from local.properties (not committed).
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
+}
+val lanBaseUrl: String = localProps.getProperty("LAN_BASE_URL", "http://192.168.1.1:8080")
+
+android {
+    namespace = "com.demo.taskmanager"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.demo.taskmanager"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        debug {
+            // No extra manifest placeholders needed; network_security_config.xml referenced directly.
+        }
+        release {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    flavorDimensions += "env"
+    productFlavors {
+        // Android emulator — backend reachable on host loopback alias 10.0.2.2.
+        create("emulator") {
+            dimension = "env"
+            buildConfigField("String", "BASE_URL",        "\"http://10.0.2.2:8080\"")
+            buildConfigField("String", "KEYCLOAK_ISSUER", "\"http://10.0.2.2:8180/realms/task-manager\"")
+        }
+        // Physical device on same LAN — URL comes from local.properties.
+        create("device") {
+            dimension = "env"
+            buildConfigField("String", "BASE_URL",        "\"$lanBaseUrl\"")
+            buildConfigField("String", "KEYCLOAK_ISSUER", "\"${lanBaseUrl.replace(":8080", ":8180")}/realms/task-manager\"")
+        }
+        // Tunnel / remote — developer fills in local.properties with a tunnel URL.
+        create("tunnel") {
+            dimension = "env"
+            buildConfigField("String", "BASE_URL",        "\"${localProps.getProperty("TUNNEL_BASE_URL", "https://example.ngrok.io")}\"")
+            buildConfigField("String", "KEYCLOAK_ISSUER", "\"${localProps.getProperty("TUNNEL_KEYCLOAK_ISSUER", "https://example.ngrok.io/realms/task-manager")}\"")
+        }
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation.compose)
+
+    // Compose BOM — pin all Compose artifact versions together.
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.material3)
+    debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
+
+    // DI
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+
+    // Network
+    implementation(libs.retrofit)
+    implementation(libs.okhttp.logging)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.converter)
+
+    // Auth
+    implementation(libs.appauth)
+
+    // Firebase BOM (stub — google-services plugin not applied yet; no google-services.json needed).
+    implementation(platform(libs.firebase.bom))
+
+    // Image loading
+    implementation(libs.coil.compose)
+
+    // Paging
+    implementation(libs.paging.runtime)
+    implementation(libs.paging.compose)
+
+    // Encrypted SharedPreferences for token storage.
+    implementation(libs.security.crypto)
+
+    // Unit tests
+    testImplementation(libs.junit5.api)
+    testRuntimeOnly(libs.junit5.engine)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
+
+    // UI tests
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+}
