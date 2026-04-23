@@ -28,7 +28,9 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // AppAuth merges a RedirectUriReceiverActivity that requires this placeholder.
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.demo.taskmanager"
+        // We override RedirectUriReceiverActivity in the manifest, so this placeholder
+        // satisfies the AAR merge but the actual scheme is declared in the intent-filter.
+        manifestPlaceholders["appAuthRedirectScheme"] = "taskmanager"
     }
 
     buildTypes {
@@ -92,6 +94,9 @@ dependencies {
     implementation(libs.compose.material3)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
+
+    // Core network module (auth + Retrofit stack)
+    implementation(project(":core-network"))
 
     // DI
     implementation(libs.hilt.android)

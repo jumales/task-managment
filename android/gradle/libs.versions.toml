@@ -8,6 +8,7 @@ retrofit                   = "2.11.0"
 okhttp                     = "4.12.0"
 kotlinx-serialization-json = "1.7.3"
 kotlinx-serialization-converter = "1.0.0"
+kotlinx-coroutines             = "1.9.0"
 appauth                    = "0.11.1"
 firebase-bom               = "33.5.1"
 coil                       = "2.7.0"
@@ -49,6 +50,9 @@ retrofit                       = { group = "com.squareup.retrofit2",   name = "r
 okhttp-logging                 = { group = "com.squareup.okhttp3",     name = "logging-interceptor",           version.ref = "okhttp" }
 kotlinx-serialization-json     = { group = "org.jetbrains.kotlinx",   name = "kotlinx-serialization-json",    version.ref = "kotlinx-serialization-json" }
 kotlinx-serialization-converter = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "kotlinx-serialization-converter" }
+kotlinx-coroutines-android     = { group = "org.jetbrains.kotlinx",   name = "kotlinx-coroutines-android",    version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test        = { group = "org.jetbrains.kotlinx",   name = "kotlinx-coroutines-test",       version.ref = "kotlinx-coroutines" }
+okhttp-mockwebserver           = { group = "com.squareup.okhttp3",     name = "mockwebserver",                 version.ref = "okhttp" }
 
 # Auth
 appauth                        = { group = "net.openid",               name = "appauth",                       version.ref = "appauth" }
