@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
@@ -14,6 +15,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+    }
 }
 
 dependencies {
@@ -23,4 +28,10 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.security.crypto)
     implementation(libs.paging.runtime)
+    implementation(libs.retrofit)
+    implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit5.api)
+    testRuntimeOnly(libs.junit5.engine)
+    testImplementation(libs.kotlinx.serialization.json)
 }

@@ -1,0 +1,22 @@
+package com.demo.taskmanager.data.dto.enums
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class TaskChangeType {
+    TASK_CREATED,
+    TASK_UPDATED,
+    STATUS_CHANGED,
+    COMMENT_ADDED,
+    PHASE_CHANGED,
+    PLANNED_WORK_CREATED,
+    BOOKED_WORK_CREATED,
+    BOOKED_WORK_UPDATED,
+    BOOKED_WORK_DELETED,
+    ATTACHMENT_ADDED,
+    ATTACHMENT_DELETED,
+    PARTICIPANT_ADDED,
+    PARTICIPANT_REMOVED,
+    TIMELINE_CHANGED,
+    TASK_CODE_ASSIGNED,
+}
