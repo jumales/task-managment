@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased] — Add MOBILE_APP role and mobile-app PKCE client to Keycloak realm
+
+### Added
+- **`docker-images/keycloak/demo-realm.json`** — added `MOBILE_APP` realm role, added `mobile-app` public PKCE client (redirectUri `taskmanager://callback`, postLogoutRedirectUri `taskmanager://logout`, PKCE S256 required), and assigned the `MOBILE_APP` role to all 6 human users alongside their existing roles.
+- **`docs/development/keycloak.mdx`** — new documentation page explaining realm roles, Keycloak clients, PKCE authorization code flow, and backend role mapping.
+- **`docs/docs.json`** — registered the new `development/keycloak` page in the nav.
+
+---
+
 ## [Unreleased] — Replace Kafka test container with @EmbeddedKafka in SearchControllerIT
 
 ### Fixed

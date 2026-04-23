@@ -43,7 +43,8 @@
               "development/database-migrations",
               "development/testing",
               "development/conventions",
-              "development/claude-automation"
+              "development/claude-automation",
+              "development/keycloak"
             ]
           },
           {

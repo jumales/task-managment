@@ -1,0 +1,76 @@
+---
+title: Keycloak Auth
+description: Realm roles, clients, and PKCE flow for web and mobile
+---
+
+## Realm roles
+
+| Role | Purpose |
+|---|---|
+| `ADMIN` | Full access to all resources |
+| `DEVELOPER` | Read/write access to tasks |
+| `QA` | Full read/write access to tasks and projects |
+| `DEVOPS` | Full read/write access to tasks and projects |
+| `PM` | Full read/write access to tasks and projects |
+| `SUPERVISOR` | Read-only across all services |
+| `WEB_APP` | Baseline role — required for any authenticated request; present in all human-user tokens |
+| `MOBILE_APP` | Caller-type marker for mobile clients; present alongside `WEB_APP` in tokens issued via `mobile-app` client |
+
+All human users carry both `WEB_APP` and `MOBILE_APP` so services can distinguish mobile callers
+by checking `ROLE_MOBILE_APP` in a `@PreAuthorize` expression without blocking API access.
+
+## Clients
+
+### `web-app` (public, PKCE)
+
+Standard browser PKCE flow. Redirect URIs: `http://localhost:3000/*` and `http://localhost:4173/*`.
+
+### `mobile-app` (public, PKCE)
+
+Android/iOS native PKCE flow.
+
+| Setting | Value |
+|---|---|
+| `publicClient` | `true` |
+| `standardFlowEnabled` | `true` |
+| `pkce.code.challenge.method` | `S256` |
+| `redirectUris` | `taskmanager://callback` |
+| `postLogoutRedirectUris` | `taskmanager://logout` |
+| `webOrigins` | `+` (any origin) |
+
+Authorization URL example:
+
+```
+https://<keycloak>/realms/demo/protocol/openid-connect/auth
+  ?client_id=mobile-app
+  &response_type=code
+  &code_challenge=<BASE64URL(SHA256(verifier))>
+  &code_challenge_method=S256
+  &redirect_uri=taskmanager://callback
+```
+
+### `e2e-client` (confidential, password grant)
+
+Used by integration tests. Not for production.
+
+### `notification-service` / `user-service` (confidential, service accounts)
+
+Machine-to-machine clients. Use client credentials grant.
+
+## Re-importing the realm
+
+```bash
+docker compose down keycloak
+docker compose up -d keycloak
+```
+
+Keycloak imports `docker-images/keycloak/demo-realm.json` on first start.
+
+## Backend role mapping
+
+`JwtAuthConverter` (in `common`) maps every `realm_access.roles` entry to `ROLE_<ROLE>` —
+no filtering applied, so any new realm role is automatically available as a Spring authority.
+
+`SecurityConfig` (in `common`) requires `ROLE_WEB_APP` for all requests and one of
+`ADMIN / DEVELOPER / QA / DEVOPS / PM` for write methods. `MOBILE_APP` is a caller-type marker
+and does not appear in either list.
