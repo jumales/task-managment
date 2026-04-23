@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased] — Android core-network module: AppAuth PKCE + token store + Retrofit
+
+### Added
+- **`android/core-network/`** — new Hilt-wired `:core-network` library module with:
+  - `TokenStore` — `EncryptedSharedPreferences`-backed secure token storage (access, refresh, ID tokens, expiry).
+  - `AuthInterceptor` — OkHttp interceptor that attaches `Authorization: Bearer` to every request; skips requests tagged `NoAuth`.
+  - `TokenRefresher` / `AppAuthTokenRefresher` — interface + AppAuth implementation for token refresh; testable without Android emulator.
+  - `TokenRefreshAuthenticator` — OkHttp `Authenticator` with `Mutex`-based single-flight refresh on 401; emits `AuthEvent.LoggedOut` on failure.
+  - `AuthManager` — PKCE S256 login via `buildLoginIntent`, token exchange via `handleCallback`, logout via `buildLogoutIntent`; exposes `authState: StateFlow<AuthState>`.
+  - `AuthConfig`, `AuthState`, `AuthEvent` — shared data types for auth configuration and state.
+  - `NetworkModule` — Hilt `@Module` producing `OkHttpClient`, `Retrofit`, `Json`; debug-only logging via `FLAG_DEBUGGABLE`.
+- **`android/app/.../auth/LoginActivity.kt`** — Compose login screen using Activity Result API; forwards callback to `AuthManager.handleCallback`.
+- **`android/app/.../di/AppNetworkModule.kt`** — provides `@Named("BASE_URL")` and `@Named("KEYCLOAK_ISSUER")` strings from `BuildConfig` (flavour-aware).
+- **`android/app/src/main/AndroidManifest.xml`** — registered `LoginActivity` and `RedirectUriReceiverActivity` with `taskmanager://` scheme intent-filter.
+
+### Tests
+- `AuthInterceptorTest` — verifies header attached, omitted when blank, skipped on `NoAuth` tag.
+- `TokenRefreshAuthenticatorTest` — verifies single-flight Mutex (two concurrent 401s → exactly one refresh), retry with new token, and `LoggedOut` event on missing refresh token.
+
+---
+
 ## [Unreleased] — Add MOBILE_APP role and mobile-app PKCE client to Keycloak realm
 
 ### Added
