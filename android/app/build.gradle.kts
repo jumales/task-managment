@@ -27,6 +27,8 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // AppAuth merges a RedirectUriReceiverActivity that requires this placeholder.
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.demo.taskmanager"
     }
 
     buildTypes {
