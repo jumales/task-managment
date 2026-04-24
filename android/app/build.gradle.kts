@@ -101,6 +101,9 @@ dependencies {
     implementation(project(":core-ui"))
     implementation(project(":domain"))
 
+    // Feature modules
+    implementation(project(":feature-tasks"))
+
     // DI
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased] — Android task list UI: screen, ViewModel, data layer integration
+
+### Added
+- **`android/feature-tasks/`** — new `:feature-tasks` Gradle library module with full Paging 3 tasks list screen:
+  - `TasksPagingSource` — offset-based `PagingSource` calling `TaskRepository.getTasks()`; maps DTO to domain model.
+  - `TasksFilterState` — immutable filter snapshot (status, completionStatus, projectId, assignedUserId) driving paging invalidation.
+  - `TasksListViewModel` — `flatMapLatest` on filter `StateFlow` + `cachedIn(viewModelScope)` for efficient page cache.
+  - `TaskCard` — displays task code, title, `TaskStatusChip`, project badge, and `UserAvatar`.
+  - `TasksFilterBar` — two horizontally-scrollable `FilterChip` rows (status and completion status filters).
+  - `TasksListScreen` — `PullToRefreshBox` + `LazyColumn` with full load / empty / error state handling.
+- **`android/app`** — wired `:feature-tasks` dependency; replaced placeholder `Tasks` route with `TasksListScreen`; added `TaskDetail` placeholder route.
+- **`android/settings.gradle.kts`** — registered `:feature-tasks` module.
+
+### Tests
+- `TasksListViewModelTest` — Turbine-based tests covering filter state transitions and paging flow emissions.
+- `TasksPagingSourceTest` — covers `LoadParams.Refresh` page key handling, HTTP errors, and thrown exceptions.
+
+---
+
 ## [Unreleased] — Android core-network module: AppAuth PKCE + token store + Retrofit
 
 ### Added
