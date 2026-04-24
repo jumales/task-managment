@@ -185,7 +185,8 @@ private fun OverviewTab(task: TaskFullDto, modifier: Modifier = Modifier) {
             LabeledRow(label = "Planned end", value = end)
         }
 
-        if (!task.description.isNullOrBlank()) {
+        val description = task.description
+        if (!description.isNullOrBlank()) {
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Description",
@@ -193,7 +194,7 @@ private fun OverviewTab(task: TaskFullDto, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.outline,
             )
             MarkdownText(
-                markdown = task.description,
+                markdown = description,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
