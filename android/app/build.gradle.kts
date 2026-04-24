@@ -49,19 +49,19 @@ android {
         create("emulator") {
             dimension = "env"
             buildConfigField("String", "BASE_URL",        "\"http://10.0.2.2:8080\"")
-            buildConfigField("String", "KEYCLOAK_ISSUER", "\"http://10.0.2.2:8180/realms/task-manager\"")
+            buildConfigField("String", "KEYCLOAK_ISSUER", "\"http://10.0.2.2:8180/realms/demo\"")
         }
         // Physical device on same LAN — URL comes from local.properties.
         create("device") {
             dimension = "env"
             buildConfigField("String", "BASE_URL",        "\"$lanBaseUrl\"")
-            buildConfigField("String", "KEYCLOAK_ISSUER", "\"${lanBaseUrl.replace(":8080", ":8180")}/realms/task-manager\"")
+            buildConfigField("String", "KEYCLOAK_ISSUER", "\"${lanBaseUrl.replace(":8080", ":8180")}/realms/demo\"")
         }
         // Tunnel / remote — developer fills in local.properties with a tunnel URL.
         create("tunnel") {
             dimension = "env"
             buildConfigField("String", "BASE_URL",        "\"${localProps.getProperty("TUNNEL_BASE_URL", "https://example.ngrok.io")}\"")
-            buildConfigField("String", "KEYCLOAK_ISSUER", "\"${localProps.getProperty("TUNNEL_KEYCLOAK_ISSUER", "https://example.ngrok.io/realms/task-manager")}\"")
+            buildConfigField("String", "KEYCLOAK_ISSUER", "\"${localProps.getProperty("TUNNEL_KEYCLOAK_ISSUER", "https://example.ngrok.io/realms/demo")}\"")
         }
     }
 

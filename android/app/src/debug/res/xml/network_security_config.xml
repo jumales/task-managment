@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug overlay: permits cleartext HTTP to all hosts.
+  Applied only to debug builds; release builds use src/main version (HTTPS only).
+  Required because LAN IPs for physical-device testing are dynamic and cannot be enumerated.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
