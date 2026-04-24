@@ -48,6 +48,7 @@ import com.demo.taskmanager.feature.tasks.create.TaskCreateScreen
 import com.demo.taskmanager.feature.tasks.create.TaskEditScreen
 import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
 import com.demo.taskmanager.feature.tasks.list.TasksListScreen
+import com.demo.taskmanager.feature.work.WorkTab
 import com.demo.taskmanager.ui.AuthViewModel
 import com.demo.taskmanager.core.ui.R
 import kotlinx.coroutines.launch
@@ -142,6 +143,7 @@ fun AppNavGraph(
                     TaskDetailScreen(
                         onBack = { navController.navigateUp() },
                         onEditClick = { navController.navigate(Screen.TaskEdit.routeFor(taskId)) },
+                        workTabContent = { phaseName -> WorkTab(phaseName = phaseName) },
                     )
                 }
                 composable(

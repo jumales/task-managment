@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased] — Android work logging (task_09)
+
+### Added
+- **`android/feature-work/`** — new Gradle module `:feature-work`:
+  - `WorkUiState` — data class holding `plannedWork`, `bookedWork`, `isLoading`, `snackbarMessage`.
+  - `WorkViewModel` — reads `taskId` from `SavedStateHandle` (same nav scope as `TaskDetailViewModel`); loads planned and booked work in parallel; exposes `addPlannedWork`, `addBookedWork`, `updateBookedWork`, `deleteBookedWork`; reloads list after each mutation; surfaces server errors via snackbar.
+  - `WorkTab` — entry composable; derives write guards from the `phaseName` parameter (`RELEASED`/`REJECTED` → no writes; `PLANNING` → allow planned-work add).
+  - `PlannedWorkSection` — read-only list plus Add FAB gated by `canAdd`; `WorkEntryDialog` shared with booked section.
+  - `BookedWorkSection` — swipe-to-delete (Material3 `SwipeToDismissBox`, end-to-start) + tap-to-edit dialog per row; add button hidden when `isWritable = false`.
+  - `DurationPicker` — +/− stepper outputting whole hours (matches backend `BigInteger bookedHours`).
+- **`TaskDetailScreen`** — added `workTabContent: @Composable (TaskPhaseName?) -> Unit` slot parameter; Work tab (index 3) now invokes the slot with `task.phase?.name`; defaults to placeholder so feature-tasks remains unaware of feature-work.
+- **`AppNavGraph`** — wires `WorkTab(phaseName = phaseName)` into the `workTabContent` slot of `TaskDetailScreen`.
+- **`app/build.gradle.kts`** — added `implementation(project(":data"))` so `TaskPhaseName` is resolvable at the nav-graph wiring call site.
+
+### Tests
+- `WorkViewModelTest` — 10 unit tests: parallel load on init; `addBookedWork` reloads and sets snackbar on 422; `deleteBookedWork` and `updateBookedWork` trigger reload on success; `addPlannedWork` reloads; `clearSnackbar`; server 422 during delete leaves list unchanged.
+
+---
+
 ## [Unreleased] — Android task create/edit + comment composer + participants tab (task_08)
 
 ### Added
