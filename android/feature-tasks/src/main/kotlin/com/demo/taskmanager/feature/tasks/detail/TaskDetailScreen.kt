@@ -15,17 +15,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,10 +60,20 @@ private val tabs = listOf("Overview", "Comments", "Participants", "Work", "Attac
 @Composable
 fun TaskDetailScreen(
     onBack: () -> Unit,
+    onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TaskDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState) {
+        val s = uiState
+        if (s is TaskDetailUiState.Loaded && s.snackbarMessage != null) {
+            snackbarHostState.showSnackbar(s.snackbarMessage)
+            viewModel.clearSnackbar()
+        }
+    }
 
     when (val state = uiState) {
         is TaskDetailUiState.Loading -> LoadingScreen()
@@ -69,8 +84,15 @@ fun TaskDetailScreen(
         is TaskDetailUiState.Loaded -> TaskDetailContent(
             task = state.task,
             comments = state.comments,
+            isSubmittingComment = state.isSubmittingComment,
             onBack = onBack,
+            onEditClick = onEditClick,
             onRefresh = viewModel::reload,
+            onSendComment = viewModel::addComment,
+            onJoin = viewModel::joinTask,
+            onWatch = viewModel::watchTask,
+            onRemoveParticipant = viewModel::removeParticipant,
+            snackbarHostState = snackbarHostState,
             modifier = modifier,
         )
     }
@@ -81,8 +103,15 @@ fun TaskDetailScreen(
 private fun TaskDetailContent(
     task: TaskFullDto,
     comments: List<Comment>,
+    isSubmittingComment: Boolean,
     onBack: () -> Unit,
+    onEditClick: () -> Unit,
     onRefresh: () -> Unit,
+    onSendComment: (String) -> Unit,
+    onJoin: () -> Unit,
+    onWatch: () -> Unit,
+    onRemoveParticipant: (String) -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -105,6 +134,12 @@ private fun TaskDetailContent(
                 },
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onEditClick) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit task")
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             ScrollableTabRow(selectedTabIndex = selectedTab) {
@@ -123,7 +158,17 @@ private fun TaskDetailContent(
             ) {
                 when (selectedTab) {
                     0 -> OverviewTab(task = task)
-                    1 -> CommentsTab(comments = comments)
+                    1 -> CommentsTab(
+                        comments = comments,
+                        isSubmitting = isSubmittingComment,
+                        onSend = onSendComment,
+                    )
+                    2 -> ParticipantsTab(
+                        participants = task.participants,
+                        onJoin = onJoin,
+                        onWatch = onWatch,
+                        onRemove = onRemoveParticipant,
+                    )
                     else -> PlaceholderTab(name = tabs[selectedTab])
                 }
             }
@@ -202,17 +247,28 @@ private fun OverviewTab(task: TaskFullDto, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CommentsTab(comments: List<Comment>, modifier: Modifier = Modifier) {
-    if (comments.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No comments yet", style = MaterialTheme.typography.bodyMedium)
+private fun CommentsTab(
+    comments: List<Comment>,
+    isSubmitting: Boolean,
+    onSend: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+        if (comments.isEmpty()) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("No comments yet", style = MaterialTheme.typography.bodyMedium)
+            }
+        } else {
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                items(comments, key = { it.id }) { comment ->
+                    CommentCard(comment = comment)
+                }
+            }
         }
-        return
-    }
-    LazyColumn(modifier = modifier.fillMaxSize()) {
-        items(comments, key = { it.id }) { comment ->
-            CommentCard(comment = comment)
-        }
+        CommentComposer(onSend = onSend, isSubmitting = isSubmitting)
     }
 }
 
