@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased] — Android users list + profile (task_12)
+
+### Added
+- **`android/feature-users/`** — new Gradle module `:feature-users`:
+  - `UsersPagingSource` — offset-based Paging 3 source against `GET /api/v1/users`; same pattern as `TasksPagingSource`.
+  - `UsersListUiState` — `isAdmin`, `roleEditTarget` (populated when admin opens role editor), `snackbarMessage`.
+  - `UsersListViewModel` — derives `isAdmin` from `AuthState.Authenticated.roles`; exposes `Flow<PagingData<UserDto>>` cached in `viewModelScope`; `openRoleEditor` calls `getUserRoles` before showing dialog so current roles are pre-filled; `saveRoles` calls `setUserRoles` and invalidates the paging source on success.
+  - `UsersListScreen` — Paging 3 `LazyColumn`; each row shows `UserAvatar` initials fallback + name + email; admin sees "Edit Roles" button per row; `RoleEditDialog` is an `AlertDialog` with checkboxes for `ADMIN` / `USER`.
+  - `ProfileUiState` — sealed class: `Loading`, `Loaded(user, avatarUrl, snackbarMessage)`, `Error`.
+  - `ProfileViewModel` — loads `GET /api/v1/users/me`; resolves avatar presigned URL via `FileRepository.getPresignedUrl(avatarFileId)` if set; `uploadAvatar(uri)` reads bytes from `ContentResolver`, builds `MultipartBody.Part`, calls `UserRepository.uploadAvatar`; `changeLanguage(lang)` calls `updateLanguage` then emits to `localeEvent: SharedFlow<String>` — the Screen collects this to call `AppCompatDelegate.setApplicationLocales` (system API stays in the UI layer, not ViewModel); `logout()` emits the AppAuth end-session intent via `logoutEvent: SharedFlow<Intent>`.
+  - `ProfileScreen` — tappable `UserAvatar` (80 dp) launches image picker; language toggle via `FilterChip` for EN/HR; name edit via `AlertDialog`; logout button at bottom.
+- **`libs.versions.toml`** — added `appcompat = "1.7.0"` and `androidx-appcompat` library alias for per-app locale API.
+- **`AppNavGraph.kt`** — replaced `PlaceholderScreen("Users")` with `UsersListScreen()`; replaced `PlaceholderScreen("Profile")` with `ProfileScreen()`.
+- **`app/build.gradle.kts`** — added `implementation(project(":feature-users"))`.
+- **`android/settings.gradle.kts`** — registered `:feature-users`.
+
+### Locale change design
+Language toggle calls `AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(lang))` from the Screen composable (collected from `ProfileViewModel.localeEvent`). Keeping system APIs in the UI layer makes `ProfileViewModel` fully testable on the JVM.
+
+### Tests
+- `ProfileViewModelTest` — 5 unit tests: load success; load resolves presigned avatar URL; `changeLanguage` calls `updateLanguage` API and emits locale event; `changeLanguage` error shows snackbar; `updateName` persists new name; `logout` emits logout intent.
+
+---
+
 ## [Unreleased] — Android projects + phases (task_11)
 
 ### Added

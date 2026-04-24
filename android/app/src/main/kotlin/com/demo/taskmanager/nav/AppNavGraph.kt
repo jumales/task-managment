@@ -47,6 +47,8 @@ import androidx.navigation.navArgument
 import com.demo.taskmanager.feature.attachments.AttachmentsTab
 import com.demo.taskmanager.feature.projects.detail.ProjectDetailScreen
 import com.demo.taskmanager.feature.projects.list.ProjectsListScreen
+import com.demo.taskmanager.feature.users.list.UsersListScreen
+import com.demo.taskmanager.feature.users.profile.ProfileScreen
 import com.demo.taskmanager.feature.tasks.create.TaskCreateScreen
 import com.demo.taskmanager.feature.tasks.create.TaskEditScreen
 import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
@@ -172,11 +174,11 @@ fun AppNavGraph(
                 ) {
                     ProjectDetailScreen(onBack = { navController.navigateUp() })
                 }
-                composable(Screen.Users.route)    { PlaceholderScreen("Users") }
+                composable(Screen.Users.route)    { UsersListScreen() }
                 composable(Screen.Search.route)   { PlaceholderScreen("Search") }
                 composable(Screen.Reports.route)  { PlaceholderScreen("Reports") }
                 composable(Screen.Config.route)   { PlaceholderScreen("Configuration") }
-                composable(Screen.Profile.route)  { PlaceholderScreen("Profile") }
+                composable(Screen.Profile.route)  { ProfileScreen() }
             }
         }
     }
