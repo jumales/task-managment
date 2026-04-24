@@ -44,6 +44,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.demo.taskmanager.feature.attachments.AttachmentsTab
 import com.demo.taskmanager.feature.tasks.create.TaskCreateScreen
 import com.demo.taskmanager.feature.tasks.create.TaskEditScreen
 import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
@@ -144,6 +145,7 @@ fun AppNavGraph(
                         onBack = { navController.navigateUp() },
                         onEditClick = { navController.navigate(Screen.TaskEdit.routeFor(taskId)) },
                         workTabContent = { phaseName -> WorkTab(phaseName = phaseName) },
+                        attachmentsTabContent = { AttachmentsTab() },
                     )
                 }
                 composable(
