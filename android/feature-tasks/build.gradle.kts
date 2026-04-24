@@ -40,6 +40,7 @@ dependencies {
 
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.compose.markdown)
 
     testImplementation(libs.junit5.api)
     testRuntimeOnly(libs.junit5.engine)

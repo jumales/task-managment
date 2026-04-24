@@ -40,6 +40,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
 import com.demo.taskmanager.feature.tasks.list.TasksListScreen
 import com.demo.taskmanager.ui.AuthViewModel
 import com.demo.taskmanager.core.ui.R
@@ -107,7 +110,12 @@ fun AppNavGraph(
                         },
                     )
                 }
-                composable(Screen.TaskDetail.route) { PlaceholderScreen("Task Detail") }
+                composable(
+                    route = Screen.TaskDetail.route,
+                    arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                ) {
+                    TaskDetailScreen(onBack = { navController.navigateUp() })
+                }
                 composable(Screen.Projects.route) { PlaceholderScreen("Projects") }
                 composable(Screen.Users.route)    { PlaceholderScreen("Users") }
                 composable(Screen.Search.route)   { PlaceholderScreen("Search") }

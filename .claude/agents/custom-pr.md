@@ -23,29 +23,47 @@ You manage the full lifecycle from final commit to opened PR, following this exa
 
 3. **Branch naming validation**: Verify the branch name follows snake_case convention (e.g., `add_user_endpoint`, `fix_feign_auth`). If it doesn't, warn the user but do not block — let them decide whether to rename.
 
-### Phase 2 — Clean Build
+### Phase 2 — Android Build Check (if applicable)
 
-4. **Run clean build**: Execute `mvn clean install -DskipTests=true` from the project root.
+4. **Detect Android changes**: Check if any files inside `android/` changed on this branch:
+   ```bash
+   git diff --name-only origin/main...HEAD | grep -c "^android/"
+   ```
+   - If count is **0**: skip this phase entirely — proceed to Phase 3.
+   - If count is **> 0**: proceed to the next sub-step.
+
+5. **Run Gradle assembly**: Execute from the Android project root:
+   ```bash
+   cd /Users/admin/projects/cc/task-managment/android && ./gradlew assembleDebug -x test 2>&1 | tail -40
+   ```
+   - If output contains `BUILD SUCCESSFUL`: continue to Phase 3.
+   - If output contains `BUILD FAILED`: STOP. Report the exact failing task and error lines. Do NOT push until the build passes.
+
+### Phase 3 — Clean Build
+
+6. **Run clean build**: Execute `mvn clean install -DskipTests=true` from the project root.
    - If the build **passes**: proceed to push.
    - If the build **fails**: STOP. Report the exact error output. Do NOT push a broken build. Ask the user to fix the build errors before continuing.
+   - If the branch contains **only** Android changes (all changed files are under `android/`): skip this step — there is no Java/Spring code to build.
 
-### Phase 3 — Push
+### Phase 4 — Push
 
-5. **Push the branch**: Run `git push origin <branch-name>` (or `git push --set-upstream origin <branch-name>` if the branch is new).
+7. **Push the branch**: Run `git push origin <branch-name>` (or `git push --set-upstream origin <branch-name>` if the branch is new).
    - Confirm the push succeeded before continuing.
 
-### Phase 4 — CI Monitoring
+### Phase 5 — CI Monitoring
 
-6. **Watch CI**: 
+8. **Watch CI**: 
    - Check memory notes — if GitHub tokens are unavailable (see `project_github_tokens.md`), skip CI watching and inform the user to monitor GitHub Actions manually.
    - Otherwise, run `gh run watch` to follow the GitHub Actions run in real time.
    - If CI **passes**: proceed to PR creation.
    - If CI **fails**: STOP. Report the failure. Do NOT open a PR on a failing CI run. Ask the user to fix the failures.
    - If waiting more than 10 minutes, ask the user whether to continue waiting.
+   - If the branch contains **only** Android changes: skip CI watching — the GitHub Actions workflow targets the Java/Spring services, not the Gradle project.
 
-### Phase 5 — Pull Request Creation
+### Phase 6 — Pull Request Creation
 
-7. **Create the PR**:
+9. **Create the PR**:
    - Check memory notes — if GitHub tokens are unavailable, instruct the user to open the PR manually on GitHub and provide a suggested PR title and description.
    - Otherwise, run: `gh pr create --base main --title "<title>" --body "<body>"`
    - **PR Title**: Derive from the branch name — convert snake_case to Title Case sentence (e.g., `add_user_endpoint` → `Add user endpoint`).
@@ -58,7 +76,8 @@ You manage the full lifecycle from final commit to opened PR, following this exa
 ## Hard Rules You Must Enforce
 
 - **Never push directly to `main` or `master`** — if on main, stop and re-branch.
-- **Never push a broken build** — `mvn clean install -DskipTests=true` must pass.
+- **Never push a broken Java build** — `mvn clean install -DskipTests=true` must pass (skip for Android-only branches).
+- **Never push a broken Android build** — `./gradlew assembleDebug -x test` must pass when any `android/` files changed.
 - **Never open a PR on a failing CI run** — fix CI first.
 - **Never merge directly** — your job ends at PR creation; merging is for reviewers.
 - **Always check for uncommitted changes** before pushing — never leave work behind.
