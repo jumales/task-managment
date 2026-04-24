@@ -108,6 +108,7 @@ dependencies {
     implementation(project(":feature-attachments"))
     implementation(project(":feature-projects"))
     implementation(project(":feature-users"))
+    implementation(project(":feature-search"))
 
     // DI
     implementation(libs.hilt.android)
