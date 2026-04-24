@@ -10,6 +10,7 @@ kotlinx-serialization-json = "1.7.3"
 kotlinx-serialization-converter = "1.0.0"
 kotlinx-coroutines             = "1.9.0"
 appauth                    = "0.11.1"
+appcompat                  = "1.7.0"
 firebase-bom               = "33.5.1"
 coil                       = "2.7.0"
 paging                     = "3.3.2"
@@ -57,6 +58,7 @@ okhttp-mockwebserver           = { group = "com.squareup.okhttp3",     name = "m
 
 # Auth
 appauth                        = { group = "net.openid",               name = "appauth",                       version.ref = "appauth" }
+androidx-appcompat             = { group = "androidx.appcompat",       name = "appcompat",                     version.ref = "appcompat" }
 
 # Firebase (BOM declared; individual libs added per-module)
 firebase-bom                   = { group = "com.google.firebase",      name = "firebase-bom",                  version.ref = "firebase-bom" }
