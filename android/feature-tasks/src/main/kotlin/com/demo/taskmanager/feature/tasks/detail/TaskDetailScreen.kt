@@ -57,8 +57,9 @@ private val tabs = listOf("Overview", "Comments", "Participants", "Work", "Attac
  * Full-screen task detail view: top bar, tab row, and content per tab.
  * Task and comments are loaded by [TaskDetailViewModel] via [SavedStateHandle].
  *
- * [workTabContent] is a slot injected by the app module so that [feature-tasks] stays
- * unaware of [feature-work]. Receives the current task phase name for phase-based guards.
+ * [workTabContent] and [attachmentsTabContent] are slots injected by the app module so that
+ * [feature-tasks] stays unaware of [feature-work] and [feature-attachments].
+ * [workTabContent] receives the current task phase name for phase-based guards.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +68,7 @@ fun TaskDetailScreen(
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
     workTabContent: @Composable (phaseName: TaskPhaseName?) -> Unit = { PlaceholderTab("Work") },
+    attachmentsTabContent: @Composable () -> Unit = { PlaceholderTab("Attachments") },
     viewModel: TaskDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -98,6 +100,7 @@ fun TaskDetailScreen(
             onWatch = viewModel::watchTask,
             onRemoveParticipant = viewModel::removeParticipant,
             workTabContent = workTabContent,
+            attachmentsTabContent = attachmentsTabContent,
             snackbarHostState = snackbarHostState,
             modifier = modifier,
         )
@@ -118,6 +121,7 @@ private fun TaskDetailContent(
     onWatch: () -> Unit,
     onRemoveParticipant: (String) -> Unit,
     workTabContent: @Composable (phaseName: TaskPhaseName?) -> Unit,
+    attachmentsTabContent: @Composable () -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -177,6 +181,7 @@ private fun TaskDetailContent(
                         onRemove = onRemoveParticipant,
                     )
                     3 -> workTabContent(task.phase?.name)
+                    4 -> attachmentsTabContent()
                     else -> PlaceholderTab(name = tabs[selectedTab])
                 }
             }

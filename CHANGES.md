@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased] — Android attachments upload/download (task_10)
+
+### Added
+- **`android/feature-attachments/`** — new Gradle module `:feature-attachments`:
+  - `FileUploader` — reads a content `Uri`, validates size client-side against a configurable `maxBytes` limit (default 50 MB), then sends a multipart `POST /api/v1/files/attachments` to file-service. Returns a sealed `UploadOutcome` (Success / Error). Also wraps `GET /api/v1/files/{id}/url` for presigned download URLs. `getFileSize()` is `internal open` so tests can subclass without allocating large arrays.
+  - `AttachmentsModule` — Hilt `@Provides` that wires `FileUploader` from `ApplicationContext` + `FileRepository`.
+  - `AttachmentsUiState` — data class: `attachments`, `isLoading`, `isUploading`, `snackbarMessage`.
+  - `AttachmentsViewModel` — reads `taskId` from `SavedStateHandle`; loads attachments on init; `uploadAttachment(uri)` calls `FileUploader.upload()` then `TaskRepository.addAttachment()`; `deleteAttachment()` removes and reloads; `downloadAttachment()` fetches presigned URL and enqueues via `DownloadManager` into public Downloads dir.
+  - `AttachmentList` — composable with header (count + add button), empty-state, and `LazyColumn` rows each showing filename, uploader name, date, download icon, delete icon.
+  - `UploadProgressDialog` — blocking `AlertDialog` with indeterminate `CircularProgressIndicator` shown while `isUploading = true`.
+  - `AttachmentsTab` — entry composable; uses `ActivityResultContracts.GetContent("*/*")` for system file picker (no runtime permissions needed on API 29+); shows `UploadProgressDialog` during upload.
+- **`TaskDetailScreen`** — added `attachmentsTabContent: @Composable () -> Unit` slot parameter (mirrors `workTabContent` pattern); tab index 4 now invokes the slot; defaults to placeholder so `feature-tasks` stays unaware of `feature-attachments`.
+- **`AppNavGraph`** — wires `AttachmentsTab()` into the `attachmentsTabContent` slot.
+- **`app/build.gradle.kts`** — added `implementation(project(":feature-attachments"))`.
+- **`android/settings.gradle.kts`** — registered `:feature-attachments`.
+
+### Permissions
+- `WRITE_EXTERNAL_STORAGE` declared in `feature-attachments` manifest with `android:maxSdkVersion="28"` — only required below Android 10 for `DownloadManager`.
+
+### Tests
+- `FileUploaderTest` — verifies that `upload()` returns `UploadError.FileTooLarge` without calling `FileRepository` when `stubbedSize > maxBytes = 10`; verifies file exactly at limit passes the size gate.
+- `AttachmentsViewModelTest` — 7 unit tests: initial loading state; load success/error; delete success (reload) and error (snackbar only); upload rejected when `FileUploader` returns `FileTooLarge`; upload success links attachment; `clearSnackbar`.
+
+---
+
 ## [Unreleased] — Android work logging (task_09)
 
 ### Added

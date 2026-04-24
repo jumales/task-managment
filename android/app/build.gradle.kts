@@ -105,6 +105,7 @@ dependencies {
     // Feature modules
     implementation(project(":feature-tasks"))
     implementation(project(":feature-work"))
+    implementation(project(":feature-attachments"))
 
     // DI
     implementation(libs.hilt.android)
