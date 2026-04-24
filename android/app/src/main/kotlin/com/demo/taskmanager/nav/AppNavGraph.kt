@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
@@ -36,12 +38,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.demo.taskmanager.feature.tasks.create.TaskCreateScreen
+import com.demo.taskmanager.feature.tasks.create.TaskEditScreen
 import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
 import com.demo.taskmanager.feature.tasks.list.TasksListScreen
 import com.demo.taskmanager.ui.AuthViewModel
@@ -87,11 +91,21 @@ fun AppNavGraph(
     ) {
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
         val showBottomBar = bottomNavScreens.any { it.route == currentRoute }
+        val showFab = currentRoute == Screen.Tasks.route
 
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
                     AppBottomBar(navController = navController, currentRoute = currentRoute)
+                }
+            },
+            floatingActionButton = {
+                if (showFab) {
+                    FloatingActionButton(onClick = {
+                        navController.navigate(Screen.TaskCreate.route)
+                    }) {
+                        Icon(Icons.Default.Add, contentDescription = "Create task")
+                    }
                 }
             },
         ) { padding ->
@@ -110,11 +124,34 @@ fun AppNavGraph(
                         },
                     )
                 }
+                composable(Screen.TaskCreate.route) {
+                    TaskCreateScreen(
+                        onBack = { navController.navigateUp() },
+                        onTaskCreated = { taskId ->
+                            navController.navigate(Screen.TaskDetail.routeFor(taskId)) {
+                                popUpTo(Screen.Tasks.route)
+                            }
+                        },
+                    )
+                }
                 composable(
                     route = Screen.TaskDetail.route,
                     arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                ) { backStackEntry ->
+                    val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+                    TaskDetailScreen(
+                        onBack = { navController.navigateUp() },
+                        onEditClick = { navController.navigate(Screen.TaskEdit.routeFor(taskId)) },
+                    )
+                }
+                composable(
+                    route = Screen.TaskEdit.route,
+                    arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
                 ) {
-                    TaskDetailScreen(onBack = { navController.navigateUp() })
+                    TaskEditScreen(
+                        onBack = { navController.navigateUp() },
+                        onSaved = { navController.navigateUp() },
+                    )
                 }
                 composable(Screen.Projects.route) { PlaceholderScreen("Projects") }
                 composable(Screen.Users.route)    { PlaceholderScreen("Users") }

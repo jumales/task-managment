@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased] — Android task create/edit + comment composer + participants tab (task_08)
+
+### Added
+- **`android/feature-tasks/create/`** — task create and edit screens:
+  - `TaskCreateUiState` + `TaskEditUiState` — sealed interfaces covering Idle / Submitting / Success / Error (create) and Loading / Blocked / Ready / Submitting / Success (edit).
+  - `TaskCreateViewModel` — loads projects and users in parallel; holds `mutableStateOf` form fields; blocks `submit()` when title blank or project unset; maps 400/422 server messages to snackbar errors.
+  - `TaskEditViewModel` — reads `taskId` from `SavedStateHandle`; pre-fills form from existing task; enforces `validateFieldsEditable` client-side by showing a `Blocked` state for DONE/RELEASED/REJECTED phases; calls `updateTask` with optimistic-lock `version`.
+  - `TaskCreateScreen` + `TaskEditScreen` — share `TaskFormContent` (title, description, status, type, project dropdown, phase dropdown, assignee picker); `TaskEditScreen` shows a locked message when phase is blocked.
+- **`android/feature-tasks/detail/`** — write-path additions:
+  - `CommentComposer` — `OutlinedTextField` + send `IconButton`; text persisted via `rememberSaveable`; disabled while `isSubmittingComment`.
+  - `ParticipantsTab` — lists `task.participants`; Join and Watch `OutlinedButton`s; remove icon per non-CREATOR participant.
+- **`TaskDetailViewModel`** — added `addComment` (optimistic insert + rollback on error), `joinTask`, `watchTask`, `removeParticipant`, `clearSnackbar`.
+- **`TaskDetailUiState.Loaded`** — extended with `snackbarMessage` and `isSubmittingComment`.
+- **`TaskDetailScreen`** — wired `CommentComposer` into Comments tab, `ParticipantsTab` into Participants tab, edit `FloatingActionButton`.
+- **`AppNavGraph`** — added `TaskCreate` and `TaskEdit` routes; create FAB on tasks list screen.
+- **`Screen`** — added `TaskCreate` and `TaskEdit` sealed objects.
+
+### Tests
+- `TaskCreateViewModelTest` — verifies `submit()` no-ops when title blank or project unset; `Success` on 201; `Error` on 400.
+- `TaskDetailViewModelTest` — new tests: optimistic comment insert + real replacement on success; rollback + snackbar on 500; `clearSnackbar`.
+
+---
+
 ## [Unreleased] — Android task detail screen + comments (task_07)
 
 ### Added

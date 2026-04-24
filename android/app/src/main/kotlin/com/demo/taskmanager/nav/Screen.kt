@@ -4,9 +4,14 @@ package com.demo.taskmanager.nav
 sealed class Screen(val route: String) {
     data object Login      : Screen("login")
     data object Tasks      : Screen("tasks")
+    data object TaskCreate : Screen("tasks/create")
     data object TaskDetail : Screen("tasks/{taskId}") {
         /** Produces the concrete route string for a given task id. */
         fun routeFor(taskId: String) = "tasks/$taskId"
+    }
+    data object TaskEdit   : Screen("tasks/{taskId}/edit") {
+        /** Produces the concrete route string for a given task id. */
+        fun routeFor(taskId: String) = "tasks/$taskId/edit"
     }
     data object Projects   : Screen("projects")
     data object Users      : Screen("users")
