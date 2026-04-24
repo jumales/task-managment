@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased] — Android projects + phases (task_11)
+
+### Added
+- **`android/feature-projects/`** — new Gradle module `:feature-projects`:
+  - `ProjectsPagingSource` — offset-based Paging 3 source against `GET /api/v1/projects`; mirrors `TasksPagingSource` pattern.
+  - `ProjectsListUiState` — `isAdmin`, `snackbarMessage`, `showCreateDialog`.
+  - `ProjectsListViewModel` — injects `AuthManager`; derives `isAdmin` from `AuthState.Authenticated.roles` (checks `"ADMIN"` role); exposes `Flow<PagingData<ProjectDto>>` cached in `viewModelScope`; `createProject` and `deleteProject` call `currentPagingSource?.invalidate()` to refresh the list; server 422 errors (active tasks block delete) surfaced via snackbar.
+  - `ProjectsListScreen` — `Scaffold` + Paging 3 `LazyColumn`; FAB and delete buttons visible only when `isAdmin = true`; confirmation dialog before delete; inline create dialog.
+  - `ProjectDetailUiState` — sealed interface with `Loading`, `Loaded(project, phases, isAdmin, snackbarMessage)`, `Error`.
+  - `ProjectDetailViewModel` — loads project and phases in parallel via `async`/`await`; `updateProject` preserves existing `taskCodePrefix`/`defaultPhaseId`; `setDefaultPhase(phaseId)` re-calls `updateProject` with updated `defaultPhaseId` (no dedicated endpoint — mirrors web client pattern); `deletePhase` passes server error message directly to snackbar so "Phase has active tasks" reason is visible; `createPhase`/`updatePhase` mutate the list optimistically.
+  - `ProjectDetailScreen` — TopAppBar with edit button (admin only); `PullToRefreshBox` wrapping phases list; per-phase `Card` with name, "Default" label, star icon to toggle default, delete button (admin), and inline custom-name `OutlinedTextField` with save icon (enabled when dirty).
+  - `ProjectEditDialog` — pre-fills current name and description.
+  - `PhaseEditDialog` — `ExposedDropdownMenuBox` listing all `TaskPhaseName` enum values; optional custom label field.
+- **`Screen.kt`** — added `ProjectDetail("projects/{projectId}")` with `routeFor()` helper.
+- **`AppNavGraph.kt`** — wired `ProjectsListScreen` (replaces placeholder) with `onProjectClick → ProjectDetail`; added `ProjectDetail` composable destination.
+- **`app/build.gradle.kts`** — added `implementation(project(":feature-projects"))`.
+- **`android/settings.gradle.kts`** — registered `:feature-projects`.
+
+### Role gating
+- Admin check: `AuthState.Authenticated.roles.contains("ADMIN")`. SUPERVISOR-only users see the list and detail read-only; create/delete/edit actions are hidden.
+
+### Tests
+- `ProjectDetailViewModelTest` — 6 unit tests: parallel load; `setDefaultPhase` calls `updateProject` with correct `defaultPhaseId`; clear default passes `null`; `deletePhase` removes from list on success and sets snackbar (without removing) on 422; `updatePhase` replaces in list; `clearSnackbar`.
+
+---
+
 ## [Unreleased] — Android attachments upload/download (task_10)
 
 ### Added

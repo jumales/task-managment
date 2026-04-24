@@ -45,6 +45,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.demo.taskmanager.feature.attachments.AttachmentsTab
+import com.demo.taskmanager.feature.projects.detail.ProjectDetailScreen
+import com.demo.taskmanager.feature.projects.list.ProjectsListScreen
 import com.demo.taskmanager.feature.tasks.create.TaskCreateScreen
 import com.demo.taskmanager.feature.tasks.create.TaskEditScreen
 import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
@@ -157,7 +159,19 @@ fun AppNavGraph(
                         onSaved = { navController.navigateUp() },
                     )
                 }
-                composable(Screen.Projects.route) { PlaceholderScreen("Projects") }
+                composable(Screen.Projects.route) {
+                    ProjectsListScreen(
+                        onProjectClick = { projectId ->
+                            navController.navigate(Screen.ProjectDetail.routeFor(projectId))
+                        },
+                    )
+                }
+                composable(
+                    route = Screen.ProjectDetail.route,
+                    arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
+                ) {
+                    ProjectDetailScreen(onBack = { navController.navigateUp() })
+                }
                 composable(Screen.Users.route)    { PlaceholderScreen("Users") }
                 composable(Screen.Search.route)   { PlaceholderScreen("Search") }
                 composable(Screen.Reports.route)  { PlaceholderScreen("Reports") }
