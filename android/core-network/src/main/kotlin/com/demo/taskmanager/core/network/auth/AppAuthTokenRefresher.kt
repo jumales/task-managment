@@ -33,6 +33,7 @@ class AppAuthTokenRefresher @Inject constructor(
             val request = TokenRequest.Builder(serviceConfig, authConfig.clientId)
                 .setGrantType(GrantTypeValues.REFRESH_TOKEN)
                 .setRefreshToken(refreshToken)
+                .setScope(SCOPE_OPENID)
                 .build()
 
             val response = suspendCoroutine { cont ->
@@ -56,5 +57,6 @@ class AppAuthTokenRefresher @Inject constructor(
 
     companion object {
         private const val TAG = "AppAuthTokenRefresher"
+        private const val SCOPE_OPENID = "openid"
     }
 }

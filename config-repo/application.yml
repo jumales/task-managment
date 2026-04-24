@@ -17,7 +17,11 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/demo}
+          # jwk-set-uri validates the JWT signature via Keycloak's public keys without
+          # enforcing the iss claim. issuer-uri would reject tokens whose iss value uses
+          # a different hostname than the backend (e.g. 10.0.2.2 from the Android emulator
+          # vs localhost used by the backend). Signature validation is sufficient for dev.
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/demo/protocol/openid-connect/certs}
 
   jpa:
     hibernate:

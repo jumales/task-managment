@@ -5,6 +5,7 @@ import com.demo.taskmanager.core.network.auth.AppAuthTokenRefresher
 import com.demo.taskmanager.core.network.auth.AuthConfig
 import com.demo.taskmanager.core.network.auth.AuthEvent
 import com.demo.taskmanager.core.network.auth.AuthInterceptor
+import com.demo.taskmanager.core.network.auth.HttpAllowedConnectionBuilder
 import com.demo.taskmanager.core.network.auth.TokenRefreshAuthenticator
 import com.demo.taskmanager.core.network.auth.TokenRefresher
 import com.demo.taskmanager.core.network.auth.TokenStore
@@ -16,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.serialization.json.Json
+import net.openid.appauth.AppAuthConfiguration
 import net.openid.appauth.AuthorizationService
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -53,8 +55,20 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAuthorizationService(@ApplicationContext context: Context): AuthorizationService =
-        AuthorizationService(context)
+    fun provideAuthorizationService(
+        @ApplicationContext context: Context,
+        @Named(KEYCLOAK_ISSUER) issuerUri: String,
+    ): AuthorizationService {
+        val config = AppAuthConfiguration.Builder()
+            .apply {
+                // DefaultConnectionBuilder hard-rejects HTTP; use a permissive builder for local dev.
+                if (issuerUri.startsWith("http://")) {
+                    setConnectionBuilder(HttpAllowedConnectionBuilder)
+                }
+            }
+            .build()
+        return AuthorizationService(context, config)
+    }
 
     @Provides
     @Singleton

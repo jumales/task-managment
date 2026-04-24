@@ -112,19 +112,22 @@ class AuthManager @Inject constructor(
     }
 
     /**
-     * Fetches the OIDC discovery document from [authConfig.issuerUri] and invokes [onSuccess].
-     * Errors are logged but not propagated — login is a user-initiated action and the UI
-     * should handle the unauthenticated state naturally.
+     * Builds an [AuthorizationServiceConfiguration] from known Keycloak endpoint paths and
+     * invokes [onSuccess] synchronously.
+     *
+     * We construct the config manually instead of using [AuthorizationServiceConfiguration.fetchFromIssuer]
+     * because that call enforces that the discovery document's `issuer` field matches the URL we
+     * fetched from. In local dev the client reaches Keycloak via a different hostname than the
+     * one Keycloak stamps in the `iss` claim (e.g. 10.0.2.2 vs localhost), which causes that
+     * check to fail. Building the config manually skips the check while still hitting the correct
+     * Keycloak endpoints.
      */
     private fun fetchServiceConfig(onSuccess: (AuthorizationServiceConfiguration) -> Unit) {
-        val issuerUri = android.net.Uri.parse(authConfig.issuerUri)
-        AuthorizationServiceConfiguration.fetchFromIssuer(issuerUri) { config, ex ->
-            if (config != null) {
-                onSuccess(config)
-            } else {
-                Log.e(TAG, "Failed to fetch OIDC discovery document: $ex")
-            }
-        }
+        val config = AuthorizationServiceConfiguration(
+            android.net.Uri.parse("${authConfig.issuerUri}/protocol/openid-connect/auth"),
+            android.net.Uri.parse("${authConfig.issuerUri}/protocol/openid-connect/token"),
+        )
+        onSuccess(config)
     }
 
     /**

@@ -28,6 +28,13 @@ class TokenRefreshAuthenticator @Inject constructor(
     private val mutex = Mutex()
 
     override fun authenticate(route: Route?, response: Response): Request? {
+        // If we already retried after a refresh and still got 401, give up.
+        // Without this guard OkHttp loops until it hits its 20-follow-up limit and throws ProtocolException.
+        if (response.priorResponse?.code == HTTP_UNAUTHORIZED) {
+            emitLoggedOut()
+            return null
+        }
+
         val refreshToken = tokenStore.refreshToken
         if (refreshToken.isBlank()) {
             emitLoggedOut()
@@ -69,5 +76,6 @@ class TokenRefreshAuthenticator @Inject constructor(
         private const val TAG = "TokenRefreshAuth"
         private const val HEADER_AUTHORIZATION = "Authorization"
         private const val PREFIX_BEARER = "Bearer"
+        private const val HTTP_UNAUTHORIZED = 401
     }
 }
