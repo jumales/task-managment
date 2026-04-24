@@ -14,6 +14,10 @@ sealed class Screen(val route: String) {
         fun routeFor(taskId: String) = "tasks/$taskId/edit"
     }
     data object Projects   : Screen("projects")
+    data object ProjectDetail : Screen("projects/{projectId}") {
+        /** Produces the concrete route string for a given project id. */
+        fun routeFor(projectId: String) = "projects/$projectId"
+    }
     data object Users      : Screen("users")
     data object Search     : Screen("search")
     data object Reports    : Screen("reports")
