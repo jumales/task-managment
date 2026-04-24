@@ -46,6 +46,7 @@ import com.demo.taskmanager.core.ui.components.LoadingScreen
 import com.demo.taskmanager.core.ui.components.TaskStatusChip
 import com.demo.taskmanager.core.ui.components.UserAvatar
 import com.demo.taskmanager.data.dto.TaskFullDto
+import com.demo.taskmanager.data.dto.enums.TaskPhaseName
 import com.demo.taskmanager.data.dto.enums.TimelineState
 import com.demo.taskmanager.domain.model.Comment
 import dev.jeziellago.compose.markdowntext.MarkdownText
@@ -55,6 +56,9 @@ private val tabs = listOf("Overview", "Comments", "Participants", "Work", "Attac
 /**
  * Full-screen task detail view: top bar, tab row, and content per tab.
  * Task and comments are loaded by [TaskDetailViewModel] via [SavedStateHandle].
+ *
+ * [workTabContent] is a slot injected by the app module so that [feature-tasks] stays
+ * unaware of [feature-work]. Receives the current task phase name for phase-based guards.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +66,7 @@ fun TaskDetailScreen(
     onBack: () -> Unit,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
+    workTabContent: @Composable (phaseName: TaskPhaseName?) -> Unit = { PlaceholderTab("Work") },
     viewModel: TaskDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -92,6 +97,7 @@ fun TaskDetailScreen(
             onJoin = viewModel::joinTask,
             onWatch = viewModel::watchTask,
             onRemoveParticipant = viewModel::removeParticipant,
+            workTabContent = workTabContent,
             snackbarHostState = snackbarHostState,
             modifier = modifier,
         )
@@ -111,6 +117,7 @@ private fun TaskDetailContent(
     onJoin: () -> Unit,
     onWatch: () -> Unit,
     onRemoveParticipant: (String) -> Unit,
+    workTabContent: @Composable (phaseName: TaskPhaseName?) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -169,6 +176,7 @@ private fun TaskDetailContent(
                         onWatch = onWatch,
                         onRemove = onRemoveParticipant,
                     )
+                    3 -> workTabContent(task.phase?.name)
                     else -> PlaceholderTab(name = tabs[selectedTab])
                 }
             }

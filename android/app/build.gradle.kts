@@ -100,9 +100,11 @@ dependencies {
     implementation(project(":core-network"))
     implementation(project(":core-ui"))
     implementation(project(":domain"))
+    implementation(project(":data"))
 
     // Feature modules
     implementation(project(":feature-tasks"))
+    implementation(project(":feature-work"))
 
     // DI
     implementation(libs.hilt.android)
