@@ -54,7 +54,7 @@ android/
 | 03  | [task_03_network_auth.md](task_03_network_auth.md)           | Android       |
 | 04  | [task_04_data_api.md](task_04_data_api.md)                   | Android       |
 | 05  | [task_05_domain_navigation.md](task_05_domain_navigation.md) | Android       |
-| 06  | [task_06_tasks_list.md](task_06_tasks_list.md)               | Android       |
+| 06  | [task_06_tasks_list.md](solved/task_06_tasks_list.md)               | Android       |
 | 07  | [task_07_task_detail_comments.md](task_07_task_detail_comments.md) | Android |
 | 08  | [task_08_task_create_edit.md](task_08_task_create_edit.md)   | Android       |
 | 09  | [task_09_work_logging.md](task_09_work_logging.md)           | Android       |
