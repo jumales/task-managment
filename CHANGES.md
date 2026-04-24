@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased] — Android task detail screen + comments (task_07)
+
+### Added
+- **`android/feature-tasks/detail/`** — new detail package inside `:feature-tasks`:
+  - `TaskDetailUiState` — sealed interface with `Loading`, `Loaded(task, comments)`, `Error(throwable)`.
+  - `TaskDetailViewModel` — reads `taskId` from `SavedStateHandle`; fetches `getTaskFull` and `getComments` in parallel via `async`; exposes `uiState: StateFlow`.
+  - `TaskDetailScreen` — `Scaffold` with `TopAppBar` (task code + title + back button) and 5-tab `ScrollableTabRow`; Overview and Comments tabs fully implemented; Participants / Work / Attachments show placeholders.
+  - `CommentCard` — author avatar, name, relative timestamp, and markdown body via `compose-markdown`.
+- **`android/app`** — wired `TaskDetailScreen` into `AppNavGraph` with `navArgument("taskId")`; replaced placeholder composable.
+- **`android/gradle/libs.versions.toml`** — added `compose-markdown = "0.3.4"` (JitPack).
+- **`android/settings.gradle.kts`** — added JitPack repository for `compose-markdown`.
+
+### Tests
+- `TaskDetailViewModelTest` — covers `Loading → Loaded`, `Loading → Error`, `reload()` cycle, and verifies exactly-once repository calls.
+
+---
+
 ## [Unreleased] — Android task list UI: screen, ViewModel, data layer integration
 
 ### Added
