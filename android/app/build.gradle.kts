@@ -110,6 +110,7 @@ dependencies {
     implementation(project(":feature-users"))
     implementation(project(":feature-search"))
     implementation(project(":feature-reports"))
+    implementation(project(":feature-config"))
 
     // DI
     implementation(libs.hilt.android)

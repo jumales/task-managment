@@ -167,6 +167,9 @@ class TaskRepository @Inject constructor(
     suspend fun deleteAttachment(taskId: String, attachmentId: String): NetworkResult<Unit> =
         safeApiCall(json) { api.deleteAttachment(taskId, attachmentId) }
 
+    suspend fun getTemplatePlaceholders(projectId: String): NetworkResult<List<Map<String, String>>> =
+        safeApiCall(json) { api.getTemplatePlaceholders(projectId) }
+
     suspend fun getNotificationTemplates(projectId: String): NetworkResult<List<NotificationTemplateDto>> =
         safeApiCall(json) { api.getNotificationTemplates(projectId) }
 
