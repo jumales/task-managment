@@ -21,6 +21,14 @@ sealed class Screen(val route: String) {
     data object Users      : Screen("users")
     data object Search     : Screen("search")
     data object Reports    : Screen("reports")
+    data object MyTasksReport       : Screen("reports/my-tasks")
+    data object HoursByTaskReport   : Screen("reports/hours/by-task")
+    data object HoursByProjectReport: Screen("reports/hours/by-project")
+    data object HoursDetailedReport : Screen("reports/hours/detailed/{taskId}") {
+        /** Produces the concrete route string for a given task id. */
+        fun routeFor(taskId: String) = "reports/hours/detailed/$taskId"
+    }
+    data object OpenByProjectReport : Screen("reports/tasks/open-by-project")
     data object Config     : Screen("config")
     data object Profile    : Screen("profile")
 }

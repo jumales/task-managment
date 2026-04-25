@@ -15,9 +15,9 @@ interface ReportingApi {
     @GET("api/v1/reports/my-tasks")
     suspend fun getMyTasks(@Query("days") days: Int? = null): List<MyTaskReportDto>
 
-    /** Planned vs booked hours per task within a project. */
+    /** Planned vs booked hours per task; omit [projectId] to return all tasks across all projects. */
     @GET("api/v1/reports/hours/by-task")
-    suspend fun getHoursByTask(@Query("projectId") projectId: String): List<HoursByTaskDto>
+    suspend fun getHoursByTask(@Query("projectId") projectId: String? = null): List<HoursByTaskDto>
 
     /** Planned vs booked hours aggregated per project. */
     @GET("api/v1/reports/hours/by-project")
