@@ -84,6 +84,11 @@
             <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.3.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
@@ -117,6 +122,20 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <classifier>exec</classifier>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                        Appended to the parent's <environmentVariables> (which sets DOCKER_HOST).
+                        Points the Firebase Admin SDK at the WireMock container used in FcmEmulatorIT.
+                        Port 28085 is fixed via withFixedExposedPort in the test so this value is stable.
+                    -->
+                    <environmentVariables combine.children="append">
+                        <FIREBASE_MESSAGING_EMULATOR_HOST>localhost:28085</FIREBASE_MESSAGING_EMULATOR_HOST>
+                    </environmentVariables>
                 </configuration>
             </plugin>
         </plugins>
