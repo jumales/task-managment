@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.demo.taskmanager.data.common.NetworkResult
 import com.demo.taskmanager.data.dto.CommentCreateRequest
 import com.demo.taskmanager.data.mapper.toDomain
+import com.demo.taskmanager.core.network.push.PushEventBus
 import com.demo.taskmanager.data.repo.TaskRepository
 import com.demo.taskmanager.domain.model.Comment
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
@@ -30,6 +32,7 @@ private const val TEMP_COMMENT_PREFIX = "temp-"
 class TaskDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: TaskRepository,
+    private val pushEventBus: PushEventBus,
 ) : ViewModel() {
 
     private val taskId: String = checkNotNull(savedStateHandle["taskId"])
@@ -39,6 +42,12 @@ class TaskDetailViewModel @Inject constructor(
 
     init {
         load()
+        // Auto-refresh when an FCM push arrives for this specific task.
+        viewModelScope.launch {
+            pushEventBus.flow
+                .filter { it.taskId == taskId }
+                .collect { load() }
+        }
     }
 
     /** Reloads both task and comments — used by pull-to-refresh. */

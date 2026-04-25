@@ -9,6 +9,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Apply google-services only when google-services.json is present (developer step; file is gitignored).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Load developer-supplied LAN URL from local.properties (not committed).
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
@@ -126,8 +131,9 @@ dependencies {
     // Auth
     implementation(libs.appauth)
 
-    // Firebase BOM (stub — google-services plugin not applied yet; no google-services.json needed).
+    // Firebase BOM — google-services plugin applied conditionally when google-services.json is present.
     implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging.ktx)
 
     // Image loading
     implementation(libs.coil.compose)

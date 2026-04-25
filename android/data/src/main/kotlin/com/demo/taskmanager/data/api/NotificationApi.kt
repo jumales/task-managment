@@ -4,10 +4,7 @@ import com.demo.taskmanager.data.dto.NotificationTemplateDto
 import retrofit2.http.GET
 import retrofit2.http.Path
 
-/**
- * Retrofit interface for notification-service.
- * Device-token registration endpoints are added in task_17 together with FCM integration.
- */
+/** Retrofit interface for notification history queries in notification-service. */
 interface NotificationApi {
 
     /** Returns notification templates configured for a given task's project. */

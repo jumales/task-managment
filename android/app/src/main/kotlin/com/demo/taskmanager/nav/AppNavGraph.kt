@@ -1,5 +1,7 @@
 package com.demo.taskmanager.nav
 
+import android.Manifest
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -28,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,6 +47,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.demo.taskmanager.feature.attachments.AttachmentsTab
 import com.demo.taskmanager.feature.reports.ReportsHomeScreen
 import com.demo.taskmanager.feature.reports.my.MyTasksScreen
@@ -90,6 +94,16 @@ fun AppNavGraph(
     val isAdmin = (authState as? AuthState.Authenticated)?.roles?.contains("ADMIN") ?: false
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // Request POST_NOTIFICATIONS on Android 13+ once the user is authenticated.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* result is informational — we show notifications regardless of outcome */ }
+    LaunchedEffect(authState) {
+        if (authState is AuthState.Authenticated && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     // Keyed on initial auth state to avoid NavHost start-destination recomposition.
     val startDestination = if (authViewModel.authState.value is
@@ -156,6 +170,7 @@ fun AppNavGraph(
                 composable(
                     route = Screen.TaskDetail.route,
                     arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                    deepLinks = listOf(navDeepLink { uriPattern = "taskmanager://tasks/{taskId}" }),
                 ) { backStackEntry ->
                     val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
                     TaskDetailScreen(

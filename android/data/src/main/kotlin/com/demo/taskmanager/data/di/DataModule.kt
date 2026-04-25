@@ -1,5 +1,6 @@
 package com.demo.taskmanager.data.di
 
+import com.demo.taskmanager.data.api.DeviceTokenApi
 import com.demo.taskmanager.data.api.FileApi
 import com.demo.taskmanager.data.api.NotificationApi
 import com.demo.taskmanager.data.api.ReportingApi
@@ -45,4 +46,8 @@ object DataModule {
     @Provides
     @Singleton
     fun provideNotificationApi(retrofit: Retrofit): NotificationApi = retrofit.create()
+
+    @Provides
+    @Singleton
+    fun provideDeviceTokenApi(retrofit: Retrofit): DeviceTokenApi = retrofit.create()
 }
