@@ -19,6 +19,7 @@ security-crypto            = "1.1.0-alpha06"
 junit5                     = "5.11.3"
 mockk                      = "1.13.13"
 turbine                    = "1.2.0"
+detekt                     = "1.23.7"
 compose-markdown           = "0.3.4"
 datastore                  = "1.1.1"
 core-ktx                   = "1.13.1"
@@ -89,6 +90,7 @@ junit5-api                     = { group = "org.junit.jupiter",        name = "j
 junit5-engine                  = { group = "org.junit.jupiter",        name = "junit-jupiter-engine",          version.ref = "junit5" }
 mockk                          = { group = "io.mockk",                 name = "mockk",                         version.ref = "mockk" }
 turbine                        = { group = "app.cash.turbine",         name = "turbine",                       version.ref = "turbine" }
+hilt-android-testing           = { group = "com.google.dagger",        name = "hilt-android-testing",          version.ref = "hilt" }
 
 [plugins]
 android-application            = { id = "com.android.application",     version.ref = "agp" }
@@ -99,3 +101,4 @@ kotlin-serialization           = { id = "org.jetbrains.kotlin.plugin.serializati
 hilt                           = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp                            = { id = "com.google.devtools.ksp",     version.ref = "ksp" }
 google-services                = { id = "com.google.gms.google-services", version.ref = "google-services" }
+detekt                         = { id = "io.gitlab.arturbosch.detekt",   version.ref = "detekt" }
