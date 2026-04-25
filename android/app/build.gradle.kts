@@ -41,6 +41,7 @@ android {
     buildTypes {
         debug {
             // No extra manifest placeholders needed; network_security_config.xml referenced directly.
+            enableUnitTestCoverage = true
         }
         release {
             isMinifyEnabled = true
@@ -73,6 +74,19 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        unitTests.all { it.useJUnitPlatform() }
+        managedDevices {
+            localDevices {
+                create("pixel6api33") {
+                    device = "Pixel 6"
+                    apiLevel = 33
+                    systemImageSource = "aosp"
+                }
+            }
+        }
     }
 
     compileOptions {
@@ -150,6 +164,11 @@ dependencies {
     testRuntimeOnly(libs.junit5.engine)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
+
+    // Hilt instrumented test support
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
 
     // UI tests
     androidTestImplementation(platform(libs.compose.bom))

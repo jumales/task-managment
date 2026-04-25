@@ -16,6 +16,10 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
+    buildTypes {
+        debug { enableUnitTestCoverage = true }
+    }
+
     testOptions {
         unitTests.all { it.useJUnitPlatform() }
     }

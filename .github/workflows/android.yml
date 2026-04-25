@@ -1,0 +1,130 @@
+name: Android CI
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - "notification-service/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "notification-service/**"
+      - ".github/workflows/android.yml"
+
+  # Instrumented tests run only on release branches (slow — needs emulator).
+  # Triggered separately via workflow_dispatch or the pixel6api33 GMD task.
+
+jobs:
+  unit-test:
+    name: Lint + Unit Tests + Detekt
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant Gradle wrapper execute permission
+        run: chmod +x android/gradlew
+
+      - name: Lint (emulator flavor)
+        working-directory: android
+        run: ./gradlew :app:lintEmulatorDebug
+
+      - name: Unit tests — app (emulator flavor)
+        working-directory: android
+        run: ./gradlew :app:testEmulatorDebugUnitTest
+
+      - name: Unit tests — data
+        working-directory: android
+        run: ./gradlew :data:testDebugUnitTest
+
+      - name: Unit tests — domain
+        working-directory: android
+        run: ./gradlew :domain:testDebugUnitTest
+
+      - name: Unit tests — core-network
+        working-directory: android
+        run: ./gradlew :core-network:testDebugUnitTest
+
+      - name: Unit tests — feature modules
+        working-directory: android
+        run: |
+          ./gradlew \
+            :feature-tasks:testDebugUnitTest \
+            :feature-projects:testDebugUnitTest \
+            :feature-users:testDebugUnitTest \
+            :feature-work:testDebugUnitTest \
+            :feature-attachments:testDebugUnitTest \
+            :feature-search:testDebugUnitTest \
+            :feature-reports:testDebugUnitTest \
+            :feature-config:testDebugUnitTest
+
+      - name: Generate coverage report (app debug)
+        working-directory: android
+        run: ./gradlew :app:createEmulatorDebugUnitTestCoverageReport
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: android/app/build/reports/coverage/test/emulator/debug/report.xml
+          flags: android-unit
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Detekt static analysis
+        working-directory: android
+        run: ./gradlew detekt
+        continue-on-error: true
+
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: android/app/build/reports/lint-results-emulatorDebug.html
+
+  instrumented-test:
+    name: Instrumented Tests (Gradle Managed Device)
+    runs-on: ubuntu-latest
+    # Only run on release branches to avoid slow emulator startup on every push.
+    if: startsWith(github.ref, 'refs/heads/release/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Enable KVM for hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Grant Gradle wrapper execute permission
+        run: chmod +x android/gradlew
+
+      - name: Run instrumented tests (Pixel 6 API 33 GMD)
+        working-directory: android
+        run: ./gradlew :app:pixel6api33DebugAndroidTest

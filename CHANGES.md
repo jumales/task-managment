@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased] — Android consolidated test coverage + CI (task_18)
+
+### Added
+- **`:domain` tests** — `TaskUseCasesTest`, `ProjectUseCasesTest`, `UserUseCasesTest`: interface-contract tests using concrete lambda implementations; verify parameter forwarding and exception propagation.
+- **`:data` tests** — `TaskRepositoryTest`, `UserRepositoryTest`: MockK-based repository tests covering happy path, 4xx, 5xx, and network-timeout paths via `safeApiCall` error mapping.
+- **`:core-network` tests** — `TokenStoreTest`: round-trip write/read/clear using `mockkConstructor`+`mockkStatic` to bypass Android Keystore in JVM; `AuthManagerTest`: initial `authState` (Authenticated/Unauthenticated) and `buildLogoutIntent` token-clear behavior mocking `android.net.Uri`.
+- **`:feature-projects` tests** — `ProjectsListViewModelTest`: admin flag, dialog visibility, create/delete success and error paths.
+- **`:feature-users` tests** — `UsersListViewModelTest`: admin flag, `openRoleEditor` HTTP error snackbar, `saveRoles` success and error, `dismissRoleEditor`.
+- **`android/app/src/androidTest/`** — `AppSmokeTest`: Hilt instrumented smoke test verifying the app root composable displays without crashing.
+- **Gradle Managed Device** — `pixel6api33` (`Pixel 6 / API 33 / aosp`) declared in `:app/build.gradle.kts`; run with `./gradlew :app:pixel6api33DebugAndroidTest`.
+- **JaCoCo** — `enableUnitTestCoverage = true` in debug build type of `:app`, `:data`, `:domain`, `:core-network`.
+- **Detekt** — `io.gitlab.arturbosch.detekt:1.23.7` applied at Android root; config at `android/config/detekt.yml`; run with `./gradlew detekt`.
+- **GitHub Actions `android.yml`** — new workflow triggered on `android/**` and `notification-service/**` path changes: lint (`lintEmulatorDebug`), all unit test tasks per module, coverage report, and Detekt; instrumented-test job gated on `release/*` branches.
+
+### Modified
+- `android/domain/build.gradle.kts` — added JUnit5 + MockK + coroutines-test + JaCoCo.
+- `android/data/build.gradle.kts` — added JaCoCo debug build type.
+- `android/core-network/build.gradle.kts` — added JaCoCo debug build type.
+- `android/app/build.gradle.kts` — Gradle Managed Device, `kotlinx-coroutines-test`, `hilt-android-testing`, `enableUnitTestCoverage`.
+- `android/build.gradle.kts` — detekt plugin applied at root.
+- `android/gradle/libs.versions.toml` — `detekt = "1.23.7"`, `hilt-android-testing`, detekt plugin alias.
+
+---
+
 ## [Unreleased] — Android FCM integration + deep links (task_17)
 
 ### Added
