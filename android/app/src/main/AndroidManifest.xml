@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".TaskManagerApp"
@@ -19,6 +20,13 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Deep link: handles taskmanager://tasks/{taskId} from FCM notifications. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="taskmanager" android:host="tasks" />
             </intent-filter>
         </activity>
 
@@ -38,9 +46,22 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- FCM messaging service — receives token refresh and incoming data-only pushes. -->
+        <service
+            android:name=".push.AppFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <!--
             AppAuth merges this activity from its AAR; the intent-filter here captures the
             taskmanager://callback redirect so the OS routes it back to our process.
+        -->
+        <!--
+            Overrides the broad AppAuth filter to be host-specific so it no longer
+            intercepts taskmanager://tasks/... deep links (host "tasks").
         -->
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
@@ -50,7 +71,13 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="taskmanager" />
+                <data android:scheme="taskmanager" android:host="callback" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="taskmanager" android:host="logout" />
             </intent-filter>
         </activity>
 

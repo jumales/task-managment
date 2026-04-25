@@ -21,6 +21,7 @@ android {
 
 dependencies {
     implementation(project(":core-ui"))
+    implementation(project(":core-network"))
     implementation(project(":domain"))
     implementation(project(":data"))
 

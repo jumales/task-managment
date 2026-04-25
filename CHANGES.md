@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased] — Android FCM integration + deep links (task_17)
+
+### Added
+- **`android/core-network/`** — `push/TaskPushMessage.kt` (data class: taskId, changeType) and `push/PushEventBus.kt` (`@Singleton` `SharedFlow<TaskPushMessage>` with buffer 64); shared across `:feature-tasks` and `:app`.
+- **`android/data/`** — `DeviceTokenApi.kt` (Retrofit: POST register, PUT rotate, DELETE unregister, GET /me); `DeviceTokenDto.kt` (`DeviceTokenRequest`, `DeviceTokenResponse`); `DeviceTokenRepository.kt` (register / rotate / unregister with `SharedPreferences` persistence of last registered token; pending-token cache for pre-auth token rotation).
+- **`android/data/di/DataModule.kt`** — `provideDeviceTokenApi`.
+- **`android/app/.../push/AppFirebaseMessagingService.kt`** — `@AndroidEntryPoint` FCM service: `onNewToken` rotates token when authenticated, caches pending token when not; `onMessageReceived` builds a system `NotificationCompat` notification with `taskmanager://tasks/{taskId}` deep-link PendingIntent and emits to `PushEventBus` for in-process refresh. Notification channel `task_updates` created on demand.
+- **`android/app/.../ui/AuthViewModel.kt`** — on `AuthState.Authenticated` transition, retrieves FCM token via `FirebaseMessaging.getInstance().token` callback and calls `DeviceTokenRepository.register()`; on logout fires best-effort `unregister()` before clearing auth session. Gracefully degrades if Firebase is unavailable.
+- **`android/app/src/main/AndroidManifest.xml`** — `POST_NOTIFICATIONS` permission; `AppFirebaseMessagingService` with `MESSAGING_EVENT` intent filter; deep-link intent filter on `MainActivity` (`taskmanager://tasks`).
+- **`android/app/.../nav/AppNavGraph.kt`** — `navDeepLink { uriPattern = "taskmanager://tasks/{taskId}" }` wired to `TaskDetail` composable; `LaunchedEffect` requests `POST_NOTIFICATIONS` permission on Android 13+ on first authenticated state.
+- **`android/feature-tasks/`** — `TaskDetailViewModel` now accepts `PushEventBus` via Hilt; `init` block collects `pushEventBus.flow.filter { it.taskId == taskId }` and calls `reload()` on match.
+- **`android/app/build.gradle.kts`** — `firebase-messaging-ktx`; conditional `google-services` plugin (applied only when `google-services.json` is present so CI passes without the file).
+- **`android/build.gradle.kts`** — `google-services` plugin declaration (`apply false`).
+- **`android/gradle/libs.versions.toml`** — `google-services = "4.4.2"` version; `firebase-messaging-ktx` library alias; `google-services` plugin alias.
+- **`android/app/src/main/res/drawable/ic_notification.xml`** — bell vector drawable used in system notification.
+
+### Tests
+- `PushEventBusTest` (`:core-network`) — 3 unit tests: emitted message received by collector; multiple collectors each receive; filter by taskId excludes unrelated push.
+- `DeviceTokenRepositoryTest` (`:data`) — 6 unit tests: register success persists token; network error does not persist; rotate updates stored token; unregister reads prefs and calls API; no-op when no stored token; pending token round-trip.
+
+---
+
 ## [Unreleased] — Android unified search with debounce + recent queries (task_13)
 
 ### Added
