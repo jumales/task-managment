@@ -68,6 +68,14 @@ resilience4j:
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 3
 
+fcm:
+  # Set to true and provide credentials-json to enable FCM push delivery.
+  enabled: ${FCM_ENABLED:false}
+  # Service-account JSON for Firebase Admin SDK (set via env var in production).
+  credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
+  # When true, FCM messages are logged but not sent — useful for local testing.
+  dry-run: ${FCM_DRY_RUN:false}
+
 logging:
   level:
     org.hibernate.SQL: DEBUG

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "d4e5f6a7-b8c9-0123-defa-234567890123",
     "name": "Notification Service",
-    "description": "Query email notification history for tasks.\n\nRequires a `taskId` from task-service. Set it manually in collection variables or run the task-service collection first.",
+    "description": "Email notification history and device token management for push notifications.\n\nRequires a `taskId` from task-service. Set it manually in collection variables or run the task-service collection first.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -12,7 +12,8 @@
     ]
   },
   "variable": [
-    { "key": "taskId", "value": "" }
+    { "key": "taskId", "value": "" },
+    { "key": "deviceToken", "value": "" }
   ],
   "item": [
     {
@@ -35,7 +36,120 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has content array', () => pm.expect(pm.response.json().content).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Device Tokens",
+      "item": [
+        {
+          "name": "Register device token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"fcm-test-token-{{$randomUUID}}\",\n  \"platform\": \"ANDROID\",\n  \"appVersion\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/device-tokens",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "device-tokens"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Has id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('Has token', () => pm.expect(body.token).to.be.a('string'));",
+                  "pm.collectionVariables.set('deviceToken', body.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my device tokens",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/device-tokens/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "device-tokens", "me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate device token",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"fcm-rotated-token-{{$randomUUID}}\",\n  \"platform\": \"ANDROID\",\n  \"appVersion\": \"1.0.1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/device-tokens/{{deviceToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "device-tokens", "{{deviceToken}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Token updated', () => pm.expect(body.token).to.be.a('string'));",
+                  "pm.collectionVariables.set('deviceToken', body.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete device token",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/device-tokens/{{deviceToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "device-tokens", "{{deviceToken}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
                 ],
                 "type": "text/javascript"
               }

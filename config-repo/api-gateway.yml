@@ -135,6 +135,25 @@ spring:
           predicates:
             - Path=/api/v1/notifications/**
 
+        # Rate-limited: POST /api/v1/device-tokens (register) — 20 req/min per user
+        - id: notification-service-device-tokens-write
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/device-tokens/**
+            - Method=POST,PUT,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 3
+                redis-rate-limiter.requestedTokens: 3
+                key-resolver: "#{@principalKeyResolver}"
+
+        - id: notification-service-device-tokens
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/device-tokens/**
+
         # WebSocket route for SockJS/STOMP push notifications from reporting-service.
         # lb:ws:// (not lb://) is required so Spring Cloud Gateway uses its WebSocket
         # routing filter and properly proxies the Upgrade handshake to the downstream service.

@@ -53,11 +53,47 @@ Browser receives update, React component re-fetches task data
 
 All `TaskChangeType` values produce a notification. The email content varies by type (e.g. "Status changed from TODO to IN_PROGRESS", "New comment added").
 
+## FCM push notifications to mobile clients
+
+When `fcm.enabled=true` (configured via `FCM_ENABLED` env var), the service fans out a data-only FCM push to all registered devices of affected users on every `TaskChangedEvent`.
+
+### Fan-out targets
+
+For each event, affected users = `{assignedUserId}` + `{workLogUserId}` (if set) + all task participants (fetched from task-service via Feign). If task-service is unavailable, the push degrades to the direct assignee/work-log user only.
+
+### Push payload
+
+```json
+{
+  "changeType": "STATUS_CHANGED",
+  "taskId": "uuid",
+  "projectId": "uuid"
+}
+```
+
+The Android client uses `changeType` to route the push to the appropriate screen.
+
+### Token lifecycle
+
+Tokens are stored in `device_tokens` (soft-delete on removal). When FCM returns `UNREGISTERED` or `INVALID_ARGUMENT` for a token, the service automatically soft-deletes it to avoid future wasted sends.
+
+### Configuration
+
+| Property | Default | Description |
+|---|---|---|
+| `fcm.enabled` | `false` | Enable/disable FCM delivery |
+| `fcm.credentials-json` | _(empty)_ | Firebase service-account JSON (set via env) |
+| `fcm.dry-run` | `false` | Log sends without actually calling FCM |
+
 ## Controllers
 
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/v1/notifications/tasks/{taskId}` | `GET` | Notification history for a task |
+| `/api/v1/device-tokens` | `POST` | Register or refresh a device token |
+| `/api/v1/device-tokens/{oldToken}` | `PUT` | Rotate a device token |
+| `/api/v1/device-tokens/{token}` | `DELETE` | Remove a device token (on logout) |
+| `/api/v1/device-tokens/me` | `GET` | List active tokens for the caller |
 
 ## Notification cleanup
 
