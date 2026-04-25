@@ -54,6 +54,7 @@ import com.demo.taskmanager.feature.tasks.create.TaskEditScreen
 import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
 import com.demo.taskmanager.feature.tasks.list.TasksListScreen
 import com.demo.taskmanager.feature.work.WorkTab
+import com.demo.taskmanager.feature.search.SearchScreen
 import com.demo.taskmanager.ui.AuthViewModel
 import com.demo.taskmanager.core.ui.R
 import kotlinx.coroutines.launch
@@ -175,7 +176,16 @@ fun AppNavGraph(
                     ProjectDetailScreen(onBack = { navController.navigateUp() })
                 }
                 composable(Screen.Users.route)    { UsersListScreen() }
-                composable(Screen.Search.route)   { PlaceholderScreen("Search") }
+                composable(Screen.Search.route) {
+                    SearchScreen(
+                        onTaskClick = { taskId ->
+                            navController.navigate(Screen.TaskDetail.routeFor(taskId))
+                        },
+                        onUserClick = {
+                            navController.navigate(Screen.Users.route) { launchSingleTop = true }
+                        },
+                    )
+                }
                 composable(Screen.Reports.route)  { PlaceholderScreen("Reports") }
                 composable(Screen.Config.route)   { PlaceholderScreen("Configuration") }
                 composable(Screen.Profile.route)  { ProfileScreen() }

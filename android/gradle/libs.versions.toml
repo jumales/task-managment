@@ -19,6 +19,7 @@ junit5                     = "5.11.3"
 mockk                      = "1.13.13"
 turbine                    = "1.2.0"
 compose-markdown           = "0.3.4"
+datastore                  = "1.1.1"
 core-ktx                   = "1.13.1"
 lifecycle                  = "2.8.6"
 activity-compose           = "1.9.3"
@@ -76,6 +77,7 @@ paging-compose                 = { group = "androidx.paging",          name = "p
 
 # Security
 security-crypto                = { group = "androidx.security",        name = "security-crypto",               version.ref = "security-crypto" }
+datastore-preferences          = { group = "androidx.datastore",        name = "datastore-preferences",         version.ref = "datastore" }
 
 # Markdown
 compose-markdown               = { group = "com.github.jeziellago", name = "compose-markdown", version.ref = "compose-markdown" }

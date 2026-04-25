@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased] — Android unified search with debounce + recent queries (task_13)
+
+### Added
+- **`android/feature-search/`** — new Gradle module `:feature-search`:
+  - `SearchUiState` — data class holding `query`, `activeTab` (`SearchTab` enum: TASKS / USERS), `tasks`, `users`, `recentQueries`, `isLoading`, `error`.
+  - `RecentQueriesStore` — `@Singleton` DataStore wrapper; `addQuery()` deduplicates and prepends (most-recent-first), evicts entries beyond 10 with FIFO; persisted to `recent_queries` DataStore file.
+  - `SearchModule` — Hilt `@Module` that provides `DataStore<Preferences>` for `RecentQueriesStore` via `preferencesDataStore(name = "recent_queries")` delegate.
+  - `SearchViewModel` — `_rawQuery: MutableStateFlow<String>` debounced 300 ms with `distinctUntilChanged` + `collectLatest` (cancels stale in-flight search); `onDebouncedQuery` fires `searchTasks` and `searchUsers` in parallel via `coroutineScope { async {} }`; persists query to `RecentQueriesStore` after results arrive.
+  - `SearchScreen` — `OutlinedTextField` with clear-button; `TabRow` Tasks / Users with result counts; `FlowRow` recent-query `SuggestionChip` list shown when query is blank; `LazyColumn` result rows for tasks (title, description, status, project, assignee) and users (name, email, active status); tapping a task row navigates to `TaskDetailScreen`.
+- **`libs.versions.toml`** — added `datastore = "1.1.1"` version and `datastore-preferences` library alias.
+- **`AppNavGraph.kt`** — replaced `PlaceholderScreen("Search")` with `SearchScreen(onTaskClick, onUserClick)`.
+- **`app/build.gradle.kts`** — added `implementation(project(":feature-search"))`.
+- **`android/settings.gradle.kts`** — registered `:feature-search`.
+
+### Tests
+- `SearchViewModelTest` — 4 unit tests: debounce collapses 5 rapid keystrokes to 1 API call; results cleared immediately on blank query; tab change does not trigger search; recent-query click populates query field.
+- `RecentQueriesStoreTest` — 4 unit tests: 11 adds evict oldest (FIFO, 10-entry cap); duplicate moves to front without size increase; blank/whitespace queries ignored; queries persist across store instances.
+
+---
+
 ## [Unreleased] — Android users list + profile (task_12)
 
 ### Added
