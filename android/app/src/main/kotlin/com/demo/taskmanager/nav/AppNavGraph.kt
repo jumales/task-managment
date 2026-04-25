@@ -61,6 +61,10 @@ import com.demo.taskmanager.feature.tasks.detail.TaskDetailScreen
 import com.demo.taskmanager.feature.tasks.list.TasksListScreen
 import com.demo.taskmanager.feature.work.WorkTab
 import com.demo.taskmanager.feature.search.SearchScreen
+import com.demo.taskmanager.feature.config.templates.TemplatesListScreen
+import com.demo.taskmanager.feature.config.templates.TemplateEditScreen
+import com.demo.taskmanager.core.network.auth.AuthState
+import com.demo.taskmanager.data.dto.enums.TaskChangeType
 import com.demo.taskmanager.ui.AuthViewModel
 import com.demo.taskmanager.core.ui.R
 import kotlinx.coroutines.launch
@@ -83,12 +87,13 @@ fun AppNavGraph(
     authViewModel: AuthViewModel = hiltViewModel(),
 ) {
     val authState by authViewModel.authState.collectAsState()
+    val isAdmin = (authState as? AuthState.Authenticated)?.roles?.contains("ADMIN") ?: false
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     // Keyed on initial auth state to avoid NavHost start-destination recomposition.
     val startDestination = if (authViewModel.authState.value is
-        com.demo.taskmanager.core.network.auth.AuthState.Authenticated
+        AuthState.Authenticated
     ) Screen.Tasks.route else Screen.Login.route
 
     AuthGate(navController = navController, authState = authState)
@@ -98,6 +103,7 @@ fun AppNavGraph(
         drawerContent = {
             AppDrawerContent(
                 navController = navController,
+                isAdmin = isAdmin,
                 onClose = { scope.launch { drawerState.close() } },
             )
         },
@@ -221,7 +227,23 @@ fun AppNavGraph(
                 composable(Screen.OpenByProjectReport.route) {
                     OpenByProjectScreen(onBack = { navController.navigateUp() })
                 }
-                composable(Screen.Config.route)   { PlaceholderScreen("Configuration") }
+                composable(Screen.Config.route) {
+                    TemplatesListScreen(
+                        onBack = { navController.navigateUp() },
+                        onEditTemplate = { projectId, eventType ->
+                            navController.navigate(Screen.TemplateEdit.routeFor(projectId, eventType.name))
+                        },
+                    )
+                }
+                composable(
+                    route = Screen.TemplateEdit.route,
+                    arguments = listOf(
+                        navArgument("projectId") { type = NavType.StringType },
+                        navArgument("eventType") { type = NavType.StringType },
+                    ),
+                ) {
+                    TemplateEditScreen(onBack = { navController.navigateUp() })
+                }
                 composable(Screen.Profile.route)  { ProfileScreen() }
             }
         }
@@ -274,6 +296,7 @@ private fun AppBottomBar(navController: NavHostController, currentRoute: String?
 @Composable
 private fun AppDrawerContent(
     navController: NavHostController,
+    isAdmin: Boolean,
     onClose: () -> Unit,
 ) {
     ModalDrawerSheet {
@@ -297,17 +320,19 @@ private fun AppDrawerContent(
                 onClose()
             },
         )
-        HorizontalDivider()
-        // Admin-gated placeholder — visibility will be driven by role check in a later task.
-        NavigationDrawerItem(
-            label = { Text(stringResource(R.string.nav_config)) },
-            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-            selected = false,
-            onClick = {
-                navController.navigate(Screen.Config.route) { launchSingleTop = true }
-                onClose()
-            },
-        )
+        // Config is only visible to ADMIN users; server RBAC enforces the same restriction.
+        if (isAdmin) {
+            HorizontalDivider()
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.nav_config)) },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                selected = false,
+                onClick = {
+                    navController.navigate(Screen.Config.route) { launchSingleTop = true }
+                    onClose()
+                },
+            )
+        }
     }
 }
 
