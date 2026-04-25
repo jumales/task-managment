@@ -22,7 +22,7 @@ class ReportingRepository @Inject constructor(
     suspend fun getMyTasks(days: Int? = null): NetworkResult<List<MyTaskReportDto>> =
         safeApiCall(json) { api.getMyTasks(days) }
 
-    suspend fun getHoursByTask(projectId: String): NetworkResult<List<HoursByTaskDto>> =
+    suspend fun getHoursByTask(projectId: String? = null): NetworkResult<List<HoursByTaskDto>> =
         safeApiCall(json) { api.getHoursByTask(projectId) }
 
     suspend fun getHoursByProject(): NetworkResult<List<HoursByProjectDto>> =

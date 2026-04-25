@@ -27,6 +27,17 @@
             android:exported="false"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
+        <!-- FileProvider used by CSV export to share report files without MANAGE_EXTERNAL_STORAGE. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!--
             AppAuth merges this activity from its AAR; the intent-filter here captures the
             taskmanager://callback redirect so the OS routes it back to our process.

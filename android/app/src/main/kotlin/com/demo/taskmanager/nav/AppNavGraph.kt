@@ -45,6 +45,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.demo.taskmanager.feature.attachments.AttachmentsTab
+import com.demo.taskmanager.feature.reports.ReportsHomeScreen
+import com.demo.taskmanager.feature.reports.my.MyTasksScreen
+import com.demo.taskmanager.feature.reports.hours.HoursByTaskScreen
+import com.demo.taskmanager.feature.reports.hours.HoursByProjectScreen
+import com.demo.taskmanager.feature.reports.hours.HoursDetailedScreen
+import com.demo.taskmanager.feature.reports.tasks.OpenByProjectScreen
 import com.demo.taskmanager.feature.projects.detail.ProjectDetailScreen
 import com.demo.taskmanager.feature.projects.list.ProjectsListScreen
 import com.demo.taskmanager.feature.users.list.UsersListScreen
@@ -186,7 +192,35 @@ fun AppNavGraph(
                         },
                     )
                 }
-                composable(Screen.Reports.route)  { PlaceholderScreen("Reports") }
+                composable(Screen.Reports.route) {
+                    ReportsHomeScreen(
+                        onMyTasksClick        = { navController.navigate(Screen.MyTasksReport.route) },
+                        onHoursByTaskClick    = { navController.navigate(Screen.HoursByTaskReport.route) },
+                        onHoursByProjectClick = { navController.navigate(Screen.HoursByProjectReport.route) },
+                        onOpenByProjectClick  = { navController.navigate(Screen.OpenByProjectReport.route) },
+                    )
+                }
+                composable(Screen.MyTasksReport.route) {
+                    MyTasksScreen(onBack = { navController.navigateUp() })
+                }
+                composable(Screen.HoursByTaskReport.route) {
+                    HoursByTaskScreen(
+                        onBack = { navController.navigateUp() },
+                        onTaskClick = { taskId -> navController.navigate(Screen.HoursDetailedReport.routeFor(taskId)) },
+                    )
+                }
+                composable(Screen.HoursByProjectReport.route) {
+                    HoursByProjectScreen(onBack = { navController.navigateUp() })
+                }
+                composable(
+                    route = Screen.HoursDetailedReport.route,
+                    arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+                ) {
+                    HoursDetailedScreen(onBack = { navController.navigateUp() })
+                }
+                composable(Screen.OpenByProjectReport.route) {
+                    OpenByProjectScreen(onBack = { navController.navigateUp() })
+                }
                 composable(Screen.Config.route)   { PlaceholderScreen("Configuration") }
                 composable(Screen.Profile.route)  { ProfileScreen() }
             }
