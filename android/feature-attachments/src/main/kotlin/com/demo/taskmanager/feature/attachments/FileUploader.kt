@@ -21,7 +21,7 @@ const val MAX_ATTACHMENT_BYTES = 50L * 1024 * 1024 // 50 MB
  * The [maxBytes] limit defaults to [MAX_ATTACHMENT_BYTES] and can be overridden in tests
  * to avoid allocating large byte arrays.
  */
-class FileUploader(
+open class FileUploader(
     private val context: Context,
     private val fileRepository: FileRepository,
     private val maxBytes: Long = MAX_ATTACHMENT_BYTES,

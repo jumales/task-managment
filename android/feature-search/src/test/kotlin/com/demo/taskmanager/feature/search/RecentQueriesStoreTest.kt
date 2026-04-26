@@ -1,9 +1,10 @@
 package com.demo.taskmanager.feature.search
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -17,18 +18,11 @@ import java.io.File
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecentQueriesStoreTest {
 
-    private val testScope = TestScope(UnconfinedTestDispatcher())
     private lateinit var tempFile: File
-    private lateinit var store: RecentQueriesStore
 
     @BeforeEach
     fun setUp() {
         tempFile = File.createTempFile("search_prefs_test", ".preferences_pb")
-        val dataStore = PreferenceDataStoreFactory.create(
-            scope = testScope,
-            produceFile = { tempFile },
-        )
-        store = RecentQueriesStore(dataStore)
     }
 
     @AfterEach
@@ -36,26 +30,37 @@ class RecentQueriesStoreTest {
         tempFile.delete()
     }
 
+    // DataStore is created inside each runTest using backgroundScope so its internal
+    // file-writer coroutines don't cause UncompletedCoroutinesError at test teardown.
+    private fun buildStore(
+        scope: CoroutineScope,
+        file: File = tempFile,
+    ): RecentQueriesStore {
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = scope,
+            produceFile = { file },
+        )
+        return RecentQueriesStore(dataStore)
+    }
+
     @Test
-    fun `stores up to 10 unique queries with FIFO eviction`() = testScope.runTest {
-        // Add 11 queries
+    fun `stores up to 10 unique queries with FIFO eviction`() = runTest {
+        val store = buildStore(backgroundScope)
         repeat(11) { i -> store.addQuery("query$i") }
 
         val queries = store.queries.first()
 
         assertEquals(RecentQueriesStore.MAX_QUERIES, queries.size)
-        // Most recent at front
         assertEquals("query10", queries.first())
-        // Oldest (query0) evicted
         assertFalse("query0" in queries)
     }
 
     @Test
-    fun `duplicate query moves to front without increasing size`() = testScope.runTest {
+    fun `duplicate query moves to front without increasing size`() = runTest {
+        val store = buildStore(backgroundScope)
         store.addQuery("alpha")
         store.addQuery("beta")
         store.addQuery("gamma")
-        // Re-add oldest query — should move to front
         store.addQuery("alpha")
 
         val queries = store.queries.first()
@@ -67,7 +72,8 @@ class RecentQueriesStoreTest {
     }
 
     @Test
-    fun `blank and whitespace-only queries are ignored`() = testScope.runTest {
+    fun `blank and whitespace-only queries are ignored`() = runTest {
+        val store = buildStore(backgroundScope)
         store.addQuery("")
         store.addQuery("  ")
         store.addQuery("\t")
@@ -77,17 +83,14 @@ class RecentQueriesStoreTest {
     }
 
     @Test
-    fun `queries survive across store instances (persistence check)`() = testScope.runTest {
-        store.addQuery("persistent")
+    fun `queries survive across store instances (persistence check)`() = runTest {
+        // Use a dedicated scope for store1 so we can cancel it (release the file lock)
+        // before opening the same file with store2 — DataStore enforces exclusive file access.
+        val scope1 = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
+        buildStore(scope1).addQuery("persistent")
+        scope1.cancel()
 
-        // Create a second store backed by the same file
-        val dataStore2 = PreferenceDataStoreFactory.create(
-            scope = testScope,
-            produceFile = { tempFile },
-        )
-        val store2 = RecentQueriesStore(dataStore2)
-
-        val queries = store2.queries.first()
-        assertTrue("persistent" in queries)
+        val store2 = buildStore(backgroundScope)
+        assertTrue("persistent" in store2.queries.first())
     }
 }

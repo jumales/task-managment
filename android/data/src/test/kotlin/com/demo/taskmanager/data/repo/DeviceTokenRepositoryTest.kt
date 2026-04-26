@@ -2,6 +2,7 @@ package com.demo.taskmanager.data.repo
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.demo.taskmanager.data.api.DeviceTokenApi
 import com.demo.taskmanager.data.dto.DeviceTokenRequest
 import com.demo.taskmanager.data.dto.DeviceTokenResponse
@@ -9,10 +10,13 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -38,11 +42,19 @@ class DeviceTokenRepositoryTest {
 
     @BeforeEach
     fun setUp() {
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
         every { context.getSharedPreferences(any(), any()) } returns prefs
         every { prefs.edit() } returns editor
         every { editor.putString(any(), any()) } returns editor
         every { editor.remove(any()) } returns editor
         repo = DeviceTokenRepository(context, api, json)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        unmockkStatic(Log::class)
     }
 
     @Test

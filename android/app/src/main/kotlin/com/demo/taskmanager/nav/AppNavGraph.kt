@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -105,10 +106,8 @@ fun AppNavGraph(
         }
     }
 
-    // Keyed on initial auth state to avoid NavHost start-destination recomposition.
-    val startDestination = if (authViewModel.authState.value is
-        AuthState.Authenticated
-    ) Screen.Tasks.route else Screen.Login.route
+    // NavHost only uses startDestination on first composition; subsequent changes are ignored.
+    val startDestination = if (authState is AuthState.Authenticated) Screen.Tasks.route else Screen.Login.route
 
     AuthGate(navController = navController, authState = authState)
 
@@ -147,122 +146,128 @@ fun AppNavGraph(
                 startDestination = startDestination,
                 modifier = Modifier.padding(padding),
             ) {
-                composable(Screen.Login.route) {
-                    LoginScreen(authViewModel = authViewModel)
-                }
-                composable(Screen.Tasks.route) {
-                    TasksListScreen(
-                        onTaskClick = { taskId ->
-                            navController.navigate(Screen.TaskDetail.routeFor(taskId))
-                        },
-                    )
-                }
-                composable(Screen.TaskCreate.route) {
-                    TaskCreateScreen(
-                        onBack = { navController.navigateUp() },
-                        onTaskCreated = { taskId ->
-                            navController.navigate(Screen.TaskDetail.routeFor(taskId)) {
-                                popUpTo(Screen.Tasks.route)
-                            }
-                        },
-                    )
-                }
-                composable(
-                    route = Screen.TaskDetail.route,
-                    arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-                    deepLinks = listOf(navDeepLink { uriPattern = "taskmanager://tasks/{taskId}" }),
-                ) { backStackEntry ->
-                    val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
-                    TaskDetailScreen(
-                        onBack = { navController.navigateUp() },
-                        onEditClick = { navController.navigate(Screen.TaskEdit.routeFor(taskId)) },
-                        workTabContent = { phaseName -> WorkTab(phaseName = phaseName) },
-                        attachmentsTabContent = { AttachmentsTab() },
-                    )
-                }
-                composable(
-                    route = Screen.TaskEdit.route,
-                    arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-                ) {
-                    TaskEditScreen(
-                        onBack = { navController.navigateUp() },
-                        onSaved = { navController.navigateUp() },
-                    )
-                }
-                composable(Screen.Projects.route) {
-                    ProjectsListScreen(
-                        onProjectClick = { projectId ->
-                            navController.navigate(Screen.ProjectDetail.routeFor(projectId))
-                        },
-                    )
-                }
-                composable(
-                    route = Screen.ProjectDetail.route,
-                    arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
-                ) {
-                    ProjectDetailScreen(onBack = { navController.navigateUp() })
-                }
-                composable(Screen.Users.route)    { UsersListScreen() }
-                composable(Screen.Search.route) {
-                    SearchScreen(
-                        onTaskClick = { taskId ->
-                            navController.navigate(Screen.TaskDetail.routeFor(taskId))
-                        },
-                        onUserClick = {
-                            navController.navigate(Screen.Users.route) { launchSingleTop = true }
-                        },
-                    )
-                }
-                composable(Screen.Reports.route) {
-                    ReportsHomeScreen(
-                        onMyTasksClick        = { navController.navigate(Screen.MyTasksReport.route) },
-                        onHoursByTaskClick    = { navController.navigate(Screen.HoursByTaskReport.route) },
-                        onHoursByProjectClick = { navController.navigate(Screen.HoursByProjectReport.route) },
-                        onOpenByProjectClick  = { navController.navigate(Screen.OpenByProjectReport.route) },
-                    )
-                }
-                composable(Screen.MyTasksReport.route) {
-                    MyTasksScreen(onBack = { navController.navigateUp() })
-                }
-                composable(Screen.HoursByTaskReport.route) {
-                    HoursByTaskScreen(
-                        onBack = { navController.navigateUp() },
-                        onTaskClick = { taskId -> navController.navigate(Screen.HoursDetailedReport.routeFor(taskId)) },
-                    )
-                }
-                composable(Screen.HoursByProjectReport.route) {
-                    HoursByProjectScreen(onBack = { navController.navigateUp() })
-                }
-                composable(
-                    route = Screen.HoursDetailedReport.route,
-                    arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
-                ) {
-                    HoursDetailedScreen(onBack = { navController.navigateUp() })
-                }
-                composable(Screen.OpenByProjectReport.route) {
-                    OpenByProjectScreen(onBack = { navController.navigateUp() })
-                }
-                composable(Screen.Config.route) {
-                    TemplatesListScreen(
-                        onBack = { navController.navigateUp() },
-                        onEditTemplate = { projectId, eventType ->
-                            navController.navigate(Screen.TemplateEdit.routeFor(projectId, eventType.name))
-                        },
-                    )
-                }
-                composable(
-                    route = Screen.TemplateEdit.route,
-                    arguments = listOf(
-                        navArgument("projectId") { type = NavType.StringType },
-                        navArgument("eventType") { type = NavType.StringType },
-                    ),
-                ) {
-                    TemplateEditScreen(onBack = { navController.navigateUp() })
-                }
-                composable(Screen.Profile.route)  { ProfileScreen() }
+                appDestinations(navController = navController, authViewModel = authViewModel)
             }
         }
     }
+}
+
+/** Registers all app destinations by delegating to focused route groups. */
+private fun NavGraphBuilder.appDestinations(
+    navController: NavHostController,
+    authViewModel: AuthViewModel,
+) {
+    taskDestinations(navController, authViewModel)
+    projectAndUserDestinations(navController)
+    reportsAndConfigDestinations(navController)
+}
+
+private fun NavGraphBuilder.taskDestinations(
+    navController: NavHostController,
+    authViewModel: AuthViewModel,
+) {
+    composable(Screen.Login.route) {
+        LoginScreen(authViewModel = authViewModel)
+    }
+    composable(Screen.Tasks.route) {
+        TasksListScreen(
+            onTaskClick = { taskId -> navController.navigate(Screen.TaskDetail.routeFor(taskId)) },
+        )
+    }
+    composable(Screen.TaskCreate.route) {
+        TaskCreateScreen(
+            onBack = { navController.navigateUp() },
+            onTaskCreated = { taskId ->
+                navController.navigate(Screen.TaskDetail.routeFor(taskId)) {
+                    popUpTo(Screen.Tasks.route)
+                }
+            },
+        )
+    }
+    composable(
+        route = Screen.TaskDetail.route,
+        arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+        deepLinks = listOf(navDeepLink { uriPattern = "taskmanager://tasks/{taskId}" }),
+    ) { backStackEntry ->
+        val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+        TaskDetailScreen(
+            onBack = { navController.navigateUp() },
+            onEditClick = { navController.navigate(Screen.TaskEdit.routeFor(taskId)) },
+            workTabContent = { phaseName -> WorkTab(phaseName = phaseName) },
+            attachmentsTabContent = { AttachmentsTab() },
+        )
+    }
+    composable(
+        route = Screen.TaskEdit.route,
+        arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+    ) {
+        TaskEditScreen(onBack = { navController.navigateUp() }, onSaved = { navController.navigateUp() })
+    }
+}
+
+private fun NavGraphBuilder.projectAndUserDestinations(navController: NavHostController) {
+    composable(Screen.Projects.route) {
+        ProjectsListScreen(
+            onProjectClick = { projectId -> navController.navigate(Screen.ProjectDetail.routeFor(projectId)) },
+        )
+    }
+    composable(
+        route = Screen.ProjectDetail.route,
+        arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
+    ) {
+        ProjectDetailScreen(onBack = { navController.navigateUp() })
+    }
+    composable(Screen.Users.route) { UsersListScreen() }
+    composable(Screen.Search.route) {
+        SearchScreen(
+            onTaskClick = { taskId -> navController.navigate(Screen.TaskDetail.routeFor(taskId)) },
+            onUserClick = { navController.navigate(Screen.Users.route) { launchSingleTop = true } },
+        )
+    }
+}
+
+private fun NavGraphBuilder.reportsAndConfigDestinations(navController: NavHostController) {
+    composable(Screen.Reports.route) {
+        ReportsHomeScreen(
+            onMyTasksClick        = { navController.navigate(Screen.MyTasksReport.route) },
+            onHoursByTaskClick    = { navController.navigate(Screen.HoursByTaskReport.route) },
+            onHoursByProjectClick = { navController.navigate(Screen.HoursByProjectReport.route) },
+            onOpenByProjectClick  = { navController.navigate(Screen.OpenByProjectReport.route) },
+        )
+    }
+    composable(Screen.MyTasksReport.route)      { MyTasksScreen(onBack = { navController.navigateUp() }) }
+    composable(Screen.HoursByTaskReport.route) {
+        HoursByTaskScreen(
+            onBack = { navController.navigateUp() },
+            onTaskClick = { taskId -> navController.navigate(Screen.HoursDetailedReport.routeFor(taskId)) },
+        )
+    }
+    composable(Screen.HoursByProjectReport.route) { HoursByProjectScreen(onBack = { navController.navigateUp() }) }
+    composable(
+        route = Screen.HoursDetailedReport.route,
+        arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+    ) {
+        HoursDetailedScreen(onBack = { navController.navigateUp() })
+    }
+    composable(Screen.OpenByProjectReport.route) { OpenByProjectScreen(onBack = { navController.navigateUp() }) }
+    composable(Screen.Config.route) {
+        TemplatesListScreen(
+            onBack = { navController.navigateUp() },
+            onEditTemplate = { projectId, eventType ->
+                navController.navigate(Screen.TemplateEdit.routeFor(projectId, eventType.name))
+            },
+        )
+    }
+    composable(
+        route = Screen.TemplateEdit.route,
+        arguments = listOf(
+            navArgument("projectId") { type = NavType.StringType },
+            navArgument("eventType") { type = NavType.StringType },
+        ),
+    ) {
+        TemplateEditScreen(onBack = { navController.navigateUp() })
+    }
+    composable(Screen.Profile.route) { ProfileScreen() }
 }
 
 @Composable
@@ -351,9 +356,3 @@ private fun AppDrawerContent(
     }
 }
 
-@Composable
-private fun PlaceholderScreen(name: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("$name screen")
-    }
-}

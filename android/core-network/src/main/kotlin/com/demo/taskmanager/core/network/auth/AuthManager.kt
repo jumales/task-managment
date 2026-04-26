@@ -135,6 +135,7 @@ class AuthManager @Inject constructor(
      * AppAuth does not verify the signature here — that is Keycloak's responsibility during
      * the token exchange. We only need the claims for display purposes.
      */
+    @Suppress("TooGenericExceptionCaught")
     private fun parseIdTokenClaims(idToken: String): Pair<String, List<String>> {
         return try {
             val parts = idToken.split(".")

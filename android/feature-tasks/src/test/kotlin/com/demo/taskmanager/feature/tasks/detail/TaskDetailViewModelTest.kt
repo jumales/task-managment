@@ -2,6 +2,7 @@ package com.demo.taskmanager.feature.tasks.detail
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import com.demo.taskmanager.core.network.push.PushEventBus
 import com.demo.taskmanager.data.common.NetworkResult
 import com.demo.taskmanager.data.dto.CommentDto
 import com.demo.taskmanager.data.dto.TaskFullDto
@@ -10,9 +11,11 @@ import com.demo.taskmanager.data.repo.TaskRepository
 import com.demo.taskmanager.domain.model.Comment
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -31,10 +34,12 @@ class TaskDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val repository = mockk<TaskRepository>()
+    private val pushEventBus = mockk<PushEventBus>()
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(dispatcher)
+        every { pushEventBus.flow } returns MutableSharedFlow()
     }
 
     @AfterEach
@@ -46,6 +51,7 @@ class TaskDetailViewModelTest {
         TaskDetailViewModel(
             savedStateHandle = SavedStateHandle(mapOf("taskId" to taskId)),
             repository = repository,
+            pushEventBus = pushEventBus,
         )
 
     private fun fullDto(id: String = "task-1") = TaskFullDto(

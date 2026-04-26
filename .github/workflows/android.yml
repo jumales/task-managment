@@ -1,19 +1,9 @@
 name: Android CI
 
 on:
-  push:
-    paths:
-      - "android/**"
-      - "notification-service/**"
-      - ".github/workflows/android.yml"
-  pull_request:
-    paths:
-      - "android/**"
-      - "notification-service/**"
-      - ".github/workflows/android.yml"
-
-  # Instrumented tests run only on release branches (slow — needs emulator).
-  # Triggered separately via workflow_dispatch or the pixel6api33 GMD task.
+  # Manual trigger only — run locally with: scripts/android-ci-local.sh
+  # Instrumented tests run separately on release/* branches via the GMD task.
+  workflow_dispatch:
 
 jobs:
   unit-test:

@@ -52,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.demo.taskmanager.core.ui.components.ErrorState
 import com.demo.taskmanager.core.ui.components.LoadingScreen
 import com.demo.taskmanager.data.dto.PhaseDto
+import com.demo.taskmanager.data.dto.enums.TaskPhaseName
 
 /**
  * Project detail screen showing project metadata and its phases.
@@ -83,30 +84,36 @@ fun ProjectDetailScreen(
         )
         is ProjectDetailUiState.Loaded -> ProjectDetailContent(
             state = state,
-            onBack = onBack,
-            onUpdateProject = viewModel::updateProject,
-            onCreatePhase = viewModel::createPhase,
-            onUpdatePhase = viewModel::updatePhase,
-            onDeletePhase = viewModel::deletePhase,
-            onSetDefaultPhase = viewModel::setDefaultPhase,
-            onRefresh = viewModel::reload,
+            callbacks = ProjectDetailCallbacks(
+                onBack = onBack,
+                onUpdateProject = viewModel::updateProject,
+                onCreatePhase = viewModel::createPhase,
+                onUpdatePhase = viewModel::updatePhase,
+                onDeletePhase = viewModel::deletePhase,
+                onSetDefaultPhase = viewModel::setDefaultPhase,
+                onRefresh = viewModel::reload,
+            ),
             snackbarHostState = snackbarHostState,
             modifier = modifier,
         )
     }
 }
 
+private class ProjectDetailCallbacks(
+    val onBack: () -> Unit,
+    val onUpdateProject: (String, String?) -> Unit,
+    val onCreatePhase: (TaskPhaseName, String?) -> Unit,
+    val onUpdatePhase: (String, String?) -> Unit,
+    val onDeletePhase: (String) -> Unit,
+    val onSetDefaultPhase: (String?) -> Unit,
+    val onRefresh: () -> Unit,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProjectDetailContent(
     state: ProjectDetailUiState.Loaded,
-    onBack: () -> Unit,
-    onUpdateProject: (String, String?) -> Unit,
-    onCreatePhase: (com.demo.taskmanager.data.dto.enums.TaskPhaseName, String?) -> Unit,
-    onUpdatePhase: (String, String?) -> Unit,
-    onDeletePhase: (String) -> Unit,
-    onSetDefaultPhase: (String?) -> Unit,
-    onRefresh: () -> Unit,
+    callbacks: ProjectDetailCallbacks,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -126,7 +133,7 @@ private fun ProjectDetailContent(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = callbacks.onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -150,58 +157,14 @@ private fun ProjectDetailContent(
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = false,
-            onRefresh = onRefresh,
+            onRefresh = callbacks.onRefresh,
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item {
-                    Spacer(Modifier.height(8.dp))
-                    state.project.description?.let { desc ->
-                        if (desc.isNotBlank()) {
-                            Text(
-                                text = desc,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.outline,
-                            )
-                            Spacer(Modifier.height(8.dp))
-                        }
-                    }
-                    HorizontalDivider()
-                    Spacer(Modifier.height(8.dp))
-                    Text("Phases", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
-                }
-
-                if (state.phases.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No phases yet",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.padding(vertical = 16.dp),
-                        )
-                    }
-                } else {
-                    items(items = state.phases, key = { it.id }) { phase ->
-                        PhaseRow(
-                            phase = phase,
-                            isDefault = state.project.defaultPhaseId == phase.id,
-                            isAdmin = state.isAdmin,
-                            onUpdateCustomName = { customName -> onUpdatePhase(phase.id, customName) },
-                            onToggleDefault = {
-                                // Passing null clears the default when this phase is already default.
-                                val newDefault = if (state.project.defaultPhaseId == phase.id) null else phase.id
-                                onSetDefaultPhase(newDefault)
-                            },
-                            onDelete = { confirmDeletePhaseId = phase.id },
-                        )
-                    }
-                }
-                item { Spacer(Modifier.height(80.dp)) }
-            }
+            ProjectPhasesList(
+                state = state,
+                callbacks = callbacks,
+                onDeleteRequested = { confirmDeletePhaseId = it },
+            )
         }
     }
 
@@ -210,7 +173,7 @@ private fun ProjectDetailContent(
             currentName = state.project.name,
             currentDescription = state.project.description ?: "",
             onConfirm = { name, description ->
-                onUpdateProject(name, description)
+                callbacks.onUpdateProject(name, description)
                 showEditProjectDialog = false
             },
             onDismiss = { showEditProjectDialog = false },
@@ -220,7 +183,7 @@ private fun ProjectDetailContent(
     if (showAddPhaseDialog) {
         PhaseEditDialog(
             onConfirm = { phaseName, customName ->
-                onCreatePhase(phaseName, customName)
+                callbacks.onCreatePhase(phaseName, customName)
                 showAddPhaseDialog = false
             },
             onDismiss = { showAddPhaseDialog = false },
@@ -228,18 +191,78 @@ private fun ProjectDetailContent(
     }
 
     confirmDeletePhaseId?.let { phaseId ->
-        AlertDialog(
-            onDismissRequest = { confirmDeletePhaseId = null },
-            title = { Text("Delete phase?") },
-            text = { Text("Phases with active tasks cannot be deleted.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDeletePhase(phaseId)
-                    confirmDeletePhaseId = null
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDeletePhaseId = null }) { Text("Cancel") } },
+        PhaseDeleteDialog(
+            onConfirm = { callbacks.onDeletePhase(phaseId); confirmDeletePhaseId = null },
+            onDismiss = { confirmDeletePhaseId = null },
         )
+    }
+}
+
+@Composable
+private fun PhaseDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete phase?") },
+        text = { Text("Phases with active tasks cannot be deleted.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun ProjectPhasesList(
+    state: ProjectDetailUiState.Loaded,
+    callbacks: ProjectDetailCallbacks,
+    onDeleteRequested: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Spacer(Modifier.height(8.dp))
+            state.project.description?.let { desc ->
+                if (desc.isNotBlank()) {
+                    Text(text = desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Text("Phases", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+        }
+        if (state.phases.isEmpty()) {
+            item {
+                Text(
+                    text = "No phases yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(vertical = 16.dp),
+                )
+            }
+        } else {
+            items(items = state.phases, key = { it.id }) { phase ->
+                PhaseRow(
+                    phase = phase,
+                    isDefault = state.project.defaultPhaseId == phase.id,
+                    isAdmin = state.isAdmin,
+                    onUpdateCustomName = { customName -> callbacks.onUpdatePhase(phase.id, customName) },
+                    onToggleDefault = {
+                        // Passing null clears the default when this phase is already default.
+                        val newDefault = if (state.project.defaultPhaseId == phase.id) null else phase.id
+                        callbacks.onSetDefaultPhase(newDefault)
+                    },
+                    onDelete = { onDeleteRequested(phase.id) },
+                )
+            }
+        }
+        item { Spacer(Modifier.height(80.dp)) }
     }
 }
 

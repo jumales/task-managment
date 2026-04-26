@@ -10,7 +10,6 @@ import com.demo.taskmanager.data.repo.DeviceTokenRepository
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -31,7 +30,6 @@ class AuthViewModel @Inject constructor(
         // Register the FCM token once each time auth transitions to Authenticated.
         viewModelScope.launch {
             authManager.authState
-                .distinctUntilChanged()
                 .filter { it is AuthState.Authenticated }
                 .collect { registerFcmToken() }
         }
@@ -55,6 +53,7 @@ class AuthViewModel @Inject constructor(
         authManager.buildLogoutIntent(onReady)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun registerFcmToken() {
         val token = getFcmToken() ?: return
         try {
@@ -71,6 +70,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun getFcmToken(): String? = suspendCancellableCoroutine { cont ->
         try {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
