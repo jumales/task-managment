@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -33,7 +32,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -49,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.demo.taskmanager.core.ui.components.ConfirmationDialog
 import com.demo.taskmanager.core.ui.components.ErrorState
 import com.demo.taskmanager.core.ui.components.LoadingScreen
 import com.demo.taskmanager.data.dto.PhaseDto
@@ -107,6 +106,13 @@ private class ProjectDetailCallbacks(
     val onDeletePhase: (String) -> Unit,
     val onSetDefaultPhase: (String?) -> Unit,
     val onRefresh: () -> Unit,
+)
+
+/** Bundles the three dialog visibility flags to avoid a LongParameterList in ProjectDetailDialogs. */
+private data class ProjectDialogState(
+    val showEditProject: Boolean,
+    val showAddPhase: Boolean,
+    val confirmDeletePhaseId: String?,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,49 +174,61 @@ private fun ProjectDetailContent(
         }
     }
 
-    if (showEditProjectDialog) {
+    ProjectDetailDialogs(
+        state = state,
+        callbacks = callbacks,
+        dialogState = ProjectDialogState(showEditProjectDialog, showAddPhaseDialog, confirmDeletePhaseId),
+        onEditProjectDismiss = { showEditProjectDialog = false },
+        onAddPhaseDismiss = { showAddPhaseDialog = false },
+        onDeleteDismiss = { confirmDeletePhaseId = null },
+    )
+}
+
+/** Renders the three modal dialogs for edit-project, add-phase, and delete-phase confirmation. */
+@Composable
+private fun ProjectDetailDialogs(
+    state: ProjectDetailUiState.Loaded,
+    callbacks: ProjectDetailCallbacks,
+    dialogState: ProjectDialogState,
+    onEditProjectDismiss: () -> Unit,
+    onAddPhaseDismiss: () -> Unit,
+    onDeleteDismiss: () -> Unit,
+) {
+    if (dialogState.showEditProject) {
         ProjectEditDialog(
             currentName = state.project.name,
             currentDescription = state.project.description ?: "",
             onConfirm = { name, description ->
                 callbacks.onUpdateProject(name, description)
-                showEditProjectDialog = false
+                onEditProjectDismiss()
             },
-            onDismiss = { showEditProjectDialog = false },
+            onDismiss = onEditProjectDismiss,
         )
     }
 
-    if (showAddPhaseDialog) {
+    if (dialogState.showAddPhase) {
         PhaseEditDialog(
             onConfirm = { phaseName, customName ->
                 callbacks.onCreatePhase(phaseName, customName)
-                showAddPhaseDialog = false
+                onAddPhaseDismiss()
             },
-            onDismiss = { showAddPhaseDialog = false },
+            onDismiss = onAddPhaseDismiss,
         )
     }
 
-    confirmDeletePhaseId?.let { phaseId ->
-        PhaseDeleteDialog(
-            onConfirm = { callbacks.onDeletePhase(phaseId); confirmDeletePhaseId = null },
-            onDismiss = { confirmDeletePhaseId = null },
+    dialogState.confirmDeletePhaseId?.let { phaseId ->
+        ConfirmationDialog(
+            title = "Delete phase?",
+            message = "Phases with active tasks cannot be deleted.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = {
+                callbacks.onDeletePhase(phaseId)
+                onDeleteDismiss()
+            },
+            onDismiss = onDeleteDismiss,
         )
     }
-}
-
-@Composable
-private fun PhaseDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete phase?") },
-        text = { Text("Phases with active tasks cannot be deleted.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }
 
 @Composable
