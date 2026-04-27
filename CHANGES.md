@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased] — Android dev environment and testing docs (task_19)
+
+### Added
+- `android/README.md` — stack summary (Kotlin/Compose/Hilt/Retrofit/AppAuth/Firebase), module map, and quick-start guide for emulator setup.
+- `docs/development/android-dev.mdx` — comprehensive Android dev guide: prerequisites, one-time setup, three build flavors (emulator/device/tunnel), unit + instrumented test commands, manual smoke checklist, Keycloak reachability matrix, and troubleshooting reference.
+- `docs/docs.json` — registered `development/android-dev` in the Mintlify navigation.
+
+---
+
 ## [Unreleased] — Android consolidated test coverage + CI (task_18)
 
 ### Added
