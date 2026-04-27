@@ -53,7 +53,7 @@ import com.demo.taskmanager.core.ui.components.LoadingScreen
  * - An expandable placeholder panel shows every available token with its description.
  * - Save → PUT upsert. "Reset to default" → DELETE (only shown when a custom template exists).
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TemplateEditScreen(
     onBack: () -> Unit,
@@ -63,36 +63,18 @@ fun TemplateEditScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var placeholdersExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.navigateBack) {
-        if (uiState.navigateBack) {
-            viewModel.onNavigatedBack()
-            onBack()
-        }
+        if (uiState.navigateBack) { viewModel.onNavigatedBack(); onBack() }
     }
-
     LaunchedEffect(uiState.snackbarMessage) {
-        uiState.snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
+        uiState.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearSnackbar() }
     }
 
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Reset to default?") },
-            text = { Text("This will delete the custom template and revert to the default email body for this event type.") },
-            confirmButton = {
-                TextButton(
-                    onClick = { showDeleteDialog = false; viewModel.delete() },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                ) { Text("Reset") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
-            },
+        TemplateDeleteDialog(
+            onConfirm = { showDeleteDialog = false; viewModel.delete() },
+            onDismiss = { showDeleteDialog = false },
         )
     }
 
@@ -108,15 +90,9 @@ fun TemplateEditScreen(
                 },
                 actions = {
                     if (uiState.hasExistingTemplate) {
-                        IconButton(
-                            onClick = { showDeleteDialog = true },
-                            enabled = !uiState.isDeleting,
-                        ) {
-                            if (uiState.isDeleting) {
-                                CircularProgressIndicator(modifier = Modifier.padding(4.dp))
-                            } else {
-                                Icon(Icons.Default.Delete, contentDescription = "Reset to default", tint = MaterialTheme.colorScheme.error)
-                            }
+                        IconButton(onClick = { showDeleteDialog = true }, enabled = !uiState.isDeleting) {
+                            if (uiState.isDeleting) CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+                            else Icon(Icons.Default.Delete, contentDescription = "Reset to default", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -124,87 +100,96 @@ fun TemplateEditScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        if (uiState.isLoading) {
-            LoadingScreen()
-            return@Scaffold
+        if (uiState.isLoading) { LoadingScreen(); return@Scaffold }
+        TemplateEditForm(uiState = uiState, onSubjectChange = viewModel::onSubjectChange,
+            onBodyChange = viewModel::onBodyChange, onSave = viewModel::save,
+            modifier = Modifier.padding(padding))
+    }
+}
+
+@Composable
+private fun TemplateDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reset to default?") },
+        text = { Text("This will delete the custom template and revert to the default email body for this event type.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text("Reset") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TemplateEditForm(
+    uiState: TemplateEditUiState,
+    onSubjectChange: (String) -> Unit,
+    onBodyChange: (String) -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var placeholdersExpanded by remember { mutableStateOf(false) }
+    Column(
+        modifier = modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        OutlinedTextField(value = uiState.subject, onValueChange = onSubjectChange,
+            label = { Text("Subject") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(value = uiState.body, onValueChange = onBodyChange,
+            label = { Text("Body") }, modifier = Modifier.fillMaxWidth().height(180.dp), minLines = 5)
+
+        if (uiState.placeholders.isNotEmpty()) {
+            PlaceholdersPanel(
+                placeholders = uiState.placeholders,
+                body = uiState.body,
+                expanded = placeholdersExpanded,
+                onToggle = { placeholdersExpanded = !placeholdersExpanded },
+                onInsert = { token -> onBodyChange(uiState.body + "{$token}") },
+            )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        Button(onClick = onSave, modifier = Modifier.fillMaxWidth(), enabled = !uiState.isSaving) {
+            if (uiState.isSaving) CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
+            Text(if (uiState.hasExistingTemplate) "Save changes" else "Create template")
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlaceholdersPanel(
+    placeholders: Map<String, String>,
+    body: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onInsert: (String) -> Unit,
+) {
+    Column {
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            OutlinedTextField(
-                value = uiState.subject,
-                onValueChange = viewModel::onSubjectChange,
-                label = { Text("Subject") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-
-            OutlinedTextField(
-                value = uiState.body,
-                onValueChange = viewModel::onBodyChange,
-                label = { Text("Body") },
-                modifier = Modifier.fillMaxWidth().height(180.dp),
-                minLines = 5,
-            )
-
-            // Expandable placeholder hints panel
-            if (uiState.placeholders.isNotEmpty()) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Available placeholders", style = MaterialTheme.typography.labelLarge)
-                        IconButton(onClick = { placeholdersExpanded = !placeholdersExpanded }) {
-                            Icon(
-                                imageVector = if (placeholdersExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                contentDescription = if (placeholdersExpanded) "Collapse" else "Expand",
-                            )
-                        }
-                    }
-                    if (placeholdersExpanded) {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            uiState.placeholders.forEach { (key, description) ->
-                                SuggestionChip(
-                                    onClick = {
-                                        // Append placeholder token to body at cursor (simplified: append at end)
-                                        viewModel.onBodyChange(uiState.body + "{$key}")
-                                    },
-                                    label = { Text("{$key}") },
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        // Show description for each placeholder below chips
-                        uiState.placeholders.forEach { (key, description) ->
-                            Text(
-                                text = "{$key} — $description",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+            Text("Available placeholders", style = MaterialTheme.typography.labelLarge)
+            IconButton(onClick = onToggle) {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                )
+            }
+        }
+        if (expanded) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                placeholders.forEach { (key, _) ->
+                    SuggestionChip(onClick = { onInsert(key) }, label = { Text("{$key}") })
                 }
             }
-
-            Button(
-                onClick = viewModel::save,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isSaving,
-            ) {
-                if (uiState.isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp))
-                }
-                Text(if (uiState.hasExistingTemplate) "Save changes" else "Create template")
+            Spacer(Modifier.height(4.dp))
+            placeholders.forEach { (key, description) ->
+                Text(text = "{$key} — $description", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

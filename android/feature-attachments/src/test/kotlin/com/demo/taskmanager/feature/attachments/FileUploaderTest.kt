@@ -1,14 +1,17 @@
 package com.demo.taskmanager.feature.attachments
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import com.demo.taskmanager.data.repo.FileRepository
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.coVerify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import io.mockk.coVerify
 
 /**
  * Tests [FileUploader] client-side size validation without touching the network.
@@ -17,10 +20,20 @@ import io.mockk.coVerify
 class FileUploaderTest {
 
     private val fileRepository = mockk<FileRepository>(relaxed = true)
+    private val context = mockk<Context>(relaxed = true)
+    private val contentResolver = mockk<ContentResolver>(relaxed = true)
+
+    @BeforeEach
+    fun setUp() {
+        every { context.contentResolver } returns contentResolver
+        // Return null so readFile() short-circuits cleanly instead of reading
+        // from a relaxed InputStream mock (which returns 0 from read() forever → OOM).
+        every { contentResolver.openInputStream(any()) } returns null
+    }
 
     /** Subclass that intercepts [getFileSize] to avoid needing a real ContentResolver. */
     private inner class FakeFileUploader(maxBytes: Long) :
-        FileUploader(mockk(relaxed = true), fileRepository, maxBytes) {
+        FileUploader(context, fileRepository, maxBytes) {
 
         var stubbedSize: Long = 0L
 

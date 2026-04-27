@@ -53,6 +53,22 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 
 private val tabs = listOf("Overview", "Comments", "Participants", "Work", "Attachments")
 
+private data class TaskDetailState(
+    val task: TaskFullDto,
+    val comments: List<Comment>,
+    val isSubmittingComment: Boolean,
+)
+
+private class TaskDetailCallbacks(
+    val onBack: () -> Unit,
+    val onEditClick: () -> Unit,
+    val onRefresh: () -> Unit,
+    val onSendComment: (String) -> Unit,
+    val onJoin: () -> Unit,
+    val onWatch: () -> Unit,
+    val onRemoveParticipant: (String) -> Unit,
+)
+
 /**
  * Full-screen task detail view: top bar, tab row, and content per tab.
  * Task and comments are loaded by [TaskDetailViewModel] via [SavedStateHandle].
@@ -89,16 +105,20 @@ fun TaskDetailScreen(
             onRetry = viewModel::reload,
         )
         is TaskDetailUiState.Loaded -> TaskDetailContent(
-            task = state.task,
-            comments = state.comments,
-            isSubmittingComment = state.isSubmittingComment,
-            onBack = onBack,
-            onEditClick = onEditClick,
-            onRefresh = viewModel::reload,
-            onSendComment = viewModel::addComment,
-            onJoin = viewModel::joinTask,
-            onWatch = viewModel::watchTask,
-            onRemoveParticipant = viewModel::removeParticipant,
+            state = TaskDetailState(
+                task = state.task,
+                comments = state.comments,
+                isSubmittingComment = state.isSubmittingComment,
+            ),
+            callbacks = TaskDetailCallbacks(
+                onBack = onBack,
+                onEditClick = onEditClick,
+                onRefresh = viewModel::reload,
+                onSendComment = viewModel::addComment,
+                onJoin = viewModel::joinTask,
+                onWatch = viewModel::watchTask,
+                onRemoveParticipant = viewModel::removeParticipant,
+            ),
             workTabContent = workTabContent,
             attachmentsTabContent = attachmentsTabContent,
             snackbarHostState = snackbarHostState,
@@ -110,16 +130,8 @@ fun TaskDetailScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TaskDetailContent(
-    task: TaskFullDto,
-    comments: List<Comment>,
-    isSubmittingComment: Boolean,
-    onBack: () -> Unit,
-    onEditClick: () -> Unit,
-    onRefresh: () -> Unit,
-    onSendComment: (String) -> Unit,
-    onJoin: () -> Unit,
-    onWatch: () -> Unit,
-    onRemoveParticipant: (String) -> Unit,
+    state: TaskDetailState,
+    callbacks: TaskDetailCallbacks,
     workTabContent: @Composable (phaseName: TaskPhaseName?) -> Unit,
     attachmentsTabContent: @Composable () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -133,20 +145,20 @@ private fun TaskDetailContent(
             TopAppBar(
                 title = {
                     Text(
-                        text = "${task.taskCode} · ${task.title}",
+                        text = "${state.task.taskCode} · ${state.task.title}",
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = callbacks.onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onEditClick) {
+            FloatingActionButton(onClick = callbacks.onEditClick) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit task")
             }
         },
@@ -164,23 +176,23 @@ private fun TaskDetailContent(
             }
             PullToRefreshBox(
                 isRefreshing = false,
-                onRefresh = onRefresh,
+                onRefresh = callbacks.onRefresh,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when (selectedTab) {
-                    0 -> OverviewTab(task = task)
+                    0 -> OverviewTab(task = state.task)
                     1 -> CommentsTab(
-                        comments = comments,
-                        isSubmitting = isSubmittingComment,
-                        onSend = onSendComment,
+                        comments = state.comments,
+                        isSubmitting = state.isSubmittingComment,
+                        onSend = callbacks.onSendComment,
                     )
                     2 -> ParticipantsTab(
-                        participants = task.participants,
-                        onJoin = onJoin,
-                        onWatch = onWatch,
-                        onRemove = onRemoveParticipant,
+                        participants = state.task.participants,
+                        onJoin = callbacks.onJoin,
+                        onWatch = callbacks.onWatch,
+                        onRemove = callbacks.onRemoveParticipant,
                     )
-                    3 -> workTabContent(task.phase?.name)
+                    3 -> workTabContent(state.task.phase?.name)
                     4 -> attachmentsTabContent()
                     else -> PlaceholderTab(name = tabs[selectedTab])
                 }

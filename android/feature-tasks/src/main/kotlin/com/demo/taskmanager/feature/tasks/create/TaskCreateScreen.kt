@@ -79,25 +79,29 @@ fun TaskCreateScreen(
         modifier = modifier,
     ) { contentModifier ->
         TaskFormContent(
-            title = viewModel.title,
-            onTitleChange = viewModel::onTitleChange,
-            titleError = viewModel.titleError,
-            description = viewModel.description,
-            onDescriptionChange = viewModel::onDescriptionChange,
-            status = viewModel.status,
-            onStatusChange = viewModel::onStatusChange,
-            type = viewModel.type,
-            onTypeChange = viewModel::onTypeChange,
-            projects = projects,
-            selectedProjectId = viewModel.selectedProjectId,
-            onProjectSelected = viewModel::onProjectSelected,
-            phases = phases,
-            selectedPhaseId = viewModel.selectedPhaseId,
-            onPhaseSelected = viewModel::onPhaseSelected,
-            users = users,
-            assignedUserId = viewModel.assignedUserId,
-            onAssignedUserChange = viewModel::onAssignedUserChange,
-            enabled = uiState !is TaskCreateUiState.Submitting,
+            state = TaskFormState(
+                title = viewModel.title,
+                titleError = viewModel.titleError,
+                description = viewModel.description,
+                status = viewModel.status,
+                type = viewModel.type,
+                projects = projects,
+                selectedProjectId = viewModel.selectedProjectId,
+                phases = phases,
+                selectedPhaseId = viewModel.selectedPhaseId,
+                users = users,
+                assignedUserId = viewModel.assignedUserId,
+                enabled = uiState !is TaskCreateUiState.Submitting,
+            ),
+            callbacks = TaskFormCallbacks(
+                onTitleChange = viewModel::onTitleChange,
+                onDescriptionChange = viewModel::onDescriptionChange,
+                onStatusChange = viewModel::onStatusChange,
+                onTypeChange = viewModel::onTypeChange,
+                onProjectSelected = viewModel::onProjectSelected,
+                onPhaseSelected = viewModel::onPhaseSelected,
+                onAssignedUserChange = viewModel::onAssignedUserChange,
+            ),
             modifier = contentModifier,
         )
     }
@@ -141,25 +145,29 @@ fun TaskEditScreen(
             modifier = modifier,
         ) { contentModifier ->
             TaskFormContent(
-                title = viewModel.title,
-                onTitleChange = viewModel::onTitleChange,
-                titleError = viewModel.titleError,
-                description = viewModel.description,
-                onDescriptionChange = viewModel::onDescriptionChange,
-                status = viewModel.status,
-                onStatusChange = viewModel::onStatusChange,
-                type = viewModel.type,
-                onTypeChange = viewModel::onTypeChange,
-                projects = projects,
-                selectedProjectId = viewModel.selectedProjectId,
-                onProjectSelected = viewModel::onProjectSelected,
-                phases = phases,
-                selectedPhaseId = viewModel.selectedPhaseId,
-                onPhaseSelected = viewModel::onPhaseSelected,
-                users = users,
-                assignedUserId = viewModel.assignedUserId,
-                onAssignedUserChange = viewModel::onAssignedUserChange,
-                enabled = uiState !is TaskEditUiState.Submitting,
+                state = TaskFormState(
+                    title = viewModel.title,
+                    titleError = viewModel.titleError,
+                    description = viewModel.description,
+                    status = viewModel.status,
+                    type = viewModel.type,
+                    projects = projects,
+                    selectedProjectId = viewModel.selectedProjectId,
+                    phases = phases,
+                    selectedPhaseId = viewModel.selectedPhaseId,
+                    users = users,
+                    assignedUserId = viewModel.assignedUserId,
+                    enabled = uiState !is TaskEditUiState.Submitting,
+                ),
+                callbacks = TaskFormCallbacks(
+                    onTitleChange = viewModel::onTitleChange,
+                    onDescriptionChange = viewModel::onDescriptionChange,
+                    onStatusChange = viewModel::onStatusChange,
+                    onTypeChange = viewModel::onTypeChange,
+                    onProjectSelected = viewModel::onProjectSelected,
+                    onPhaseSelected = viewModel::onPhaseSelected,
+                    onAssignedUserChange = viewModel::onAssignedUserChange,
+                ),
                 modifier = contentModifier,
             )
         }
@@ -228,29 +236,37 @@ private fun TaskFormScaffold(
     }
 }
 
+internal data class TaskFormState(
+    val title: String,
+    val titleError: String?,
+    val description: String,
+    val status: TaskStatus,
+    val type: TaskType?,
+    val projects: List<ProjectDto>,
+    val selectedProjectId: String?,
+    val phases: List<PhaseDto>,
+    val selectedPhaseId: String?,
+    val users: List<UserDto>,
+    val assignedUserId: String?,
+    val enabled: Boolean,
+)
+
+internal class TaskFormCallbacks(
+    val onTitleChange: (String) -> Unit,
+    val onDescriptionChange: (String) -> Unit,
+    val onStatusChange: (TaskStatus) -> Unit,
+    val onTypeChange: (TaskType?) -> Unit,
+    val onProjectSelected: (String?) -> Unit,
+    val onPhaseSelected: (String?) -> Unit,
+    val onAssignedUserChange: (String?) -> Unit,
+)
+
 /** Shared form body used by both [TaskCreateScreen] and [TaskEditScreen]. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TaskFormContent(
-    title: String,
-    onTitleChange: (String) -> Unit,
-    titleError: String?,
-    description: String,
-    onDescriptionChange: (String) -> Unit,
-    status: TaskStatus,
-    onStatusChange: (TaskStatus) -> Unit,
-    type: TaskType?,
-    onTypeChange: (TaskType?) -> Unit,
-    projects: List<ProjectDto>,
-    selectedProjectId: String?,
-    onProjectSelected: (String?) -> Unit,
-    phases: List<PhaseDto>,
-    selectedPhaseId: String?,
-    onPhaseSelected: (String?) -> Unit,
-    users: List<UserDto>,
-    assignedUserId: String?,
-    onAssignedUserChange: (String?) -> Unit,
-    enabled: Boolean,
+    state: TaskFormState,
+    callbacks: TaskFormCallbacks,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -261,21 +277,21 @@ internal fun TaskFormContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         OutlinedTextField(
-            value = title,
-            onValueChange = onTitleChange,
+            value = state.title,
+            onValueChange = callbacks.onTitleChange,
             label = { Text("Title *") },
-            isError = titleError != null,
-            supportingText = titleError?.let { { Text(it) } },
-            enabled = enabled,
+            isError = state.titleError != null,
+            supportingText = state.titleError?.let { { Text(it) } },
+            enabled = state.enabled,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
 
         OutlinedTextField(
-            value = description,
-            onValueChange = onDescriptionChange,
+            value = state.description,
+            onValueChange = callbacks.onDescriptionChange,
             label = { Text("Description") },
-            enabled = enabled,
+            enabled = state.enabled,
             minLines = 3,
             maxLines = 6,
             modifier = Modifier.fillMaxWidth(),
@@ -283,47 +299,47 @@ internal fun TaskFormContent(
 
         EnumDropdown(
             label = "Status",
-            selected = status,
+            selected = state.status,
             options = TaskStatus.entries,
-            onSelect = onStatusChange,
+            onSelect = callbacks.onStatusChange,
             display = { it.name.replace('_', ' ') },
-            enabled = enabled,
+            enabled = state.enabled,
         )
 
         EnumDropdown(
             label = "Type",
-            selected = type,
+            selected = state.type,
             options = listOf(null) + TaskType.entries,
-            onSelect = onTypeChange,
+            onSelect = callbacks.onTypeChange,
             display = { it?.name?.replace('_', ' ') ?: "None" },
-            enabled = enabled,
+            enabled = state.enabled,
         )
 
         EntityDropdown(
             label = "Project *",
-            selected = projects.find { it.id == selectedProjectId },
-            options = projects,
-            onSelect = { onProjectSelected(it?.id) },
+            selected = state.projects.find { it.id == state.selectedProjectId },
+            options = state.projects,
+            onSelect = { callbacks.onProjectSelected(it?.id) },
             display = { it?.name ?: "" },
-            enabled = enabled,
+            enabled = state.enabled,
         )
 
         EntityDropdown(
             label = "Phase",
-            selected = phases.find { it.id == selectedPhaseId },
-            options = listOf(null) + phases,
-            onSelect = { onPhaseSelected(it?.id) },
+            selected = state.phases.find { it.id == state.selectedPhaseId },
+            options = listOf(null) + state.phases,
+            onSelect = { callbacks.onPhaseSelected(it?.id) },
             display = { it?.let { p -> p.customName ?: p.name.name.replace('_', ' ') } ?: "None" },
-            enabled = enabled && selectedProjectId != null,
+            enabled = state.enabled && state.selectedProjectId != null,
         )
 
         EntityDropdown(
             label = "Assignee",
-            selected = users.find { it.id == assignedUserId },
-            options = listOf(null) + users,
-            onSelect = { onAssignedUserChange(it?.id) },
+            selected = state.users.find { it.id == state.assignedUserId },
+            options = listOf(null) + state.users,
+            onSelect = { callbacks.onAssignedUserChange(it?.id) },
             display = { it?.name ?: "Unassigned" },
-            enabled = enabled,
+            enabled = state.enabled,
         )
     }
 }

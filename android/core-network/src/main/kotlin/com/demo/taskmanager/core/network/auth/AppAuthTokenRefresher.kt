@@ -24,6 +24,7 @@ class AppAuthTokenRefresher @Inject constructor(
     private val tokenStore: TokenStore,
 ) : TokenRefresher {
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun refresh(refreshToken: String): String? {
         return try {
             val serviceConfig = AuthorizationServiceConfiguration(

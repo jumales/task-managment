@@ -13,6 +13,14 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
+// Raise test JVM heap for all modules — Compose + Hilt + MockK classloading
+// can exhaust the default 512 MB in feature modules with heavy dependencies.
+subprojects {
+    tasks.withType<Test>().configureEach {
+        maxHeapSize = "1g"
+    }
+}
+
 detekt {
     config.setFrom("$projectDir/config/detekt.yml")
     source.setFrom(
