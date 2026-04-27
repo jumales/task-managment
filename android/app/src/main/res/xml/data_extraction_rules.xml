@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data extraction rules (API 31+). Excludes encrypted token SharedPreferences from
+    both cloud backup and D2D device transfers so stale ciphertext is never restored.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="secure_tokens.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="secure_tokens.xml" />
+    </device-transfer>
+</data-extraction-rules>

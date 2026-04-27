@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Legacy backup rules (API 26–30). Excludes encrypted token SharedPreferences from
+    Android Auto Backup so stale ciphertext is never restored after reinstall.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="secure_tokens.xml" />
+</full-backup-content>
