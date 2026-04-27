@@ -17,9 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,7 +29,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.demo.taskmanager.core.ui.components.ConfirmationDialog
 import com.demo.taskmanager.core.ui.components.LoadingScreen
 
 /**
@@ -65,15 +63,28 @@ fun TemplateEditScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.navigateBack) {
-        if (uiState.navigateBack) { viewModel.onNavigatedBack(); onBack() }
+        if (uiState.navigateBack) {
+            viewModel.onNavigatedBack()
+            onBack()
+        }
     }
     LaunchedEffect(uiState.snackbarMessage) {
-        uiState.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearSnackbar() }
+        uiState.snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSnackbar()
+        }
     }
 
     if (showDeleteDialog) {
-        TemplateDeleteDialog(
-            onConfirm = { showDeleteDialog = false; viewModel.delete() },
+        ConfirmationDialog(
+            title = "Reset to default?",
+            message = "This will delete the custom template and revert to the default email body for this event type.",
+            confirmLabel = "Reset",
+            destructive = true,
+            onConfirm = {
+                showDeleteDialog = false
+                viewModel.delete()
+            },
             onDismiss = { showDeleteDialog = false },
         )
     }
@@ -100,26 +111,14 @@ fun TemplateEditScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        if (uiState.isLoading) { LoadingScreen(); return@Scaffold }
+        if (uiState.isLoading) {
+            LoadingScreen()
+            return@Scaffold
+        }
         TemplateEditForm(uiState = uiState, onSubjectChange = viewModel::onSubjectChange,
             onBodyChange = viewModel::onBodyChange, onSave = viewModel::save,
             modifier = Modifier.padding(padding))
     }
-}
-
-@Composable
-private fun TemplateDeleteDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Reset to default?") },
-        text = { Text("This will delete the custom template and revert to the default email body for this event type.") },
-        confirmButton = {
-            TextButton(onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) { Text("Reset") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -144,7 +143,6 @@ private fun TemplateEditForm(
         if (uiState.placeholders.isNotEmpty()) {
             PlaceholdersPanel(
                 placeholders = uiState.placeholders,
-                body = uiState.body,
                 expanded = placeholdersExpanded,
                 onToggle = { placeholdersExpanded = !placeholdersExpanded },
                 onInsert = { token -> onBodyChange(uiState.body + "{$token}") },
@@ -162,7 +160,6 @@ private fun TemplateEditForm(
 @Composable
 private fun PlaceholdersPanel(
     placeholders: Map<String, String>,
-    body: String,
     expanded: Boolean,
     onToggle: () -> Unit,
     onInsert: (String) -> Unit,
