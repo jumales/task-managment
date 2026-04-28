@@ -1,0 +1,193 @@
+---
+title: "Android development guide"
+description: "Prerequisites, local setup, build flavors, testing, and troubleshooting for the Android client."
+keywords: ["android", "kotlin", "compose", "emulator", "keycloak", "firebase", "fcm", "local setup"]
+---
+
+# Android development guide
+
+## 1. Prerequisites
+
+| Tool | Version |
+|---|---|
+| Android Studio | Hedgehog (2024.x) or newer |
+| JDK | 17 (matches backend `.sdkmanrc`) |
+| Android SDK | API 34 |
+| Build tools | 34.0.0 |
+| Kotlin | 2.0 (bundled with AGP 8.5) |
+
+You also need a **Firebase project** with FCM enabled and an `android/app/google-services.json` file (see step 2).
+
+## 2. One-time setup
+
+```bash
+cd android
+cp local.properties.example local.properties
+```
+
+Edit `android/local.properties`:
+
+```properties
+# Android Studio fills this in automatically on first open
+sdk.dir=/Users/<you>/Library/Android/sdk
+
+# Only needed for the "device" flavor (real device on LAN)
+LAN_BASE_URL=http://192.168.x.y:8080
+
+# Only needed for the "tunnel" flavor (ngrok / Cloudflare)
+TUNNEL_BASE_URL=https://xxxx.ngrok.io
+TUNNEL_KEYCLOAK_ISSUER=https://xxxx.ngrok.io/realms/task-manager
+```
+
+**Firebase setup:**
+
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com).
+2. Add an Android app with package `com.demo.taskmanager`.
+3. Download `google-services.json` and place it at `android/app/google-services.json`.
+4. For FCM backend (push notifications): export your Firebase service-account JSON:
+   ```bash
+   export FIREBASE_CREDENTIALS_JSON="$(cat ~/Downloads/firebase-adminsdk.json)"
+   ```
+
+## 3. Build flavors
+
+The app has three `env` product flavors. Each bakes different `BASE_URL` / `KEYCLOAK_ISSUER` `BuildConfig` fields:
+
+| Flavor | `BASE_URL` | `KEYCLOAK_ISSUER` | Use case |
+|---|---|---|---|
+| `emulator` | `http://10.0.2.2:8080` | `http://10.0.2.2:8180/realms/demo` | Android emulator (default dev loop) |
+| `device` | `LAN_BASE_URL` from `local.properties` | derived from `LAN_BASE_URL` (port 8180) | Physical device on same Wi-Fi |
+| `tunnel` | `TUNNEL_BASE_URL` from `local.properties` | `TUNNEL_KEYCLOAK_ISSUER` | Remote access via ngrok/Cloudflare |
+
+## 4. Running locally — emulator (preferred)
+
+```bash
+# Start backend — Keycloak :8180, api-gateway :8080
+./scripts/start-dev.sh
+
+# In Android Studio: launch a Pixel_7_API_34 emulator, then:
+cd android
+./gradlew :app:installEmulatorDebug
+```
+
+The emulator reaches the host machine at `10.0.2.2`, so no extra configuration is needed.
+Log in with `admin / admin`.
+
+## 5. Running on a real device — same Wi-Fi
+
+**Option A — firewall + LAN IP**
+
+1. Allow inbound ports 8080 and 8180 through your laptop's firewall.
+2. Find your LAN IP:
+   ```bash
+   ipconfig getifaddr en0
+   ```
+3. Set `LAN_BASE_URL=http://192.168.x.y:8080` in `android/local.properties`.
+4. Keycloak must be reachable at the same host. In `docker-compose.yml`, add:
+   ```yaml
+   environment:
+     KC_HOSTNAME_URL: http://192.168.x.y:8180
+   ```
+   Then restart Keycloak.
+5. Add the LAN URL to the `mobile-app` Keycloak client's **Valid redirect URIs** and **Web origins**.
+6. Install:
+   ```bash
+   ./gradlew :app:installDeviceDebug   # USB debugging enabled
+   ```
+
+**Option B — `adb reverse` (no firewall changes needed)**
+
+```bash
+adb reverse tcp:8080 tcp:8080
+adb reverse tcp:8180 tcp:8180
+```
+
+The device then tunnels through USB; use the `emulator` flavor so it hits `10.0.2.2`.
+
+## 6. Running on a real device — remote (ngrok / Cloudflare)
+
+```bash
+# Two tunnels
+ngrok http 8080   # api-gateway
+ngrok http 8180   # Keycloak
+```
+
+1. Set `TUNNEL_BASE_URL` and `TUNNEL_KEYCLOAK_ISSUER` in `android/local.properties`.
+2. Add the Keycloak ngrok URL to the `mobile-app` client's **Valid redirect URIs**.
+3. Set `KC_HOSTNAME_URL` to the Keycloak ngrok URL and restart Keycloak.
+4. Install:
+   ```bash
+   ./gradlew :app:installTunnelDebug
+   ```
+
+Real HTTPS from ngrok avoids `ERR_CLEARTEXT_NOT_PERMITTED` without any `network_security_config.xml` changes.
+
+## 7. Testing
+
+### Unit tests
+
+```bash
+cd android
+# Domain and data layer
+./gradlew :data:test :domain:test :core-network:test
+
+# Feature module unit tests
+./gradlew :feature-tasks:test :feature-projects:test :feature-users:test \
+          :feature-work:test :feature-attachments:test :feature-config:test
+```
+
+### Instrumented tests (Gradle Managed Device)
+
+Downloads the `Pixel 6 / API 33 / aosp` system image once, then runs headless:
+
+```bash
+./gradlew :app:pixel6api33EmulatorDebugAndroidTest
+```
+
+### Code quality
+
+```bash
+# Static analysis (Detekt)
+./gradlew detekt
+
+# Lint
+./gradlew :app:lintEmulatorDebug
+```
+
+### Manual smoke checklist (before each release)
+
+1. Login with `admin / admin`.
+2. Create a task → confirm it appears in the web client.
+3. Add a comment → confirm it is visible in the web client.
+4. Edit the task from the web client → Android push notification arrives → tap it → detail screen refreshes.
+5. Logout → confirm the device token is removed (`GET /api/v1/device-tokens/me` returns empty list).
+
+## 8. Keycloak reachability matrix
+
+| Flavor | Keycloak URL | Redirect URI to whitelist |
+|---|---|---|
+| `emulator` | `http://10.0.2.2:8180/realms/demo` | `taskmanager://callback` |
+| `device` | `http://<LAN_IP>:8180/realms/demo` | `taskmanager://callback` |
+| `tunnel` | `https://<keycloak-ngrok>/realms/demo` | `taskmanager://callback` |
+
+## 9. Troubleshooting
+
+**401 loop**
+Check system clock skew. Verify the `iss` JWT claim matches `KEYCLOAK_ISSUER` in `BuildConfig`.
+For the `device` flavor, confirm `KC_HOSTNAME_URL` is set and Keycloak was restarted after the change.
+
+**`ERR_CLEARTEXT_NOT_PERMITTED`**
+Only `debug` builds allow cleartext (via `network_security_config.xml`).
+Production APKs must use HTTPS — use the `tunnel` flavor or expose Keycloak behind a real TLS endpoint.
+
+**FCM delivers nothing**
+Verify `FCM_ENABLED=true` on the backend; confirm `google-services.json` package ID matches `com.demo.taskmanager`; check `GET /api/v1/device-tokens/me` to see if the device token was registered.
+
+**Push received but no notification shown**
+Android 13+ requires `POST_NOTIFICATIONS` permission.
+Go to system **Settings → Apps → Task Manager → Notifications** and enable it.
+
+**Login spinning forever**
+Keycloak redirect URI mismatch.
+Open the system browser's URL bar during the auth flow — the full redirect URL is visible there.
+Add it to the `mobile-app` client's **Valid Redirect URIs** in the Keycloak admin console.

@@ -44,7 +44,8 @@
               "development/testing",
               "development/conventions",
               "development/claude-automation",
-              "development/keycloak"
+              "development/keycloak",
+              "development/android-dev"
             ]
           },
           {
